@@ -106,14 +106,18 @@ def run_conjunction_analysis(
     step_minutes: int = 1,
     use_altitude_prefilter: bool = True,
     sigma_km: float | None = None,
+    debris_catalog: list[ParsedTle] | None = None,
+    catalog_meta=None,
 ) -> ConjunctionAnalysisResult:
     t0 = time.perf_counter()
     satellite = parse_tle(tle_text)
     start = _utc_now()
     end = start + timedelta(days=duration_days)
 
-    debris_catalog, catalog_meta = fetch_debris_catalog()
-    set_last_provider_label(catalog_meta.provider)
+    if debris_catalog is None or catalog_meta is None:
+        debris_catalog, catalog_meta = fetch_debris_catalog()
+        set_last_provider_label(catalog_meta.provider)
+
     catalog_count = len(debris_catalog)
 
     debris_catalog = [d for d in debris_catalog if d.norad_id != satellite.norad_id]

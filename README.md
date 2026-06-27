@@ -10,6 +10,8 @@
 
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
 - **衝突確率 Pc**（Foster 2D モデル）と Pc ベースのリスクレベル
+- **CDM インポート** — CCSDS CDM テキスト解析、外部 Pc vs CAS 計算の比較
+- **コンステレーション監視** — 最大 10 衛星の TLE 一括接近解析
 - CesiumJS による 3D 軌道可視化・TCA マーカー・タイムスライダー
 - prograde / retrograde / normal 方向の Δv 試算（Before/After）
 
@@ -67,7 +69,10 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 |---------------|---------|------|
 | `/health` | GET | 死活監視 |
 | `/api/v1/conjunctions` | POST | 接近イベント検出 |
-| `/api/v1/orbit` | POST | 軌道点列（3D 描画用） |
+| `/api/v1/conjunctions/batch` | POST | 複数衛星一括接近解析 |
+| `/api/v1/cdm/parse` | POST | CDM テキスト解析 |
+| `/api/v1/cdm/compare` | POST | CDM vs CAS 比較 |
+| `/api/v1/orbit` | POST | 軌道点列（3D 表示用） |
 | `/api/v1/maneuver/preview` | POST | 回避マニューバ試算 |
 
 詳細は [docs/api-design.md](docs/api-design.md) を参照。
@@ -76,6 +81,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 
 - [要件定義書 Phase 1](docs/requirements.md)
 - [要件定義書 Phase 2](docs/requirements-phase2.md)
+- [要件定義書 Phase 3](docs/requirements-phase3.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
 

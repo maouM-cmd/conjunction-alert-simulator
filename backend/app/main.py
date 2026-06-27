@@ -5,10 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPIfrom fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.routers import conjunctions, health, maneuver, orbit
+from backend.app.routers import batch, cdm, conjunctions, health, maneuver, orbit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -32,6 +33,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(conjunctions.router)
+app.include_router(batch.router)
+app.include_router(cdm.router)
 app.include_router(orbit.router)
 app.include_router(maneuver.router)
 

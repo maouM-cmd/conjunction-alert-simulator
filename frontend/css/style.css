@@ -174,3 +174,58 @@ label {
     height: 50vh;
   }
 }
+
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  background: #11182b;
+  border-bottom: 1px solid #243049;
+}
+
+.mode-tabs .tab {
+  padding: 0.65rem 1.2rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #9fb0d0;
+}
+
+.mode-tabs .tab.active {
+  color: #e8edf7;
+  border-bottom-color: #3d73ff;
+  background: #0f1526;
+}
+
+.mode-panel.hidden {
+  display: none;
+}
+
+.cdm-result {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  background: #141c30;
+  border: 1px solid #2a3858;
+  border-radius: 6px;
+  padding: 0.6rem;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.compare-col h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: #b8c9ea;
+}
+
+.compare-delta {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #2a3858;
+}

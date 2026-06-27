@@ -13,12 +13,18 @@
 <body>
   <header class="app-header">
     <h1>Conjunction Alert Simulator</h1>
-    <p class="subtitle">衛星 TLE から7日間のデブリ接近を検出・可視化</p>
+    <p class="subtitle">衛星 TLE から7日間のデブリ接近を検出・可視化（Phase 3: CDM / コンステレーション）</p>
   </header>
+
+  <nav class="mode-tabs" role="tablist">
+    <button id="tab-single" type="button" class="tab active" data-mode="single" role="tab">単一衛星</button>
+    <button id="tab-constellation" type="button" class="tab" data-mode="constellation" role="tab">コンステレーション</button>
+    <button id="tab-cdm" type="button" class="tab" data-mode="cdm" role="tab">CDM 比較</button>
+  </nav>
 
   <main class="layout">
     <aside class="panel sidebar">
-      <section>
+      <section id="panel-single" class="mode-panel">
         <h2>衛星 TLE</h2>
         <textarea id="tle-input" rows="6" placeholder="3行 TLE を入力..."></textarea>
         <label>
@@ -35,6 +41,42 @@
           <button id="btn-scan" type="button" class="primary">接近解析</button>
         </div>
         <p id="status-msg" class="status-msg" aria-live="polite"></p>
+      </section>
+
+      <section id="panel-constellation" class="mode-panel hidden">
+        <h2>コンステレーション TLE</h2>
+        <p class="meta">複数 TLE を <code>---</code> で区切って入力（最大10衛星）</p>
+        <textarea id="constellation-input" rows="10" placeholder="SAT-1 TLE&#10;---&#10;SAT-2 TLE"></textarea>
+        <label>
+          接近閾値 (km)
+          <input id="batch-threshold-km" type="number" min="1" max="500" step="0.5" value="50" />
+        </label>
+        <div class="button-row">
+          <button id="btn-load-constellation-demo" type="button">デモ読込</button>
+          <button id="btn-batch-scan" type="button" class="primary">一括解析</button>
+        </div>
+        <p id="batch-status-msg" class="status-msg" aria-live="polite"></p>
+        <label id="satellite-select-wrap" class="hidden">
+          衛星選択
+          <select id="satellite-select"></select>
+        </label>
+        <p id="batch-summary" class="meta"></p>
+      </section>
+
+      <section id="panel-cdm" class="mode-panel hidden">
+        <h2>CDM テキスト</h2>
+        <textarea id="cdm-input" rows="8" placeholder="CCSDS CDM key=value 形式..."></textarea>
+        <h2>比較用 TLE</h2>
+        <label>衛星 TLE</label>
+        <textarea id="cdm-sat-tle" rows="4"></textarea>
+        <label>デブリ TLE</label>
+        <textarea id="cdm-deb-tle" rows="4"></textarea>
+        <div class="button-row">
+          <button id="btn-load-cdm-demo" type="button">デモ CDM 読込</button>
+          <button id="btn-cdm-compare" type="button" class="primary">比較実行</button>
+        </div>
+        <p id="cdm-status-msg" class="status-msg" aria-live="polite"></p>
+        <div id="cdm-result" class="cdm-result hidden"></div>
       </section>
 
       <section>

@@ -60,10 +60,11 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 `http://127.0.0.1:8000/app/` を開き、**デモ TLE 読込** → **接近解析**（閾値 50 km）を試してください。
 
-## 今後（Phase 3）
+## Phase 3 で追加したこと
 
-- 複数衛星監視
-- CDM インポート
+- **CDM 比較タブ:** `samples/example.cdm` と demo TLE を読み込み、Space-Track 等の外部 Pc/miss distance と CAS 計算値を並べて表示
+- **コンステレーションタブ:** `---` 区切りの複数 TLE を一括解析。衛星選択で 3D 表示・回避試算に連動
+- **Batch API:** デブリカタログ 1 回取得で最大 10 衛星を解析
 
 ## まとめ
 

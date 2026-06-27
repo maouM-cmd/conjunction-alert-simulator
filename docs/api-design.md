@@ -1,6 +1,6 @@
 # API 設計書
 
-**版:** 2.0  
+**版:** 3.0  
 **ベース URL:** `http://127.0.0.1:8000`
 
 ---
@@ -175,12 +175,128 @@
 
 ---
 
+---
+
+## POST /api/v1/cdm/parse
+
+CDM テキストを構造化 JSON に変換する。
+
+### リクエスト
+
+```json
+{
+  "cdm_text": "CCSDS_CDM_VERS = 1.0\nTCA = 2026/180/15:57:36.000\n..."
+}
+```
+
+### レスポンス 200
+
+```json
+{
+  "tca": "2026-06-29T15:57:36Z",
+  "miss_distance_km": 29.75,
+  "relative_speed_kms": 7.283,
+  "pc_external": 3.2e-05,
+  "sat1_designator": "1998-067A",
+  "sat2_designator": "1993-036ATM",
+  "sat1_object": "ISS (ZARYA)",
+  "sat2_object": "COSMOS 2251 DEB"
+}
+```
+
+---
+
+## POST /api/v1/cdm/compare
+
+CDM 外部値と CAS SGP4 計算値を比較する。
+
+### リクエスト
+
+```json
+{
+  "cdm_text": "...",
+  "satellite_tle": "...",
+  "debris_tle": "...",
+  "duration_days": 7,
+  "step_minutes": 1,
+  "sigma_km": null
+}
+```
+
+### レスポンス 200
+
+```json
+{
+  "cdm": {
+    "miss_distance_km": 29.75,
+    "pc": 3.2e-05,
+    "relative_velocity_kms": 7.283,
+    "tca": "2026-06-29T15:57:36Z"
+  },
+  "cas": {
+    "miss_distance_km": 30.12,
+    "pc": 2.8e-05,
+    "relative_velocity_kms": 7.29,
+    "tca": "2026-06-29T15:58:00Z"
+  },
+  "delta_miss_km": 0.37,
+  "delta_pc_ratio": 0.875
+}
+```
+
+---
+
+## POST /api/v1/conjunctions/batch
+
+複数衛星 TLE を一括解析する（デブリカタログは 1 回取得）。
+
+### リクエスト
+
+```json
+{
+  "satellites": [
+    { "name": "SAT-1", "tle": "..." },
+    { "name": "SAT-2", "tle": "..." }
+  ],
+  "threshold_km": 50,
+  "duration_days": 7,
+  "step_minutes": 1,
+  "sigma_km": null
+}
+```
+
+最大 10 衛星。
+
+### レスポンス 200
+
+```json
+{
+  "results": [ /* ConjunctionsResponse の配列 */ ],
+  "summary": {
+    "satellite_count": 2,
+    "total_events": 15,
+    "highest_pc": 1.2e-05,
+    "highest_pc_satellite": "SAT-1",
+    "highest_pc_debris": "COSMOS 2251 DEB"
+  },
+  "computation_time_ms": 120000,
+  "tle_provider": "celestrak"
+}
+```
+
+タイムアウト: 600 秒。
+
+---
+
 ## Pydantic モデル対応表
 
 | モデル | ファイル |
 |--------|---------|
 | ConjunctionsRequest | `backend/app/models/schemas.py` |
 | ConjunctionsResponse | 同上 |
+| CdmParseRequest / CdmRecordOut | 同上 |
+| CdmCompareRequest / CdmCompareResponse | 同上 |
+| BatchConjunctionsRequest / BatchConjunctionsResponse | 同上 |
 | OrbitRequest / OrbitResponse | 同上 |
 | ManeuverPreviewRequest / ManeuverPreviewResponse | 同上 |
 

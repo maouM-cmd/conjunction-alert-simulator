@@ -1,4 +1,4 @@
-/** Main UI: TLE input, conjunction scan, maneuver preview. */
+/** Main UI: TLE input, conjunction scan, batch, CDM compare, maneuver preview. */
 
 import {
   initViewer,
@@ -17,6 +17,12 @@ const ISS_SAMPLE = `ISS (ZARYA)
 const DEMO_THRESHOLD_KM = 50;
 
 const els = {
+  tabSingle: document.getElementById("tab-single"),
+  tabConstellation: document.getElementById("tab-constellation"),
+  tabCdm: document.getElementById("tab-cdm"),
+  panelSingle: document.getElementById("panel-single"),
+  panelConstellation: document.getElementById("panel-constellation"),
+  panelCdm: document.getElementById("panel-cdm"),
   tleInput: document.getElementById("tle-input"),
   btnLoadSample: document.getElementById("btn-load-sample"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
@@ -24,6 +30,21 @@ const els = {
   sigmaKm: document.getElementById("sigma-km"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
+  constellationInput: document.getElementById("constellation-input"),
+  batchThresholdKm: document.getElementById("batch-threshold-km"),
+  btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
+  btnBatchScan: document.getElementById("btn-batch-scan"),
+  batchStatusMsg: document.getElementById("batch-status-msg"),
+  satelliteSelectWrap: document.getElementById("satellite-select-wrap"),
+  satelliteSelect: document.getElementById("satellite-select"),
+  batchSummary: document.getElementById("batch-summary"),
+  cdmInput: document.getElementById("cdm-input"),
+  cdmSatTle: document.getElementById("cdm-sat-tle"),
+  cdmDebTle: document.getElementById("cdm-deb-tle"),
+  btnLoadCdmDemo: document.getElementById("btn-load-cdm-demo"),
+  btnCdmCompare: document.getElementById("btn-cdm-compare"),
+  cdmStatusMsg: document.getElementById("cdm-status-msg"),
+  cdmResult: document.getElementById("cdm-result"),
   scanMeta: document.getElementById("scan-meta"),
   conjunctionList: document.getElementById("conjunction-list"),
   maneuverSection: document.getElementById("maneuver-section"),
@@ -36,10 +57,22 @@ const els = {
 
 let selectedConjunction = null;
 let lastSatelliteTle = "";
+let batchResults = [];
+let currentMode = "single";
 
 function setStatus(msg, isError = false) {
   els.statusMsg.textContent = msg;
   els.statusMsg.classList.toggle("error", isError);
+}
+
+function setBatchStatus(msg, isError = false) {
+  els.batchStatusMsg.textContent = msg;
+  els.batchStatusMsg.classList.toggle("error", isError);
+}
+
+function setCdmStatus(msg, isError = false) {
+  els.cdmStatusMsg.textContent = msg;
+  els.cdmStatusMsg.classList.toggle("error", isError);
 }
 
 async function apiPost(path, body) {
@@ -63,13 +96,34 @@ async function apiPost(path, body) {
 }
 
 function formatTime(iso) {
+  if (!iso) return "—";
   return iso.replace("T", " ").replace("Z", " UTC");
 }
 
 function formatPc(pc) {
+  if (pc == null) return "—";
   if (pc >= 0.0001) return pc.toExponential(2);
   if (pc === 0) return "0";
   return pc.toExponential(1);
+}
+
+function parseConstellationBlocks(text) {
+  const blocks = text.split("---").map((b) => b.trim()).filter(Boolean);
+  return blocks.map((block, i) => {
+    const firstLine = block.split("\n")[0].trim();
+    const name = firstLine.startsWith("1 ") ? `SAT-${i + 1}` : firstLine;
+    return { name, tle: block };
+  });
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  for (const tab of [els.tabSingle, els.tabConstellation, els.tabCdm]) {
+    tab.classList.toggle("active", tab.dataset.mode === mode);
+  }
+  els.panelSingle.classList.toggle("hidden", mode !== "single");
+  els.panelConstellation.classList.toggle("hidden", mode !== "constellation");
+  els.panelCdm.classList.toggle("hidden", mode !== "cdm");
 }
 
 function renderConjunctions(data) {
@@ -171,6 +225,139 @@ async function runScan() {
   }
 }
 
+async function runBatchScan() {
+  const text = els.constellationInput.value.trim();
+  if (!text) {
+    setBatchStatus("TLE を入力してください。", true);
+    return;
+  }
+
+  const satellites = parseConstellationBlocks(text);
+  if (satellites.length > 10) {
+    setBatchStatus("衛星数は最大 10 件です。", true);
+    return;
+  }
+
+  selectedConjunction = null;
+  els.maneuverSection.classList.add("hidden");
+  els.conjunctionList.innerHTML = "";
+  els.scanMeta.textContent = "";
+  els.satelliteSelectWrap.classList.add("hidden");
+  els.batchSummary.textContent = "";
+  setBatchStatus(`一括解析中（${satellites.length} 衛星）...`);
+  els.btnBatchScan.disabled = true;
+
+  try {
+    const threshold = parseFloat(els.batchThresholdKm.value) || 50.0;
+    const data = await apiPost("/api/v1/conjunctions/batch", {
+      satellites,
+      duration_days: 7,
+      threshold_km: threshold,
+      step_minutes: 1,
+    });
+
+    batchResults = data.results.map((r, i) => ({
+      ...r,
+      tle: satellites[i].tle,
+    }));
+
+    const s = data.summary;
+    els.batchSummary.textContent =
+      `全 ${s.satellite_count} 衛星 / 合計 ${s.total_events} 件 / ` +
+      `最高 Pc = ${formatPc(s.highest_pc)}` +
+      (s.highest_pc_satellite
+        ? `（${s.highest_pc_satellite} vs ${s.highest_pc_debris || "—"}）`
+        : "");
+
+    els.satelliteSelect.innerHTML = "";
+    batchResults.forEach((r, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${r.satellite.name} (${r.conjunctions.length} 件)`;
+      els.satelliteSelect.appendChild(opt);
+    });
+    els.satelliteSelectWrap.classList.remove("hidden");
+
+    if (batchResults.length > 0) {
+      showBatchSatellite(0);
+    }
+    setBatchStatus(`一括解析完了（${data.computation_time_ms} ms）`);
+  } catch (err) {
+    setBatchStatus(err.message, true);
+  } finally {
+    els.btnBatchScan.disabled = false;
+  }
+}
+
+function showBatchSatellite(index) {
+  const result = batchResults[index];
+  if (!result) return;
+  lastSatelliteTle = result.tle;
+  renderConjunctions(result);
+}
+
+async function runCdmCompare() {
+  const cdmText = els.cdmInput.value.trim();
+  const satTle = els.cdmSatTle.value.trim();
+  const debTle = els.cdmDebTle.value.trim();
+
+  if (!cdmText || !satTle || !debTle) {
+    setCdmStatus("CDM と TLE ペアを入力してください。", true);
+    return;
+  }
+
+  els.btnCdmCompare.disabled = true;
+  els.cdmResult.classList.add("hidden");
+  setCdmStatus("CDM 比較を実行中...");
+
+  try {
+    const data = await apiPost("/api/v1/cdm/compare", {
+      cdm_text: cdmText,
+      satellite_tle: satTle,
+      debris_tle: debTle,
+      duration_days: 7,
+      step_minutes: 1,
+    });
+
+    const missDelta =
+      data.delta_miss_km != null
+        ? `${data.delta_miss_km >= 0 ? "+" : ""}${data.delta_miss_km.toFixed(3)} km`
+        : "—";
+    const pcRatio =
+      data.delta_pc_ratio != null
+        ? `${(data.delta_pc_ratio * 100).toFixed(1)}% (CAS/CDM)`
+        : "—";
+
+    els.cdmResult.innerHTML = `
+      <div class="compare-grid">
+        <div class="compare-col">
+          <h3>CDM（外部）</h3>
+          <div>TCA: ${formatTime(data.cdm.tca)}</div>
+          <div>Miss distance: ${data.cdm.miss_distance_km?.toFixed(3) ?? "—"} km</div>
+          <div>Pc: ${formatPc(data.cdm.pc)}</div>
+          <div>相対速度: ${data.cdm.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
+        </div>
+        <div class="compare-col">
+          <h3>CAS 計算</h3>
+          <div>TCA: ${formatTime(data.cas.tca)}</div>
+          <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
+          <div>Pc: ${formatPc(data.cas.pc)}</div>
+          <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
+        </div>
+      </div>
+      <div class="compare-delta">
+        <strong>差分:</strong> Miss Δ = ${missDelta} / Pc 比 = ${pcRatio}
+      </div>
+    `;
+    els.cdmResult.classList.remove("hidden");
+    setCdmStatus("比較完了。");
+  } catch (err) {
+    setCdmStatus(err.message, true);
+  } finally {
+    els.btnCdmCompare.disabled = false;
+  }
+}
+
 async function runManeuver() {
   if (!selectedConjunction) return;
 
@@ -223,9 +410,45 @@ async function loadDemoTle() {
   }
 }
 
+async function loadConstellationDemo() {
+  try {
+    const res = await fetch(`${API_BASE}/samples/constellation-demo.tle`);
+    if (!res.ok) throw new Error("コンステレーションデモ TLE が見つかりません。");
+    els.constellationInput.value = (await res.text()).trim();
+    els.batchThresholdKm.value = String(DEMO_THRESHOLD_KM);
+    setBatchStatus("デモ TLE を読み込みました。一括解析を実行してください。");
+  } catch (err) {
+    setBatchStatus(err.message, true);
+  }
+}
+
+async function loadCdmDemo() {
+  try {
+    const [cdmRes, satRes, debRes] = await Promise.all([
+      fetch(`${API_BASE}/samples/example.cdm`),
+      fetch(`${API_BASE}/samples/demo-satellite.tle`),
+      fetch(`${API_BASE}/samples/demo-debris.tle`),
+    ]);
+    if (!cdmRes.ok || !satRes.ok || !debRes.ok) {
+      throw new Error("デモ CDM / TLE が見つかりません。");
+    }
+    els.cdmInput.value = (await cdmRes.text()).trim();
+    els.cdmSatTle.value = (await satRes.text()).trim();
+    els.cdmDebTle.value = (await debRes.text()).trim();
+    setCdmStatus("デモ CDM と TLE を読み込みました。比較実行を押してください。");
+  } catch (err) {
+    setCdmStatus(err.message, true);
+  }
+}
+
 function init() {
   initViewer();
   els.tleInput.value = ISS_SAMPLE;
+
+  els.tabSingle.addEventListener("click", () => switchMode("single"));
+  els.tabConstellation.addEventListener("click", () => switchMode("constellation"));
+  els.tabCdm.addEventListener("click", () => switchMode("cdm"));
+
   els.btnLoadSample.addEventListener("click", () => {
     els.tleInput.value = ISS_SAMPLE;
     els.thresholdKm.value = "5";
@@ -233,6 +456,13 @@ function init() {
   });
   els.btnLoadDemo.addEventListener("click", loadDemoTle);
   els.btnScan.addEventListener("click", runScan);
+  els.btnLoadConstellationDemo.addEventListener("click", loadConstellationDemo);
+  els.btnBatchScan.addEventListener("click", runBatchScan);
+  els.satelliteSelect.addEventListener("change", () => {
+    showBatchSatellite(parseInt(els.satelliteSelect.value, 10));
+  });
+  els.btnLoadCdmDemo.addEventListener("click", loadCdmDemo);
+  els.btnCdmCompare.addEventListener("click", runCdmCompare);
   els.btnManeuver.addEventListener("click", runManeuver);
 }
 

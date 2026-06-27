@@ -99,3 +99,69 @@ class HealthResponse(BaseModel):
     tle_cache_stale: bool
     tle_provider: str
     spacetrack_configured: bool
+
+
+class CdmParseRequest(BaseModel):
+    cdm_text: str = Field(min_length=1)
+
+
+class CdmRecordOut(BaseModel):
+    tca: datetime | None
+    miss_distance_km: float | None
+    relative_speed_kms: float | None
+    pc_external: float | None
+    sat1_designator: str | None
+    sat2_designator: str | None
+    sat1_object: str | None
+    sat2_object: str | None
+
+
+class CdmCompareRequest(BaseModel):
+    cdm_text: str = Field(min_length=1)
+    satellite_tle: str
+    debris_tle: str
+    duration_days: float = Field(default=7.0, gt=0, le=30)
+    step_minutes: int = Field(default=1, ge=1, le=60)
+    sigma_km: float | None = Field(default=None, gt=0)
+
+
+class CdmCompareSide(BaseModel):
+    miss_distance_km: float | None
+    pc: float | None
+    relative_velocity_kms: float | None = None
+    tca: datetime | None = None
+
+
+class CdmCompareResponse(BaseModel):
+    cdm: CdmCompareSide
+    cas: CdmCompareSide
+    delta_miss_km: float | None
+    delta_pc_ratio: float | None
+
+
+class SatelliteInput(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    tle: str
+
+
+class BatchConjunctionsRequest(BaseModel):
+    satellites: list[SatelliteInput] = Field(min_length=1, max_length=10)
+    threshold_km: float = Field(default=50.0, gt=0)
+    duration_days: float = Field(default=7.0, gt=0, le=30)
+    step_minutes: int = Field(default=1, ge=1, le=60)
+    sigma_km: float | None = Field(default=None, gt=0)
+
+
+class BatchSummaryOut(BaseModel):
+    satellite_count: int
+    total_events: int
+    highest_pc: float
+    highest_pc_satellite: str | None
+    highest_pc_debris: str | None
+
+
+class BatchConjunctionsResponse(BaseModel):
+    results: list[ConjunctionsResponse]
+    summary: BatchSummaryOut
+    computation_time_ms: int
+    tle_provider: str
