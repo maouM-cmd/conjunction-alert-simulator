@@ -37,6 +37,7 @@ class ConjunctionOut(BaseModel):
     miss_distance_km: float
     relative_velocity_kms: float
     risk_level: Literal["high", "medium", "low"]
+    pc: float
 
 
 class ConjunctionsRequest(BaseModel):
@@ -44,6 +45,7 @@ class ConjunctionsRequest(BaseModel):
     duration_days: float = Field(default=7.0, gt=0, le=30)
     threshold_km: float = Field(default=5.0, gt=0)
     step_minutes: int = Field(default=1, ge=1, le=60)
+    sigma_km: float | None = Field(default=None, gt=0, description="位置不確かさ上書き (km)")
 
 
 class ConjunctionsResponse(BaseModel):
@@ -54,6 +56,7 @@ class ConjunctionsResponse(BaseModel):
     debris_catalog_count: int
     computation_time_ms: int
     tle_cache_stale: bool
+    tle_provider: str
 
 
 class OrbitRequest(BaseModel):
@@ -94,3 +97,5 @@ class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     tle_cache_age_hours: float | None
     tle_cache_stale: bool
+    tle_provider: str
+    spacetrack_configured: bool

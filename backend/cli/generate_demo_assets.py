@@ -82,7 +82,7 @@ def conjunction_table(events: list, out_path: Path) -> None:
     for e in events[:8]:
         lines.append(
             f"- {e['debris_name']} | {e['miss_distance_km']:.2f} km | "
-            f"{e['risk_level']} | TCA {e['tca'][:19]}Z"
+            f"Pc {e.get('pc', 0):.2e} | {e['risk_level']} | TCA {e['tca'][:19]}Z"
         )
     ax.text(
         0.05,

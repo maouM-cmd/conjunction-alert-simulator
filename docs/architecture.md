@@ -26,10 +26,18 @@ Frontend (CesiumJS)  ←→  FastAPI  ←→  Services
 
 ## 性能
 
-- デブリ全件ループは Python 単スレッド。Phase 1.5 で並列化を検討
+- デブリ全件ループは Python 単スレッド
 - 軌道 API は `step_minutes=5` で点列数を削減
-- **高度プレフィルタ（Phase 1 実装済み）:** 衛星の平均高度 ±200 km 帯のデブリのみフル伝播。数千件カタログを 60 秒以内に収めるため `backend/app/services/analysis.py` で適用（カタログ 500 件超のとき有効）
+- **高度プレフィルタ:** 衛星平均高度 ±200 km（`analysis.py`、500 件超カタログ時）
+- **Pc 計算:** Foster 2D（`pc_calculator.py`）、イベントは Pc 降順ソート
+
+## Phase 2: TLE プロバイダ
+
+- デフォルト: CelesTrak（24h キャッシュ）
+- オプション: Space-Track（`.env` 認証、`TLE_PROVIDER=spacetrack`）
+- 失敗時: CelesTrak フォールバック（`tle_provider: celestrak (fallback)`）
 
 ## 外部依存
 
-- CelesTrak: 無認証 GET。`GROUP=debris` は廃止のため、主要デブリ群（Iridium 33 / COSMOS 2251 等）をマージ取得。24h キャッシュ
+- CelesTrak: 無認証 GET。主要デブリ群をマージ取得
+- Space-Track: 要アカウント。利用規約に従う

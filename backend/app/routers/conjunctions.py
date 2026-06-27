@@ -30,6 +30,8 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
                 body.duration_days,
                 body.threshold_km,
                 body.step_minutes,
+                True,
+                body.sigma_km,
             ),
             timeout=COMPUTATION_TIMEOUT_SEC,
         )
@@ -52,6 +54,7 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
             miss_distance_km=round(e.miss_distance_km, 4),
             relative_velocity_kms=round(e.relative_velocity_kms, 4),
             risk_level=e.risk_level,  # type: ignore[arg-type]
+            pc=e.pc,
         )
         for e in result.events
         if e.risk_level in ("high", "medium", "low")
@@ -68,4 +71,5 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
         debris_catalog_count=result.debris_catalog_count,
         computation_time_ms=result.computation_time_ms,
         tle_cache_stale=result.tle_cache_stale,
+        tle_provider=result.tle_provider,
     )

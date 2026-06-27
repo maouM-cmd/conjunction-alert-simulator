@@ -8,15 +8,29 @@
 
 ## 機能
 
-- 自衛星 TLE 入力 → デブリ接近イベント一覧（5 km 閾値）
+- 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
+- **衝突確率 Pc**（Foster 2D モデル）と Pc ベースのリスクレベル
 - CesiumJS による 3D 軌道可視化・TCA マーカー・タイムスライダー
 - prograde / retrograde / normal 方向の Δv 試算（Before/After）
 
 ## 技術スタック
 
-- **Backend:** Python 3.12, FastAPI, SGP4, Skyfield
+- **Backend:** Python 3.12, FastAPI, SGP4
 - **Frontend:** HTML + CesiumJS（ビルド不要）
-- **データ:** [CelesTrak](https://celestrak.org/) デブリ TLE カタログ
+- **データ:** [CelesTrak](https://celestrak.org/)（デフォルト）/ [Space-Track](https://www.space-track.org/)（オプション）
+
+## Space-Track 連携（オプション）
+
+1. [Space-Track](https://www.space-track.org/auth/createAccount) でアカウント作成
+2. `.env.example` を `.env` にコピーして認証情報を設定
+
+```powershell
+copy .env.example .env
+# SPACE_TRACK_USER / SPACE_TRACK_PASSWORD を編集
+# TLE_PROVIDER=spacetrack
+```
+
+未設定時は CelesTrak のみ使用。Space-Track 失敗時は CelesTrak に自動フォールバック。
 
 ## セットアップ
 
@@ -60,7 +74,8 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 
 ## ドキュメント
 
-- [要件定義書](docs/requirements.md)
+- [要件定義書 Phase 1](docs/requirements.md)
+- [要件定義書 Phase 2](docs/requirements-phase2.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
 

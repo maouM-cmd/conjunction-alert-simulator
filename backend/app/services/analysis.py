@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from sgp4.api import jday
 
-from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions
+from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions, resolve_risk_level
+from backend.app.services.pc_calculator import compute_pc_for_conjunction
 from backend.app.services.propagator import OrbitPoint, create_satrec, propagate_orbit
-from backend.app.services.tle_fetcher import fetch_debris_catalog, is_cache_stale
+from backend.app.services.tle_fetcher import fetch_debris_catalog, is_cache_stale, set_last_provider_label
 from backend.app.services.tle_parser import ParsedTle, parse_tle
 
 EARTH_RADIUS_KM = 6378.137
@@ -28,6 +29,7 @@ class ConjunctionAnalysisResult:
     debris_catalog_count: int
     computation_time_ms: int
     tle_cache_stale: bool
+    tle_provider: str
 
 
 def _utc_now() -> datetime:
@@ -64,7 +66,6 @@ def _filter_debris_by_altitude(
     start: datetime,
     band_km: float = ALTITUDE_PREFILTER_KM,
 ) -> list[ParsedTle]:
-    """Keep debris whose altitude at analysis start is within ±band_km of satellite."""
     filtered: list[ParsedTle] = []
     for deb in debris_list:
         alt = _debris_altitude_at(deb, start)
@@ -75,22 +76,46 @@ def _filter_debris_by_altitude(
     return filtered
 
 
+def _enrich_with_pc(
+    events: list[ConjunctionEvent],
+    satellite: ParsedTle,
+    threshold_km: float,
+    analysis_time: datetime,
+    sigma_km: float | None,
+) -> list[ConjunctionEvent]:
+    enriched: list[ConjunctionEvent] = []
+    for event in events:
+        debris = parse_tle(event.debris_tle)
+        pc = compute_pc_for_conjunction(
+            event.miss_distance_km,
+            satellite,
+            debris,
+            analysis_time,
+            sigma_km=sigma_km,
+        )
+        risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=pc)
+        enriched.append(replace(event, pc=pc, risk_level=risk))
+    enriched.sort(key=lambda e: e.pc, reverse=True)
+    return enriched
+
+
 def run_conjunction_analysis(
     tle_text: str,
     duration_days: float = 7.0,
     threshold_km: float = 5.0,
     step_minutes: int = 1,
     use_altitude_prefilter: bool = True,
+    sigma_km: float | None = None,
 ) -> ConjunctionAnalysisResult:
     t0 = time.perf_counter()
     satellite = parse_tle(tle_text)
     start = _utc_now()
     end = start + timedelta(days=duration_days)
 
-    debris_catalog, _degraded = fetch_debris_catalog()
+    debris_catalog, catalog_meta = fetch_debris_catalog()
+    set_last_provider_label(catalog_meta.provider)
     catalog_count = len(debris_catalog)
 
-    # Exclude self if present in catalog
     debris_catalog = [d for d in debris_catalog if d.norad_id != satellite.norad_id]
 
     sat_points = propagate_orbit(satellite, start, duration_days, step_minutes)
@@ -110,7 +135,7 @@ def run_conjunction_analysis(
             continue
 
     events = detect_conjunctions(sat_points, debris_propagated, threshold_km)
-    # Remove 'none' risk level events (shouldn't happen if threshold filter works)
+    events = _enrich_with_pc(events, satellite, threshold_km, start, sigma_km)
     events = [e for e in events if e.risk_level != "none"]
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -122,7 +147,8 @@ def run_conjunction_analysis(
         events=events,
         debris_catalog_count=catalog_count,
         computation_time_ms=elapsed_ms,
-        tle_cache_stale=is_cache_stale(),
+        tle_cache_stale=is_cache_stale() or catalog_meta.degraded,
+        tle_provider=catalog_meta.provider,
     )
 
 

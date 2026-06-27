@@ -60,11 +60,10 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 `http://127.0.0.1:8000/app/` を開き、**デモ TLE 読込** → **接近解析**（閾値 50 km）を試してください。
 
-## 今後（Phase 2）
+## 今後（Phase 3）
 
-- 衝突確率 Pc（Foster 公式）
-- Space-Track 連携
 - 複数衛星監視
+- CDM インポート
 
 ## まとめ
 

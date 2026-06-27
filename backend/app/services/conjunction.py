@@ -27,6 +27,7 @@ class ConjunctionEvent:
     miss_distance_km: float
     relative_velocity_kms: float
     risk_level: str
+    pc: float = 0.0
 
 
 def find_closest_approach(
@@ -55,6 +56,14 @@ def find_closest_approach(
     )
 
 
+def risk_level_from_pc(pc: float) -> str:
+    if pc >= 1e-4:
+        return "high"
+    if pc >= 1e-6:
+        return "medium"
+    return "low"
+
+
 def risk_level_from_distance(miss_km: float, threshold_km: float) -> str:
     if miss_km >= threshold_km:
         return "none"
@@ -63,6 +72,12 @@ def risk_level_from_distance(miss_km: float, threshold_km: float) -> str:
     if miss_km < 3.0:
         return "medium"
     return "low"
+
+
+def resolve_risk_level(miss_km: float, threshold_km: float, pc: float | None = None) -> str:
+    if pc is not None and pc > 0:
+        return risk_level_from_pc(pc)
+    return risk_level_from_distance(miss_km, threshold_km)
 
 
 def detect_conjunctions(

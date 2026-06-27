@@ -1,6 +1,6 @@
 # API 設計書
 
-**版:** 1.0  
+**版:** 2.0  
 **ベース URL:** `http://127.0.0.1:8000`
 
 ---
@@ -21,7 +21,9 @@
 {
   "status": "ok",
   "tle_cache_age_hours": 2.5,
-  "tle_cache_stale": false
+  "tle_cache_stale": false,
+  "tle_provider": "celestrak",
+  "spacetrack_configured": false
 }
 ```
 
@@ -38,7 +40,8 @@
   "tle": "ISS (ZARYA)\n1 25544U 98067A   25179.51782528  .00016717  00000+0  10270-3 0  9993\n2 25544  51.6347  74.8662 0004176 315.5599 138.2340 15.50909589423071",
   "duration_days": 7,
   "threshold_km": 5.0,
-  "step_minutes": 1
+  "step_minutes": 1,
+  "sigma_km": 1.0
 }
 ```
 
@@ -48,6 +51,7 @@
 | duration_days | float | no | 7 | 解析期間（日） |
 | threshold_km | float | no | 5.0 | 接近閾値（km） |
 | step_minutes | int | no | 1 | 伝播刻み（分） |
+| sigma_km | float | no | null | 位置不確かさ σ (km)。未指定時 TLE 経過日数から推定 |
 
 ### レスポンス 200
 
@@ -70,16 +74,18 @@
       "tca": "2026-06-30T12:34:56Z",
       "miss_distance_km": 2.3,
       "relative_velocity_kms": 7.1,
-      "risk_level": "medium"
+      "risk_level": "medium",
+      "pc": 1.23e-05
     }
   ],
   "debris_catalog_count": 4200,
   "computation_time_ms": 8420,
-  "tle_cache_stale": false
+  "tle_cache_stale": false,
+  "tle_provider": "celestrak"
 }
 ```
 
-`conjunctions` は `miss_distance_km` 昇順でソート。
+`conjunctions` は Phase 2 以降 **Pc 降順** でソート。
 
 ### エラー
 

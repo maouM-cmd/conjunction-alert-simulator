@@ -21,6 +21,7 @@ const els = {
   btnLoadSample: document.getElementById("btn-load-sample"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
   thresholdKm: document.getElementById("threshold-km"),
+  sigmaKm: document.getElementById("sigma-km"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   scanMeta: document.getElementById("scan-meta"),
@@ -65,8 +66,14 @@ function formatTime(iso) {
   return iso.replace("T", " ").replace("Z", " UTC");
 }
 
+function formatPc(pc) {
+  if (pc >= 0.0001) return pc.toExponential(2);
+  if (pc === 0) return "0";
+  return pc.toExponential(1);
+}
+
 function renderConjunctions(data) {
-  els.scanMeta.textContent = `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms`;
+  els.scanMeta.textContent = `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms / TLE: ${data.tle_provider || "celestrak"}`;
   els.conjunctionList.innerHTML = "";
 
   if (data.conjunctions.length === 0) {
@@ -82,6 +89,7 @@ function renderConjunctions(data) {
       <strong>${c.debris_name}</strong> (NORAD ${c.debris_norad_id})<br />
       TCA: ${formatTime(c.tca)}<br />
       距離: ${c.miss_distance_km.toFixed(2)} km /
+      Pc: ${formatPc(c.pc)} /
       相対速度: ${c.relative_velocity_kms.toFixed(2)} km/s /
       <span class="risk-${c.risk_level}">${c.risk_level}</span>
     `;
@@ -143,12 +151,17 @@ async function runScan() {
 
   try {
     const threshold = parseFloat(els.thresholdKm.value) || 5.0;
-    const data = await apiPost("/api/v1/conjunctions", {
+    const sigmaRaw = els.sigmaKm.value.trim();
+    const payload = {
       tle,
       duration_days: 7,
       threshold_km: threshold,
       step_minutes: 1,
-    });
+    };
+    if (sigmaRaw) {
+      payload.sigma_km = parseFloat(sigmaRaw);
+    }
+    const data = await apiPost("/api/v1/conjunctions", payload);
     renderConjunctions(data);
     setStatus(`解析完了（${data.computation_time_ms} ms）`);
   } catch (err) {
