@@ -67,3 +67,12 @@ MIT License — 詳細は [LICENSE](LICENSE)
 ## デモ
 
 [docs/demo/README.md](docs/demo/README.md) にスクリーンショット手順を記載。技術ブログ草案は [docs/demo/blog-draft.md](docs/demo/blog-draft.md)。
+
+ISS サンプルでは 5 km 以内の接近が 0 件になることがあります。UI の **接近閾値** を 50 km などに広げるとデモしやすくなります。
+
+## GitHub 公開（任意）
+
+```powershell
+git remote add origin https://github.com/<your-user>/conjunction-alert-simulator.git
+git push -u origin main
+```

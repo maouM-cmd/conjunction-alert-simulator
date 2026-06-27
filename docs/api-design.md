@@ -66,6 +66,7 @@
     {
       "debris_norad_id": 12345,
       "debris_name": "DEBRIS EXAMPLE",
+      "debris_tle": "DEBRIS EXAMPLE\n1 12345U ...\n2 12345 ...",
       "tca": "2026-06-30T12:34:56Z",
       "miss_distance_km": 2.3,
       "relative_velocity_kms": 7.1,

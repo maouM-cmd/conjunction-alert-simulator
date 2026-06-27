@@ -17,6 +17,7 @@ const ISS_SAMPLE = `ISS (ZARYA)
 const els = {
   tleInput: document.getElementById("tle-input"),
   btnLoadSample: document.getElementById("btn-load-sample"),
+  thresholdKm: document.getElementById("threshold-km"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   scanMeta: document.getElementById("scan-meta"),
@@ -66,7 +67,8 @@ function renderConjunctions(data) {
   els.conjunctionList.innerHTML = "";
 
   if (data.conjunctions.length === 0) {
-    els.conjunctionList.innerHTML = "<li>5 km 以内の接近は検出されませんでした。</li>";
+    els.conjunctionList.innerHTML =
+      "<li>指定閾値以内の接近は検出されませんでした。デモ用に閾値を 50 km などに広げて再試行できます。</li>";
     return;
   }
 
@@ -137,10 +139,11 @@ async function runScan() {
   els.btnScan.disabled = true;
 
   try {
+    const threshold = parseFloat(els.thresholdKm.value) || 5.0;
     const data = await apiPost("/api/v1/conjunctions", {
       tle,
       duration_days: 7,
-      threshold_km: 5.0,
+      threshold_km: threshold,
       step_minutes: 1,
     });
     renderConjunctions(data);

@@ -21,6 +21,10 @@
       <section>
         <h2>衛星 TLE</h2>
         <textarea id="tle-input" rows="6" placeholder="3行 TLE を入力..."></textarea>
+        <label>
+          接近閾値 (km)
+          <input id="threshold-km" type="number" min="1" max="100" step="0.5" value="5" />
+        </label>
         <div class="button-row">
           <button id="btn-load-sample" type="button">ISS サンプル読込</button>
           <button id="btn-scan" type="button" class="primary">接近解析</button>
