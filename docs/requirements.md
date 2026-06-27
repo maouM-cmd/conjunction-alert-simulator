@@ -115,7 +115,7 @@
 1. 自衛星 TLE 入力 → 7日以内 5 km 接近デブリ一覧が **60秒以内** に表示
 2. 一覧から1件選択 → Cesium で衛星・デブリ軌道と TCA が 3D 表示
 3. Δv 指定 → 回避後 miss distance が Before/After 表示
-4. README 付き GitHub 公開済み
+4. README + デモ GIF 付きで **GitHub 公開済み**（https://github.com/maouM-cmd/conjunction-alert-simulator）
 5. 本要件定義書と実装が一致
 
 ---

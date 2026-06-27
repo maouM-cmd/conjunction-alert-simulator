@@ -12,6 +12,7 @@ from backend.app.routers import conjunctions, health, maneuver, orbit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+SAMPLES_DIR = PROJECT_ROOT / "samples"
 
 app = FastAPI(
     title="Conjunction Alert Simulator",
@@ -34,6 +35,9 @@ app.include_router(maneuver.router)
 
 if FRONTEND_DIR.is_dir():
     app.mount("/app", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
+if SAMPLES_DIR.is_dir():
+    app.mount("/samples", StaticFiles(directory=str(SAMPLES_DIR)), name="samples")
 
 
 @app.get("/")

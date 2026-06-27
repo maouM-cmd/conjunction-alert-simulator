@@ -1,0 +1,13 @@
+{
+  "satellite_name": "ISS (ZARYA)",
+  "satellite_norad_id": 25544,
+  "debris_name": "COSMOS 2251 DEB",
+  "debris_norad_id": 35602,
+  "miss_distance_km": 29.7538,
+  "tca": "2026-06-29T15:57:36.032209Z",
+  "relative_velocity_kms": 7.2832,
+  "risk_level": "low",
+  "recommended_threshold_km": 44.6,
+  "events_within_scan_km": 158,
+  "computation_time_ms": 86917
+}

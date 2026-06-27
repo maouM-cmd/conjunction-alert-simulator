@@ -6,3 +6,6 @@ sgp4>=2.23
 skyfield>=1.49
 httpx>=0.28.0
 python-dateutil>=2.9.0
+numpy>=2.0.0
+matplotlib>=3.9.0
+pillow>=11.0.0

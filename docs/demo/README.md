@@ -1,66 +1,38 @@
 # デモ手順
 
-Conjunction Alert Simulator（CAS）のデモ用スクリーンショット・GIF 作成手順です。
+Conjunction Alert Simulator（CAS）のデモ用スクリーンショット・GIF です。
 
-## 前提
+## 自動生成（推奨）
 
 ```powershell
 cd C:\Users\admin\OneDrive\ドキュメント\conjunction-alert-simulator
-python -m venv venv
 venv\Scripts\pip install -r requirements.txt
 venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+# 別ターミナル
+venv\Scripts\python -m backend.cli.generate_demo_assets
 ```
 
-ブラウザで `http://127.0.0.1:8000/app/` を開く。
+生成物: `docs/demo/01-initial.png` 〜 `04-maneuver.png`, `demo.gif`
 
-## 推奨キャプチャシーケンス
+## デモ TLE の再生成
 
-### 1. 初期画面
-
-- ISS サンプル TLE が入力済みの状態
-- 左パネル + 右 Cesium 地球
-- ファイル名例: `01-initial.png`
-
-### 2. 接近解析結果
-
-1. **接近解析** をクリック
-2. 数十秒待ち、接近イベント一覧が表示される
-3. リスク色（high=赤 / medium=橙 / low=緑）が付いたリストをキャプチャ
-- ファイル名例: `02-conjunctions.png`
-
-### 3. 3D 軌道 + TCA
-
-1. 一覧から1件クリック
-2. 青（衛星）・赤（デブリ）軌道と黄色 TCA マーカーが表示
-3. タイムラインを TCA 付近に合わせる
-- ファイル名例: `03-orbit-tca.png`
-
-### 4. 回避マニューバ試算
-
-1. 方向（prograde 等）と Δv（例: 0.1 m/s）を設定
-2. **試算実行** → Before/After の最接近距離をキャプチャ
-- ファイル名例: `04-maneuver.png`
-
-## GIF 作成（任意）
-
-- Windows: Xbox Game Bar（Win+G）または OBS で 30〜60 秒録画
-- 流れ: 解析 → イベント選択 → 3D 表示 → マニューバ試算
-- `docs/demo/demo.gif` として保存し README にリンク
-
-## API デモ（curl）
+ISS に最も近いデブリペアを探索:
 
 ```powershell
-curl http://127.0.0.1:8000/health
+venv\Scripts\python -m backend.cli.find_demo_pair
 ```
 
-```powershell
-venv\Scripts\python -c "
-import httpx, pathlib
-tle = pathlib.Path('samples/iss.tle').read_text(encoding='utf-8')
-r = httpx.post('http://127.0.0.1:8000/api/v1/orbit', json={'tle': tle}, timeout=30)
-print(r.status_code, r.json()['name'], len(r.json()['points']))
-"
-```
+出力: `samples/demo-satellite.tle`, `samples/demo-debris.tle`, `demo-pair.json`
+
+## UI デモ手順
+
+1. `http://127.0.0.1:8000/app/` を開く
+2. **デモ TLE 読込** をクリック（閾値 50 km が自動設定）
+3. **接近解析** → イベント一覧から1件選択 → 3D 表示 → **試算実行**
+
+## 手動キャプチャ（任意）
+
+ブラウザ録画: Xbox Game Bar（Win+G）で 30〜60 秒録画し `docs/demo/demo.gif` に保存。
 
 ## 注意
 

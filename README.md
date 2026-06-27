@@ -1,5 +1,7 @@
 # Conjunction Alert Simulator (CAS)
 
+![Demo](docs/demo/demo.gif)
+
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
 ## 機能
@@ -66,13 +68,13 @@ MIT License — 詳細は [LICENSE](LICENSE)
 
 ## デモ
 
-[docs/demo/README.md](docs/demo/README.md) にスクリーンショット手順を記載。技術ブログ草案は [docs/demo/blog-draft.md](docs/demo/blog-draft.md)。
+| | |
+|--|--|
+| 初期画面 | ![01](docs/demo/01-initial.png) |
+| 接近一覧 | ![02](docs/demo/02-conjunctions.png) |
+| 3D 軌道 | ![03](docs/demo/03-orbit-tca.png) |
+| 回避試算 | ![04](docs/demo/04-maneuver.png) |
 
-ISS サンプルでは 5 km 以内の接近が 0 件になることがあります。UI の **接近閾値** を 50 km などに広げるとデモしやすくなります。
+**UI デモ:** 「デモ TLE 読込」→ 接近解析（閾値 50 km）→ イベント選択 → 3D 表示 → 試算実行
 
-## GitHub 公開（任意）
-
-```powershell
-git remote add origin https://github.com/<your-user>/conjunction-alert-simulator.git
-git push -u origin main
-```
+手順: [docs/demo/README.md](docs/demo/README.md) | 技術ブログ: [docs/demo/blog-draft.md](docs/demo/blog-draft.md)

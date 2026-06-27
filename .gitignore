@@ -18,6 +18,8 @@ data/cache/*.meta
 .DS_Store
 Thumbs.db
 
-# Demo artifacts
+# Demo artifacts (allow docs/demo assets)
 *.gif
+!docs/demo/*.gif
 *.mp4
+!docs/demo/*.png

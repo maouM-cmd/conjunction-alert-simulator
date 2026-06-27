@@ -14,9 +14,12 @@ const ISS_SAMPLE = `ISS (ZARYA)
 1 25544U 98067A   25179.51782528  .00016717  00000+0  10270-3 0  9993
 2 25544  51.6347  74.8662 0004176 315.5599 138.2340 15.50909589423071`;
 
+const DEMO_THRESHOLD_KM = 50;
+
 const els = {
   tleInput: document.getElementById("tle-input"),
   btnLoadSample: document.getElementById("btn-load-sample"),
+  btnLoadDemo: document.getElementById("btn-load-demo"),
   thresholdKm: document.getElementById("threshold-km"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
@@ -194,13 +197,28 @@ async function runManeuver() {
   }
 }
 
+async function loadDemoTle() {
+  try {
+    const res = await fetch(`${API_BASE}/samples/demo-satellite.tle`);
+    if (!res.ok) throw new Error("デモ TLE が見つかりません。");
+    const text = await res.text();
+    els.tleInput.value = text.trim();
+    els.thresholdKm.value = String(DEMO_THRESHOLD_KM);
+    setStatus(`デモ TLE を読み込みました（閾値 ${DEMO_THRESHOLD_KM} km）。接近解析を実行してください。`);
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
 function init() {
   initViewer();
   els.tleInput.value = ISS_SAMPLE;
   els.btnLoadSample.addEventListener("click", () => {
     els.tleInput.value = ISS_SAMPLE;
+    els.thresholdKm.value = "5";
     setStatus("ISS サンプルを読み込みました。");
   });
+  els.btnLoadDemo.addEventListener("click", loadDemoTle);
   els.btnScan.addEventListener("click", runScan);
   els.btnManeuver.addEventListener("click", runManeuver);
 }
