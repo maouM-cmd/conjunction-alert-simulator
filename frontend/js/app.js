@@ -233,8 +233,8 @@ async function runBatchScan() {
   }
 
   const satellites = parseConstellationBlocks(text);
-  if (satellites.length > 10) {
-    setBatchStatus("衛星数は最大 10 件です。", true);
+  if (satellites.length > 25) {
+    setBatchStatus("衛星数は最大 25 件です。", true);
     return;
   }
 
@@ -267,6 +267,9 @@ async function runBatchScan() {
       `最高 Pc = ${formatPc(s.highest_pc)}` +
       (s.highest_pc_satellite
         ? `（${s.highest_pc_satellite} vs ${s.highest_pc_debris || "—"}）`
+        : "") +
+      (data.parallel
+        ? ` / 並列 ${data.worker_count} workers`
         : "");
 
     els.satelliteSelect.innerHTML = "";
@@ -328,6 +331,13 @@ async function runCdmCompare() {
         ? `${(data.delta_pc_ratio * 100).toFixed(1)}% (CAS/CDM)`
         : "—";
 
+    const sigmaLabels = {
+      manual: "手動指定",
+      cdm_covariance: "CDM 共分散",
+      tle_age: "TLE 経過日数推定",
+    };
+    const sigmaLabel = sigmaLabels[data.sigma_source] || data.sigma_source;
+
     els.cdmResult.innerHTML = `
       <div class="compare-grid">
         <div class="compare-col">
@@ -343,6 +353,7 @@ async function runCdmCompare() {
           <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
           <div>Pc: ${formatPc(data.cas.pc)}</div>
           <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
+          <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})</div>
         </div>
       </div>
       <div class="compare-delta">

@@ -137,6 +137,8 @@ class CdmCompareResponse(BaseModel):
     cas: CdmCompareSide
     delta_miss_km: float | None
     delta_pc_ratio: float | None
+    cas_sigma_km: float | None
+    sigma_source: Literal["manual", "cdm_covariance", "tle_age"]
 
 
 class SatelliteInput(BaseModel):
@@ -145,7 +147,7 @@ class SatelliteInput(BaseModel):
 
 
 class BatchConjunctionsRequest(BaseModel):
-    satellites: list[SatelliteInput] = Field(min_length=1, max_length=10)
+    satellites: list[SatelliteInput] = Field(min_length=1, max_length=25)
     threshold_km: float = Field(default=50.0, gt=0)
     duration_days: float = Field(default=7.0, gt=0, le=30)
     step_minutes: int = Field(default=1, ge=1, le=60)
@@ -165,3 +167,5 @@ class BatchConjunctionsResponse(BaseModel):
     summary: BatchSummaryOut
     computation_time_ms: int
     tle_provider: str
+    parallel: bool
+    worker_count: int

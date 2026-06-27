@@ -85,4 +85,6 @@ async def compare_cdm_api(body: CdmCompareRequest) -> CdmCompareResponse:
         ),
         delta_miss_km=round(result.delta_miss_km, 4) if result.delta_miss_km is not None else None,
         delta_pc_ratio=round(result.delta_pc_ratio, 4) if result.delta_pc_ratio is not None else None,
+        cas_sigma_km=round(result.cas_sigma_km, 4),
+        sigma_source=result.sigma_source,
     )

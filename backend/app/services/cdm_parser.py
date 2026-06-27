@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
+from backend.app.services.cdm_covariance import CdmCovariance, parse_cdm_covariance
+
 _CDM_LINE = re.compile(r"^\s*([A-Z0-9_]+)\s*=\s*(.+?)\s*$")
 
 
@@ -19,6 +21,7 @@ class CdmRecord:
     sat2_designator: str | None
     sat1_object: str | None
     sat2_object: str | None
+    covariance: CdmCovariance | None = None
     raw_fields: dict[str, str] = field(default_factory=dict)
 
 
@@ -107,5 +110,6 @@ def parse_cdm(text: str) -> CdmRecord:
         sat2_designator=fields.get("SAT2_OBJECT_DESIGNATOR") or fields.get("SAT2_ID"),
         sat1_object=fields.get("SAT1_OBJECT") or fields.get("SAT1_NAME"),
         sat2_object=fields.get("SAT2_OBJECT") or fields.get("SAT2_NAME"),
+        covariance=parse_cdm_covariance(fields),
         raw_fields=fields,
     )

@@ -90,4 +90,6 @@ async def batch_conjunctions_api(body: BatchConjunctionsRequest) -> BatchConjunc
         ),
         computation_time_ms=batch.computation_time_ms,
         tle_provider=batch.tle_provider,
+        parallel=batch.parallel,
+        worker_count=batch.worker_count,
     )

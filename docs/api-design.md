@@ -1,6 +1,6 @@
 # API 設計書
 
-**版:** 3.0  
+**版:** 3.5  
 **ベース URL:** `http://127.0.0.1:8000`
 
 ---
@@ -240,9 +240,13 @@ CDM 外部値と CAS SGP4 計算値を比較する。
     "tca": "2026-06-29T15:58:00Z"
   },
   "delta_miss_km": 0.37,
-  "delta_pc_ratio": 0.875
+  "delta_pc_ratio": 0.875,
+  "cas_sigma_km": 0.1523,
+  "sigma_source": "cdm_covariance"
 }
 ```
+
+`sigma_source`: `manual` | `cdm_covariance` | `tle_age`
 
 ---
 
@@ -265,7 +269,7 @@ CDM 外部値と CAS SGP4 計算値を比較する。
 }
 ```
 
-最大 10 衛星。
+最大 25 衛星。ProcessPool 並列実行（2 衛星以上）。
 
 ### レスポンス 200
 
@@ -280,7 +284,9 @@ CDM 外部値と CAS SGP4 計算値を比較する。
     "highest_pc_debris": "COSMOS 2251 DEB"
   },
   "computation_time_ms": 120000,
-  "tle_provider": "celestrak"
+  "tle_provider": "celestrak",
+  "parallel": true,
+  "worker_count": 4
 }
 ```
 
