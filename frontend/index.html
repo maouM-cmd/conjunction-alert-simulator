@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conjunction Alert Simulator</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Conjunction Alert Simulator</h1>
+    <p class="subtitle">衛星 TLE から7日間のデブリ接近を検出・可視化</p>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sidebar">
+      <section>
+        <h2>衛星 TLE</h2>
+        <textarea id="tle-input" rows="6" placeholder="3行 TLE を入力..."></textarea>
+        <div class="button-row">
+          <button id="btn-load-sample" type="button">ISS サンプル読込</button>
+          <button id="btn-scan" type="button" class="primary">接近解析</button>
+        </div>
+        <p id="status-msg" class="status-msg" aria-live="polite"></p>
+      </section>
+
+      <section>
+        <h2>接近イベント</h2>
+        <p id="scan-meta" class="meta"></p>
+        <ul id="conjunction-list" class="conjunction-list"></ul>
+      </section>
+
+      <section id="maneuver-section" class="hidden">
+        <h2>回避マニューバ試算</h2>
+        <p id="selected-debris" class="meta"></p>
+        <label>
+          方向
+          <select id="maneuver-direction">
+            <option value="prograde">prograde（順行）</option>
+            <option value="retrograde">retrograde（逆行）</option>
+            <option value="normal">normal（法線）</option>
+          </select>
+        </label>
+        <label>
+          Δv (m/s)
+          <input id="delta-v" type="number" min="0.01" max="1.0" step="0.01" value="0.1" />
+        </label>
+        <button id="btn-maneuver" type="button">試算実行</button>
+        <div id="maneuver-result" class="maneuver-result"></div>
+      </section>
+    </aside>
+
+    <section class="panel viewer-panel">
+      <div id="cesiumContainer"></div>
+    </section>
+  </main>
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+  <script type="module" src="js/cesium_viewer.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

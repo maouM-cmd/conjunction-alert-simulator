@@ -1,0 +1,176 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #0b1020;
+  color: #e8edf7;
+  min-height: 100vh;
+}
+
+.app-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #243049;
+  background: #11182b;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: #9fb0d0;
+  font-size: 0.9rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: calc(100vh - 76px);
+}
+
+.panel {
+  padding: 1rem;
+}
+
+.sidebar {
+  border-right: 1px solid #243049;
+  overflow-y: auto;
+  background: #0f1526;
+}
+
+.sidebar section {
+  margin-bottom: 1.5rem;
+}
+
+.sidebar h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: #b8c9ea;
+}
+
+textarea,
+select,
+input[type="number"] {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #334466;
+  background: #151d33;
+  color: #e8edf7;
+  font-family: Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+button {
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #3a5078;
+  background: #1a2540;
+  color: #e8edf7;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #243456;
+}
+
+button.primary {
+  background: #2a5bd7;
+  border-color: #3d73ff;
+}
+
+button.primary:hover {
+  background: #3d73ff;
+}
+
+.status-msg,
+.meta {
+  font-size: 0.82rem;
+  color: #9fb0d0;
+  margin-top: 0.5rem;
+}
+
+.status-msg.error {
+  color: #ff8a8a;
+}
+
+.conjunction-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.conjunction-list li {
+  padding: 0.55rem;
+  margin-bottom: 0.35rem;
+  border-radius: 6px;
+  border: 1px solid #2a3858;
+  background: #141c30;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.conjunction-list li:hover,
+.conjunction-list li.selected {
+  border-color: #4d7cff;
+  background: #1a2848;
+}
+
+.risk-high { border-left: 4px solid #ff4d4d; }
+.risk-medium { border-left: 4px solid #ffb020; }
+.risk-low { border-left: 4px solid #4dd67a; }
+
+.viewer-panel {
+  padding: 0;
+  position: relative;
+}
+
+#cesiumContainer {
+  width: 100%;
+  height: calc(100vh - 76px);
+}
+
+.hidden {
+  display: none;
+}
+
+.maneuver-result {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  background: #141c30;
+  border: 1px solid #2a3858;
+  border-radius: 6px;
+  padding: 0.6rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  #cesiumContainer {
+    height: 50vh;
+  }
+}
