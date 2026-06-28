@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
-
+from backend.app.services import spacetrack_client
 from backend.app.services.tle_parser import ParsedTle, parse_tle_catalog
 
-LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
-# Debris: decayed objects excluded; R/B and DEB types common for debris
 QUERY_URL = (
     "https://www.space-track.org/basicspacedata/query/class/gp/"
     "DECAY_DATE/null-val/"
@@ -26,7 +22,7 @@ TTL_SECONDS = 24 * 3600
 
 
 def has_spacetrack_credentials() -> bool:
-    return bool(os.getenv("SPACE_TRACK_USER") and os.getenv("SPACE_TRACK_PASSWORD"))
+    return spacetrack_client.has_spacetrack_credentials()
 
 
 def _ensure_cache_dir() -> None:
@@ -56,28 +52,11 @@ def is_cache_stale() -> bool:
     return age * 3600 > TTL_SECONDS
 
 
-def _login(client: httpx.Client) -> None:
-    user = os.getenv("SPACE_TRACK_USER", "")
-    password = os.getenv("SPACE_TRACK_PASSWORD", "")
-    response = client.post(
-        LOGIN_URL,
-        data={"identity": user, "password": password},
-        timeout=30.0,
-    )
-    response.raise_for_status()
-    if "Login failed" in response.text or response.status_code >= 400:
-        raise RuntimeError("Space-Track login failed")
-
-
 def _fetch_remote_catalog() -> str:
-    with httpx.Client(follow_redirects=True, timeout=120.0) as client:
-        _login(client)
-        response = client.get(QUERY_URL)
-        response.raise_for_status()
-        text = response.text.strip()
-        if not text or text.startswith("No GP data found"):
-            raise RuntimeError("Space-Track returned empty debris catalog")
-        return text
+    text = spacetrack_client.get_text(QUERY_URL)
+    if not text or text.startswith("No GP data found"):
+        raise RuntimeError("Space-Track returned empty debris catalog")
+    return text
 
 
 def _dedupe(entries: list[ParsedTle]) -> list[ParsedTle]:

@@ -50,6 +50,14 @@ detect_conjunctions → Foster Pc (default)
 - `conjunction_out.py`: `ConjunctionEvent` → `ConjunctionOut`
 - batch: 同一 `use_advanced_pc` を worker に伝播（`batch_analysis.py`）
 
+## Phase 4B: Space-Track CDM 運用連携
+
+- `spacetrack_client.py` — 共通認証 + JSON GET
+- `spacetrack_cdm_fetcher.py` — `cdm_public` 一覧（24h キャッシュ）
+- `cdm_alert_compare.py` — カタログ TLE 解決 + Foster 比較
+- `cdm_export.py` — 接近イベント → CDM KVN
+- UI「CDM アラート」タブ
+
 ## Phase 2: TLE プロバイダ
 
 - デフォルト: CelesTrak（24h キャッシュ）

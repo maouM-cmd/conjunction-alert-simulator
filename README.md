@@ -11,6 +11,7 @@
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
 - **衝突確率 Pc** — Foster 2D（一覧デフォルト）、opt-in で **Alfriend encounter plane**（一覧・batch）、CDM 比較では **Alfriend + Monte Carlo**
 - **CDM インポート** — RTN 共分散の encounter plane 射影、外部 Pc vs CAS 3方式比較
+- **Space-Track CDM アラート** — `cdm_public` 取得、一覧比較、CAS から CDM KVN エクスポート
 - **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列）
 - CesiumJS による 3D 軌道可視化・TCA マーカー・タイムスライダー
 - prograde / retrograde / normal 方向の Δv 試算（Before/After）
@@ -72,6 +73,9 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 | `/api/v1/conjunctions/batch` | POST | 複数衛星一括接近解析 |
 | `/api/v1/cdm/parse` | POST | CDM テキスト解析 |
 | `/api/v1/cdm/compare` | POST | CDM vs CAS 比較 |
+| `/api/v1/cdm/fetch` | POST | Space-Track CDM アラート取得 |
+| `/api/v1/cdm/compare-alert` | POST | CDM アラート + TLE 自動比較 |
+| `/api/v1/cdm/export` | POST | 接近イベント → CDM KVN |
 | `/api/v1/orbit` | POST | 軌道点列（3D 表示用） |
 | `/api/v1/maneuver/preview` | POST | 回避マニューバ試算 |
 
@@ -85,6 +89,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 3.5](docs/requirements-phase35.md)
 - [要件定義書 Phase 4A](docs/requirements-phase4a.md)
 - [要件定義書 Phase 4A-Ext](docs/requirements-phase4a-ext.md)
+- [要件定義書 Phase 4B](docs/requirements-phase4b.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
 

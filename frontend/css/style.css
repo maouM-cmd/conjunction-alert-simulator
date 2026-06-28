@@ -259,3 +259,36 @@ label.checkbox-row input[type="checkbox"] {
   background: #1a2540;
   color: #b8c9ea;
 }
+
+.alert-table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.alert-table th,
+.alert-table td {
+  border: 1px solid #2a3858;
+  padding: 0.35rem 0.4rem;
+  text-align: left;
+}
+
+.alert-table tbody tr {
+  cursor: pointer;
+}
+
+.alert-table tbody tr:hover {
+  background: #1a2540;
+}
+
+.alert-table tbody tr.selected {
+  background: #243049;
+}
+
+.btn-export-cdm {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+}

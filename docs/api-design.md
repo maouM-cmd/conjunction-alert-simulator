@@ -23,7 +23,8 @@
   "tle_cache_age_hours": 2.5,
   "tle_cache_stale": false,
   "tle_provider": "celestrak",
-  "spacetrack_configured": false
+  "spacetrack_configured": false,
+  "spacetrack_cdm_available": false
 }
 ```
 
@@ -265,6 +266,95 @@ CDM 外部値と CAS SGP4 計算値を比較する。
 `sigma_source`: `manual` | `cdm_covariance` | `tle_age`  
 `pc_method_used`: `foster_only` | `encounter_advanced`  
 `cas.pc` は primary Pc（encounter 時 Alfriend、それ以外 Foster）
+
+---
+
+## POST /api/v1/cdm/fetch
+
+Space-Track `cdm_public` から CDM アラート一覧を取得する（要 `.env` 認証）。
+
+### リクエスト
+
+```json
+{
+  "norad_id": 25544,
+  "pc_min": 1e-5,
+  "days_ahead": 7,
+  "limit": 25
+}
+```
+
+### レスポンス 200
+
+```json
+{
+  "records": [
+    {
+      "cdm_id": "123456",
+      "tca": "2026-06-30T12:00:00Z",
+      "pc": 1.2e-05,
+      "min_range_km": 2.5,
+      "sat1_id": 25544,
+      "sat2_id": 99999,
+      "sat1_name": "ISS (ZARYA)",
+      "sat2_name": "DEB",
+      "emergency_reportable": false
+    }
+  ],
+  "source": "spacetrack",
+  "cached": false,
+  "degraded": false
+}
+```
+
+認証未設定時 **503**。
+
+---
+
+## POST /api/v1/cdm/compare-alert
+
+Space-Track CDM レコードと CAS を比較。相手 NORAD の TLE はデブリカタログから自動解決。
+
+### リクエスト
+
+```json
+{
+  "satellite_tle": "...",
+  "record": { "cdm_id": "123", "sat1_id": 25544, "sat2_id": 99999, "...": "..." },
+  "duration_days": 7,
+  "step_minutes": 1
+}
+```
+
+### レスポンス 200
+
+`compare` に `CdmCompareResponse`、加えて `debris_tle` / `debris_norad_id`。TLE 未発見時 **404**。
+
+---
+
+## POST /api/v1/cdm/export
+
+CAS 接近イベントから CDM KVN テキストを生成。
+
+### リクエスト
+
+```json
+{
+  "satellite_tle": "...",
+  "debris_tle": "...",
+  "tca": "2026-06-30T12:00:00Z",
+  "miss_distance_km": 2.5,
+  "relative_velocity_kms": 7.1,
+  "pc": 1.2e-05,
+  "sigma_km": null
+}
+```
+
+### レスポンス 200
+
+```json
+{ "cdm_text": "CCSDS_CDM_VERS = 1.0\n..." }
+```
 
 ---
 

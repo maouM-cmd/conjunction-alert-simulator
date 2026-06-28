@@ -16,4 +16,5 @@ def health() -> HealthResponse:
         tle_cache_stale=is_cache_stale(),
         tle_provider=get_active_provider_label(),
         spacetrack_configured=spacetrack_fetcher.has_spacetrack_credentials(),
+        spacetrack_cdm_available=spacetrack_fetcher.has_spacetrack_credentials(),
     )

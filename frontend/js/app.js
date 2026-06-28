@@ -20,9 +20,11 @@ const els = {
   tabSingle: document.getElementById("tab-single"),
   tabConstellation: document.getElementById("tab-constellation"),
   tabCdm: document.getElementById("tab-cdm"),
+  tabAlerts: document.getElementById("tab-alerts"),
   panelSingle: document.getElementById("panel-single"),
   panelConstellation: document.getElementById("panel-constellation"),
   panelCdm: document.getElementById("panel-cdm"),
+  panelAlerts: document.getElementById("panel-alerts"),
   tleInput: document.getElementById("tle-input"),
   btnLoadSample: document.getElementById("btn-load-sample"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
@@ -47,6 +49,15 @@ const els = {
   btnCdmCompare: document.getElementById("btn-cdm-compare"),
   cdmStatusMsg: document.getElementById("cdm-status-msg"),
   cdmResult: document.getElementById("cdm-result"),
+  alertNoradId: document.getElementById("alert-norad-id"),
+  alertPcMin: document.getElementById("alert-pc-min"),
+  alertSatTle: document.getElementById("alert-sat-tle"),
+  btnAlertLoadIss: document.getElementById("btn-alert-load-iss"),
+  btnFetchAlerts: document.getElementById("btn-fetch-alerts"),
+  alertStatusMsg: document.getElementById("alert-status-msg"),
+  alertTable: document.getElementById("alert-table"),
+  alertTableBody: document.getElementById("alert-table-body"),
+  alertCompareResult: document.getElementById("alert-compare-result"),
   scanMeta: document.getElementById("scan-meta"),
   conjunctionList: document.getElementById("conjunction-list"),
   maneuverSection: document.getElementById("maneuver-section"),
@@ -61,6 +72,12 @@ let selectedConjunction = null;
 let lastSatelliteTle = "";
 let batchResults = [];
 let currentMode = "single";
+let cdmAlerts = [];
+
+function setAlertStatus(msg, isError = false) {
+  els.alertStatusMsg.textContent = msg;
+  els.alertStatusMsg.classList.toggle("error", isError);
+}
 
 function setStatus(msg, isError = false) {
   els.statusMsg.textContent = msg;
@@ -120,12 +137,16 @@ function parseConstellationBlocks(text) {
 
 function switchMode(mode) {
   currentMode = mode;
-  for (const tab of [els.tabSingle, els.tabConstellation, els.tabCdm]) {
+  for (const tab of [els.tabSingle, els.tabConstellation, els.tabCdm, els.tabAlerts]) {
     tab.classList.toggle("active", tab.dataset.mode === mode);
   }
   els.panelSingle.classList.toggle("hidden", mode !== "single");
   els.panelConstellation.classList.toggle("hidden", mode !== "constellation");
   els.panelCdm.classList.toggle("hidden", mode !== "cdm");
+  els.panelAlerts.classList.toggle("hidden", mode !== "alerts");
+  if (mode === "alerts" && !els.alertSatTle.value.trim()) {
+    els.alertSatTle.value = els.tleInput.value.trim() || ISS_SAMPLE;
+  }
 }
 
 function renderConjunctions(data) {
@@ -153,10 +174,105 @@ function renderConjunctions(data) {
       ${pcLine} /
       相対速度: ${c.relative_velocity_kms.toFixed(2)} km/s /
       <span class="risk-${c.risk_level}">${c.risk_level}</span>
+      <br /><button type="button" class="btn-export-cdm">CDM エクスポート</button>
     `;
+    li.querySelector(".btn-export-cdm").addEventListener("click", (e) => {
+      e.stopPropagation();
+      exportConjunctionCdm(c);
+    });
     li.addEventListener("click", () => selectConjunction(c, li));
     els.conjunctionList.appendChild(li);
   }
+}
+
+async function exportConjunctionCdm(conjunction) {
+  if (!lastSatelliteTle) {
+    setStatus("衛星 TLE がありません。先に接近解析を実行してください。", true);
+    return;
+  }
+  try {
+    const data = await apiPost("/api/v1/cdm/export", {
+      satellite_tle: lastSatelliteTle,
+      debris_tle: conjunction.debris_tle,
+      tca: conjunction.tca,
+      miss_distance_km: conjunction.miss_distance_km,
+      relative_velocity_kms: conjunction.relative_velocity_kms,
+      pc: conjunction.pc,
+    });
+    await navigator.clipboard.writeText(data.cdm_text);
+    setStatus("CDM KVN をクリップボードにコピーしました。");
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
+function renderCdmCompareResult(data, targetEl) {
+  const missDelta =
+    data.delta_miss_km != null
+      ? `${data.delta_miss_km >= 0 ? "+" : ""}${data.delta_miss_km.toFixed(3)} km`
+      : "—";
+  const pcRatio =
+    data.delta_pc_ratio != null
+      ? `${(data.delta_pc_ratio * 100).toFixed(1)}% (CAS/CDM)`
+      : "—";
+
+  const sigmaLabels = {
+    manual: "手動指定",
+    cdm_covariance: "CDM 共分散",
+    tle_age: "TLE 経過日数推定",
+  };
+  const sigmaLabel = sigmaLabels[data.sigma_source] || data.sigma_source;
+
+  const pm = data.pc_methods || {};
+  const pcTableRows = [
+    ["CDM（外部）", data.cdm.pc],
+    ["Foster", pm.foster],
+    ["Alfriend", pm.alfriend],
+    ["Monte Carlo", pm.monte_carlo],
+  ]
+    .map(
+      ([label, val]) =>
+        `<tr><td>${label}</td><td>${val != null ? formatPc(val) : "—"}</td></tr>`
+    )
+    .join("");
+
+  const methodLabel =
+    data.pc_method_used === "encounter_advanced"
+      ? "encounter plane（Alfriend 優先）"
+      : "Foster のみ";
+
+  targetEl.innerHTML = `
+    <div class="compare-grid">
+      <div class="compare-col">
+        <h3>CDM（外部）</h3>
+        <div>TCA: ${formatTime(data.cdm.tca)}</div>
+        <div>Miss distance: ${data.cdm.miss_distance_km?.toFixed(3) ?? "—"} km</div>
+        <div>Pc: ${formatPc(data.cdm.pc)}</div>
+        <div>相対速度: ${data.cdm.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
+      </div>
+      <div class="compare-col">
+        <h3>CAS 計算（${methodLabel}）</h3>
+        <div>TCA: ${formatTime(data.cas.tca)}</div>
+        <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
+        <div>Pc (primary): ${formatPc(data.cas.pc)}</div>
+        <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
+        <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})</div>
+        ${
+          data.encounter_miss_km != null
+            ? `<div>Encounter |b|: ${data.encounter_miss_km.toFixed(3)} km</div>`
+            : ""
+        }
+      </div>
+    </div>
+    <table class="pc-methods-table">
+      <thead><tr><th>方式</th><th>Pc</th></tr></thead>
+      <tbody>${pcTableRows}</tbody>
+    </table>
+    <div class="compare-delta">
+      <strong>差分:</strong> Miss Δ = ${missDelta} / Pc 比 = ${pcRatio}
+    </div>
+  `;
+  targetEl.classList.remove("hidden");
 }
 
 async function selectConjunction(conjunction, liEl) {
@@ -331,77 +447,96 @@ async function runCdmCompare() {
       step_minutes: 1,
     });
 
-    const missDelta =
-      data.delta_miss_km != null
-        ? `${data.delta_miss_km >= 0 ? "+" : ""}${data.delta_miss_km.toFixed(3)} km`
-        : "—";
-    const pcRatio =
-      data.delta_pc_ratio != null
-        ? `${(data.delta_pc_ratio * 100).toFixed(1)}% (CAS/CDM)`
-        : "—";
-
-    const sigmaLabels = {
-      manual: "手動指定",
-      cdm_covariance: "CDM 共分散",
-      tle_age: "TLE 経過日数推定",
-    };
-    const sigmaLabel = sigmaLabels[data.sigma_source] || data.sigma_source;
-
-    const pm = data.pc_methods || {};
-    const pcTableRows = [
-      ["CDM（外部）", data.cdm.pc],
-      ["Foster", pm.foster],
-      ["Alfriend", pm.alfriend],
-      ["Monte Carlo", pm.monte_carlo],
-    ]
-      .map(
-        ([label, val]) =>
-          `<tr><td>${label}</td><td>${val != null ? formatPc(val) : "—"}</td></tr>`
-      )
-      .join("");
-
-    const methodLabel =
-      data.pc_method_used === "encounter_advanced"
-        ? "encounter plane（Alfriend 優先）"
-        : "Foster のみ";
-
-    els.cdmResult.innerHTML = `
-      <div class="compare-grid">
-        <div class="compare-col">
-          <h3>CDM（外部）</h3>
-          <div>TCA: ${formatTime(data.cdm.tca)}</div>
-          <div>Miss distance: ${data.cdm.miss_distance_km?.toFixed(3) ?? "—"} km</div>
-          <div>Pc: ${formatPc(data.cdm.pc)}</div>
-          <div>相対速度: ${data.cdm.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
-        </div>
-        <div class="compare-col">
-          <h3>CAS 計算（${methodLabel}）</h3>
-          <div>TCA: ${formatTime(data.cas.tca)}</div>
-          <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
-          <div>Pc (primary): ${formatPc(data.cas.pc)}</div>
-          <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
-          <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})</div>
-          ${
-            data.encounter_miss_km != null
-              ? `<div>Encounter |b|: ${data.encounter_miss_km.toFixed(3)} km</div>`
-              : ""
-          }
-        </div>
-      </div>
-      <table class="pc-methods-table">
-        <thead><tr><th>方式</th><th>Pc</th></tr></thead>
-        <tbody>${pcTableRows}</tbody>
-      </table>
-      <div class="compare-delta">
-        <strong>差分:</strong> Miss Δ = ${missDelta} / Pc 比 = ${pcRatio}
-      </div>
-    `;
-    els.cdmResult.classList.remove("hidden");
+    renderCdmCompareResult(data, els.cdmResult);
     setCdmStatus("比較完了。");
   } catch (err) {
     setCdmStatus(err.message, true);
   } finally {
     els.btnCdmCompare.disabled = false;
+  }
+}
+
+async function fetchCdmAlerts() {
+  const noradId = parseInt(els.alertNoradId.value, 10);
+  const pcMinRaw = els.alertPcMin.value.trim();
+  const pcMin = pcMinRaw ? parseFloat(pcMinRaw) : null;
+
+  if (Number.isNaN(noradId) || noradId < 1) {
+    setAlertStatus("NORAD ID を入力してください。", true);
+    return;
+  }
+
+  els.btnFetchAlerts.disabled = true;
+  els.alertTable.classList.add("hidden");
+  els.alertCompareResult.classList.add("hidden");
+  setAlertStatus("Space-Track から CDM を取得中...");
+
+  try {
+    const payload = { norad_id: noradId, limit: 25, days_ahead: 7 };
+    if (pcMin != null && !Number.isNaN(pcMin)) {
+      payload.pc_min = pcMin;
+    }
+    const data = await apiPost("/api/v1/cdm/fetch", payload);
+    cdmAlerts = data.records;
+    els.alertTableBody.innerHTML = "";
+
+    if (cdmAlerts.length === 0) {
+      setAlertStatus("該当する CDM アラートはありません。");
+      return;
+    }
+
+    for (const [i, rec] of cdmAlerts.entries()) {
+      const tr = document.createElement("tr");
+      const otherName =
+        rec.sat1_id === noradId ? rec.sat2_name || rec.sat2_id : rec.sat1_name || rec.sat1_id;
+      tr.innerHTML = `
+        <td>${formatTime(rec.tca)}</td>
+        <td>${formatPc(rec.pc)}</td>
+        <td>${rec.min_range_km?.toFixed(2) ?? "—"}</td>
+        <td>${otherName}</td>
+        <td>${rec.emergency_reportable ? "Y" : "—"}</td>
+      `;
+      tr.addEventListener("click", () => compareCdmAlert(rec, tr, i));
+      els.alertTableBody.appendChild(tr);
+    }
+
+    els.alertTable.classList.remove("hidden");
+    const cacheNote = data.cached ? "（キャッシュ）" : "";
+    const degradedNote = data.degraded ? " / フォールバック" : "";
+    setAlertStatus(`${cdmAlerts.length} 件取得${cacheNote}${degradedNote}。行をクリックで CAS 比較。`);
+  } catch (err) {
+    setAlertStatus(err.message, true);
+  } finally {
+    els.btnFetchAlerts.disabled = false;
+  }
+}
+
+async function compareCdmAlert(record, rowEl, index) {
+  const satTle = els.alertSatTle.value.trim();
+  if (!satTle) {
+    setAlertStatus("衛星 TLE を入力してください。", true);
+    return;
+  }
+
+  document.querySelectorAll("#alert-table-body tr").forEach((el) => {
+    el.classList.remove("selected");
+  });
+  rowEl.classList.add("selected");
+  setAlertStatus(`CDM ${record.cdm_id || index + 1} を CAS と比較中...`);
+
+  try {
+    const data = await apiPost("/api/v1/cdm/compare-alert", {
+      satellite_tle: satTle,
+      record,
+      duration_days: 7,
+      step_minutes: 1,
+    });
+    renderCdmCompareResult(data.compare, els.alertCompareResult);
+    setAlertStatus(
+      `比較完了（相手 NORAD ${data.debris_norad_id} / TLE カタログから解決）。`
+    );
+  } catch (err) {
+    setAlertStatus(err.message, true);
   }
 }
 
@@ -495,6 +630,7 @@ function init() {
   els.tabSingle.addEventListener("click", () => switchMode("single"));
   els.tabConstellation.addEventListener("click", () => switchMode("constellation"));
   els.tabCdm.addEventListener("click", () => switchMode("cdm"));
+  els.tabAlerts.addEventListener("click", () => switchMode("alerts"));
 
   els.btnLoadSample.addEventListener("click", () => {
     els.tleInput.value = ISS_SAMPLE;
@@ -510,6 +646,11 @@ function init() {
   });
   els.btnLoadCdmDemo.addEventListener("click", loadCdmDemo);
   els.btnCdmCompare.addEventListener("click", runCdmCompare);
+  els.btnAlertLoadIss.addEventListener("click", () => {
+    els.alertSatTle.value = ISS_SAMPLE;
+    setAlertStatus("ISS サンプル TLE を読み込みました。");
+  });
+  els.btnFetchAlerts.addEventListener("click", fetchCdmAlerts);
   els.btnManeuver.addEventListener("click", runManeuver);
 }
 

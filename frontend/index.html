@@ -20,6 +20,7 @@
     <button id="tab-single" type="button" class="tab active" data-mode="single" role="tab">単一衛星</button>
     <button id="tab-constellation" type="button" class="tab" data-mode="constellation" role="tab">コンステレーション</button>
     <button id="tab-cdm" type="button" class="tab" data-mode="cdm" role="tab">CDM 比較</button>
+    <button id="tab-alerts" type="button" class="tab" data-mode="alerts" role="tab">CDM アラート</button>
   </nav>
 
   <main class="layout">
@@ -85,6 +86,39 @@
         </div>
         <p id="cdm-status-msg" class="status-msg" aria-live="polite"></p>
         <div id="cdm-result" class="cdm-result hidden"></div>
+      </section>
+
+      <section id="panel-alerts" class="mode-panel hidden">
+        <h2>Space-Track CDM アラート</h2>
+        <p class="meta">Space-Track 認証（.env）が必要です。</p>
+        <label>
+          監視衛星 NORAD ID
+          <input id="alert-norad-id" type="number" min="1" value="25544" />
+        </label>
+        <label>
+          Pc 下限
+          <input id="alert-pc-min" type="number" min="0" step="any" value="0.00001" />
+        </label>
+        <label>衛星 TLE（比較用）</label>
+        <textarea id="alert-sat-tle" rows="4" placeholder="単一衛星 TLE または ISS サンプル"></textarea>
+        <div class="button-row">
+          <button id="btn-alert-load-iss" type="button">ISS サンプル</button>
+          <button id="btn-fetch-alerts" type="button" class="primary">Space-Track 取得</button>
+        </div>
+        <p id="alert-status-msg" class="status-msg" aria-live="polite"></p>
+        <table id="alert-table" class="alert-table hidden">
+          <thead>
+            <tr>
+              <th>TCA</th>
+              <th>Pc</th>
+              <th>Miss (km)</th>
+              <th>相手</th>
+              <th>緊急</th>
+            </tr>
+          </thead>
+          <tbody id="alert-table-body"></tbody>
+        </table>
+        <div id="alert-compare-result" class="cdm-result hidden"></div>
       </section>
 
       <section>

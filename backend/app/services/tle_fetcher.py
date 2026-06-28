@@ -161,3 +161,11 @@ def get_active_provider_label() -> str:
 
 def set_last_provider_label(label: str) -> None:
     os.environ["_CAS_LAST_PROVIDER"] = label
+
+
+def find_tle_by_norad_id(norad_id: int) -> ParsedTle | None:
+    catalog, _meta = fetch_debris_catalog()
+    for entry in catalog:
+        if entry.norad_id == norad_id:
+            return entry
+    return None

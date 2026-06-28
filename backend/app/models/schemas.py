@@ -104,6 +104,7 @@ class HealthResponse(BaseModel):
     tle_cache_stale: bool
     tle_provider: str
     spacetrack_configured: bool
+    spacetrack_cdm_available: bool = False
 
 
 class CdmParseRequest(BaseModel):
@@ -184,3 +185,57 @@ class BatchConjunctionsResponse(BaseModel):
     tle_provider: str
     parallel: bool
     worker_count: int
+
+
+class CdmPublicRecordOut(BaseModel):
+    cdm_id: str
+    tca: datetime | None
+    pc: float | None
+    min_range_km: float | None
+    sat1_id: int
+    sat2_id: int
+    sat1_name: str | None
+    sat2_name: str | None
+    emergency_reportable: bool | None
+
+
+class CdmFetchRequest(BaseModel):
+    norad_id: int = Field(ge=1, description="監視対象衛星 NORAD ID")
+    pc_min: float | None = Field(default=None, ge=0, description="Pc 下限フィルタ")
+    days_ahead: int | None = Field(default=7, ge=1, le=30, description="TCA 前方日数")
+    limit: int = Field(default=25, ge=1, le=100)
+
+
+class CdmFetchResponse(BaseModel):
+    records: list[CdmPublicRecordOut]
+    source: Literal["spacetrack"] = "spacetrack"
+    cached: bool
+    degraded: bool
+
+
+class CdmCompareAlertRequest(BaseModel):
+    satellite_tle: str
+    record: CdmPublicRecordOut
+    duration_days: float = Field(default=7.0, gt=0, le=30)
+    step_minutes: int = Field(default=1, ge=1, le=60)
+    sigma_km: float | None = Field(default=None, gt=0)
+
+
+class CdmCompareAlertResponse(BaseModel):
+    compare: CdmCompareResponse
+    debris_tle: str
+    debris_norad_id: int
+
+
+class CdmExportRequest(BaseModel):
+    satellite_tle: str
+    debris_tle: str
+    tca: datetime
+    miss_distance_km: float
+    relative_velocity_kms: float
+    pc: float
+    sigma_km: float | None = Field(default=None, gt=0)
+
+
+class CdmExportResponse(BaseModel):
+    cdm_text: str
