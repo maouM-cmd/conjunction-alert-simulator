@@ -1,10 +1,30 @@
 # Conjunction Alert Simulator (CAS)
 
 [![GitHub](https://img.shields.io/badge/GitHub-maouM--cmd%2Fconjunction--alert--simulator-blue)](https://github.com/maouM-cmd/conjunction-alert-simulator)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0)
 
 ![Demo](docs/demo/demo.gif)
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
+
+## 2 分デモ
+
+```powershell
+git clone https://github.com/maouM-cmd/conjunction-alert-simulator.git
+cd conjunction-alert-simulator
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt
+venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+1. ブラウザで **http://127.0.0.1:8000/app/** を開く
+2. **デモ TLE 読込** → **高精度 Pc** ON → **接近解析**（閾値 50 km）
+3. イベントを選択 → 3D 表示 → 回避試算
+
+Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
 ## 機能
 
@@ -118,6 +138,9 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 4B-Ext](docs/requirements-phase4b-ext.md)
 - [要件定義書 Phase 4C](docs/requirements-phase4c.md)
 - [要件定義書 Phase 4D](docs/requirements-phase4d.md)
+- [要件定義書 Phase 5A](docs/requirements-phase5a.md)
+- [Zenn 投稿手順](docs/publish-zenn.md)
+- [CHANGELOG](CHANGELOG.md)
 - [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
@@ -138,4 +161,7 @@ MIT License — 詳細は [LICENSE](LICENSE)
 
 **UI デモ:** 「デモ TLE 読込」→ **高精度 Pc** ON → 接近解析（閾値 50 km）→ イベント選択 → 3D 表示 → 試算実行
 
-手順: [docs/demo/README.md](docs/demo/README.md) | 技術ブログ: [docs/demo/blog-draft.md](docs/demo/blog-draft.md)
+手順: [docs/demo/README.md](docs/demo/README.md) | 技術ブログ: [docs/demo/blog-zenn.md](docs/demo/blog-zenn.md) | Zenn 投稿: [docs/publish-zenn.md](docs/publish-zenn.md)
+
+<!-- Zenn 公開後: 記事 URL をここに追記 -->
+<!-- 技術記事: https://zenn.dev/... -->

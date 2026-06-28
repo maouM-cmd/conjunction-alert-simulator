@@ -2,7 +2,7 @@
 title: Conjunction Alert Simulator を作った — 軌道力学と衝突回避の縮小版
 emoji: 🛰️
 type: tech
-topics: [Python, FastAPI, 宇宙, OSS]
+topics: [Python, FastAPI, 宇宙, OSS, Docker, SGP4]
 published: false
 ---
 
@@ -12,7 +12,7 @@ published: false
 
 低軌道衛星と宇宙デブリの接近（Conjunction）は、大規模コンステレーション運用では毎日の課題です。本番システムは Space-Track、CDM、Pc 計算、通知連携を含みますが、CAS では **TLE + SGP4 + REST + Cesium** でその流れを OSS として再現しました。
 
-![Demo](demo.gif)
+![Demo](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/demo.gif)
 
 ## できること
 
@@ -24,6 +24,8 @@ published: false
 - **Docker** — `docker compose up`
 - **Webhook** — 高リスクイベント POST スタブ
 - CesiumJS 3D + 回避マニューバ試算
+
+![接近一覧 Advanced Pc](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png)
 
 ## 技術スタック
 
@@ -42,18 +44,23 @@ published: false
 3. **一覧 advanced Pc** — `use_advanced_pc=true` で Alfriend を primary に
 4. **TLE 非等方** — RTN 対角（径方向 σ を大きく）で encounter 共分散を構築
 
+![CDM vs CAS 比較](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/05-cdm-compare.png)
+
 ## 性能
 
 デブリ数千件 × 7 日 × 1 分刻みは重いため、**高度 ±200 km プレフィルタ** と batch **ProcessPool** を実装。
 
-## デモ
+## 2 分デモ
 
 ```powershell
-venv\Scripts\python -m backend.cli.find_demo_pair
+git clone https://github.com/maouM-cmd/conjunction-alert-simulator.git
+cd conjunction-alert-simulator
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt
 venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-→ http://127.0.0.1:8000/app/ （**デモ TLE 読込** → 閾値 50 km）
+→ http://127.0.0.1:8000/app/ （**デモ TLE 読込** → **高精度 Pc** ON → 閾値 50 km → **接近解析**）
 
 ## Docker
 
@@ -72,4 +79,11 @@ ALERT_PC_THRESHOLD=0.00001
 
 `POST /api/v1/alerts/webhook/test` で ping。
 
-MIT License。フィードバックは GitHub Issues へ。
+## まとめ
+
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.0.0** で Phase 4 機能が一通り揃いました。
+
+- リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0
+
+MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

@@ -8,7 +8,7 @@
 
 OSS として公開した **Conjunction Alert Simulator（CAS）** は、その流れを **TLE + SGP4 + FastAPI + CesiumJS** で縮小再現したポートフォリオ向けツールです。
 
-![Demo](demo.gif)
+![Demo](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/demo.gif)
 
 ## 何ができるか（Phase 4 完成版）
 
@@ -70,7 +70,7 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 docker compose up --build -d
 ```
 
-詳細: [docs/deploy.md](../deploy.md)
+詳細: [docs/deploy.md](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/docs/deploy.md)
 
 ### Webhook（任意）
 
@@ -80,14 +80,16 @@ docker compose up --build -d
 
 | | |
 |--|--|
-| タイトル | ![01](01-initial.png) |
-| 接近一覧（Advanced Pc） | ![02](02-conjunctions.png) |
-| 軌道 | ![03](03-orbit-tca.png) |
-| 回避試算 | ![04](04-maneuver.png) |
-| CDM 比較 | ![05](05-cdm-compare.png) |
+| タイトル | ![01](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/01-initial.png) |
+| 接近一覧（Advanced Pc） | ![02](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png) |
+| 軌道 | ![03](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/03-orbit-tca.png) |
+| 回避試算 | ![04](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/04-maneuver.png) |
+| CDM 比較 | ![05](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/05-cdm-compare.png) |
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。Phase 1 の「距離だけ」から Phase 4 の「Pc + CDM + 運用連携 + Docker」まで一気通貫で体験できます。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.0.0** で Phase 4 機能が一通り揃いました。
+
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0
 
 **ライセンス:** MIT
