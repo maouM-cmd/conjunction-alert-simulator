@@ -293,6 +293,10 @@ function renderCdmCompareResult(data, targetEl) {
     cdm_covariance: "CDM 共分散",
     tle_age: "TLE 経過日数推定",
   };
+  const sigmaHighlight =
+    data.sigma_source === "cdm_covariance"
+      ? ' <span class="risk-medium">（CDM RTN σ 適用）</span>'
+      : "";
   const sigmaLabel = sigmaLabels[data.sigma_source] || data.sigma_source;
 
   const pm = data.pc_methods || {};
@@ -328,7 +332,7 @@ function renderCdmCompareResult(data, targetEl) {
         <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
         <div>Pc (primary): ${formatPc(data.cas.pc)}</div>
         <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
-        <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})</div>
+        <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})${sigmaHighlight}</div>
         ${
           data.encounter_miss_km != null
             ? `<div>Encounter |b|: ${data.encounter_miss_km.toFixed(3)} km</div>`
@@ -619,6 +623,7 @@ async function fetchCdmAlerts() {
         <td>${formatPc(rec.pc)}</td>
         <td>${rec.min_range_km?.toFixed(2) ?? "—"}</td>
         <td>${otherName}</td>
+        <td>${rec.has_rtn_covariance ? "RTN σ" : "要詳細"}</td>
         <td>${rec.emergency_reportable ? "Y" : "—"}</td>
       `;
       tr.addEventListener("click", () => compareCdmAlert(rec, tr, i));
@@ -657,8 +662,10 @@ async function compareCdmAlert(record, rowEl, index) {
       step_minutes: 1,
     });
     renderCdmCompareResult(data.compare, els.alertCompareResult);
+    const sigmaNote =
+      data.compare.sigma_source === "cdm_covariance" ? " / CDM RTN σ 適用" : "";
     setAlertStatus(
-      `比較完了（相手 NORAD ${data.debris_norad_id} / TLE カタログから解決）。`
+      `比較完了（相手 NORAD ${data.debris_norad_id}${sigmaNote}）。`
     );
   } catch (err) {
     setAlertStatus(err.message, true);

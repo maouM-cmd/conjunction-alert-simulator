@@ -25,6 +25,23 @@ def _parse_variance_km2(value: str) -> float:
     return number
 
 
+def parse_variance_km2_from_spacetrack(value: str | float | int, unit: str | None = None) -> float:
+    """Parse Space-Track JSON variance value + optional _UNIT field."""
+    unit_text = (unit or "").strip()
+    if unit_text:
+        return _parse_variance_km2(f"{value} {unit_text}")
+    return _parse_variance_km2(str(value))
+
+
+def rtn_has_data(rtn: RtnVariance | None) -> bool:
+    if rtn is None:
+        return False
+    return any(
+        v is not None
+        for v in (rtn.cr_r, rtn.ct_t, rtn.cn_n, rtn.cr_t, rtn.cr_n, rtn.ct_n)
+    )
+
+
 def _rtn_from_fields(fields: dict[str, str], prefix: str) -> RtnVariance:
     def get(key: str) -> float | None:
         full = f"{prefix}_{key}"

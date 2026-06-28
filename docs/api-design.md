@@ -312,7 +312,8 @@ Space-Track `cdm_public` から CDM アラート一覧を取得する（要 `.en
       "sat2_id": 99999,
       "sat1_name": "ISS (ZARYA)",
       "sat2_name": "DEB",
-      "emergency_reportable": false
+      "emergency_reportable": false,
+      "has_rtn_covariance": true
     }
   ],
   "source": "spacetrack",
@@ -322,6 +323,8 @@ Space-Track `cdm_public` から CDM アラート一覧を取得する（要 `.en
 ```
 
 認証未設定時 **503**。
+
+`has_rtn_covariance`: 一覧または detail 取得済みレコードに RTN 共分散（`SAT1_CR_R` 等）がある場合 `true`。RTN 無しの一覧行は `false`（compare-alert 時に lazy detail 取得を試行）。
 
 ---
 

@@ -50,6 +50,7 @@ def _record_to_out(record: CdmPublicRecord) -> CdmPublicRecordOut:
         sat1_name=record.sat1_name,
         sat2_name=record.sat2_name,
         emergency_reportable=record.emergency_reportable,
+        has_rtn_covariance=record.has_rtn_covariance(),
     )
 
 

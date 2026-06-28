@@ -233,6 +233,7 @@ class CdmPublicRecordOut(BaseModel):
     sat1_name: str | None
     sat2_name: str | None
     emergency_reportable: bool | None
+    has_rtn_covariance: bool = False
 
 
 class CdmFetchRequest(BaseModel):

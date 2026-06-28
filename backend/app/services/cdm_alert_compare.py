@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from backend.app.services.cdm_compare import CdmCompareResult, compare_cdm_with_tles
 from backend.app.services.cdm_export import cdm_public_to_kvn
-from backend.app.services.spacetrack_cdm_fetcher import CdmPublicRecord
+from backend.app.services.spacetrack_cdm_fetcher import CdmPublicRecord, enrich_record_with_rtn
 from backend.app.services.tle_fetcher import find_tle_by_norad_id
 from backend.app.services.tle_parser import parse_tle
 
@@ -34,7 +34,7 @@ def compare_cdm_alert(
             f"NORAD {debris_norad} の TLE がカタログに見つかりません。"
         )
 
-    cdm_text = cdm_public_to_kvn(record)
+    cdm_text = cdm_public_to_kvn(enrich_record_with_rtn(record))
     result = compare_cdm_with_tles(
         cdm_text,
         satellite_tle,
