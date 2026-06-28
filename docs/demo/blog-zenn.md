@@ -113,6 +113,7 @@ CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
 - Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
+- Qiita: https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
 - Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

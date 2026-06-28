@@ -193,7 +193,7 @@ MIT License — 詳細は [LICENSE](LICENSE)
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
 | Release | [v1.1.1 — Phase 6 portfolio](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1) |
-| Qiita | 準備中 — 原稿 [`docs/demo/blog-draft.md`](docs/demo/blog-draft.md) / [`docs/publish-qiita.md`](docs/publish-qiita.md) |
+| Qiita | [Conjunction Alert Simulator を作った](https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4) |
 | Social Preview | [`docs/publish-github-social-preview.md`](docs/publish-github-social-preview.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
 | GitHub About | [`docs/publish-github-about.md`](docs/publish-github-about.md) |

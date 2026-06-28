@@ -33,21 +33,22 @@ $env:QIITA_ACCESS_TOKEN = "<your-token>"
 2. **新規記事** → Markdown エディタ
 3. `blog-draft.md` をコピペ（タイトルは記事タイトル欄に設定）
 4. プレビューで以下を確認:
-   - [ ] デモ GIF が表示される
-   - [ ] 接近一覧・CDM 比較スクリーンショットが表示される
-   - [ ] Live Demo / Zenn リンクが有効
+   - [x] デモ GIF が表示される
+   - [x] 接近一覧・CDM 比較スクリーンショットが表示される
+   - [x] Live Demo / Zenn リンクが有効
 5. **タグ** 例: `Python`, `FastAPI`, `宇宙`, `OSS`, `Docker`, `SGP4`
-6. **公開** → URL を控える
+6. **公開** — https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
 
 ---
 
 ## 公開後
 
-- [ ] README「技術記事」表に Qiita 行を追記（公開 URL 確定後）
-- [ ] Zenn 記事末尾に Qiita URL を追記（相互リンク）
-- [ ] [`publish-checklist-v1.1.0.md`](publish-checklist-v1.1.0.md) §7 Qiita を `[x]`
+- [x] README「技術記事」表に Qiita 行を追記
+- [x] `blog-zenn.md` / `blog-draft.md` に Qiita URL 追記
+- [x] [`publish-checklist-v1.1.0.md`](publish-checklist-v1.1.0.md) §7 Qiita を `[x]`
+- [ ] Zenn 本番記事 Web エディタで Qiita 相互リンク（任意）
 
-**Qiita URL 正本:** 公開後 `docs/QIITA_PUBLISHED_URL.txt` に保存（API 投稿時）または README に直接追記。
+**Qiita URL 正本:** [`QIITA_PUBLISHED_URL.txt`](QIITA_PUBLISHED_URL.txt)
 
 ---
 
