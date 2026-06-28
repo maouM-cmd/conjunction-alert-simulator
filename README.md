@@ -54,7 +54,7 @@ Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 - **CDM σ on 一覧** — 手動 `cdm_text` または **Space-Track CDM 自動適用**（Phase 8A、要認証）
 - **CDM インポート** — RTN 共分散の encounter plane 射影、外部 Pc vs CAS 3方式比較
 - **Space-Track CDM アラート** — `cdm_public` 取得、一覧比較、CAS から CDM KVN エクスポート
-- **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列）
+- **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列、**Space-Track CDM 自動適用** 対応）
 - CesiumJS による 3D 軌道可視化・TCA マーカー・タイムスライダー
 - prograde / retrograde / normal 方向の Δv 試算（Before/After）
 

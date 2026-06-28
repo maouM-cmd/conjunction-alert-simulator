@@ -21,6 +21,8 @@ class BatchSummary:
     highest_pc: float
     highest_pc_satellite: str | None
     highest_pc_debris: str | None
+    spacetrack_cdm_events_merged: int = 0
+    spacetrack_cdm_satellites_with_merge: int = 0
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,8 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
         use_advanced_pc,
         use_anisotropic_cov,
         use_altitude_prefilter,
+        auto_spacetrack_cdm,
+        spacetrack_cdm_pc_min,
     ) = args
     return run_conjunction_analysis(
         tle_text,
@@ -56,6 +60,8 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
         sigma_km=sigma_km,
         use_advanced_pc=use_advanced_pc,
         use_anisotropic_cov=use_anisotropic_cov,
+        auto_spacetrack_cdm=auto_spacetrack_cdm,
+        spacetrack_cdm_pc_min=spacetrack_cdm_pc_min,
         debris_catalog=debris_catalog,
         catalog_meta=catalog_meta,
     )
@@ -79,8 +85,13 @@ def _build_summary(results: list[ConjunctionAnalysisResult]) -> BatchSummary:
     highest_pc = 0.0
     highest_sat: str | None = None
     highest_deb: str | None = None
+    cdm_merged_total = 0
+    cdm_satellites_with_merge = 0
     for result in results:
         total_events += len(result.events)
+        cdm_merged_total += result.spacetrack_cdm_events_merged
+        if result.spacetrack_cdm_events_merged > 0:
+            cdm_satellites_with_merge += 1
         for event in result.events:
             if event.pc > highest_pc:
                 highest_pc = event.pc
@@ -92,6 +103,8 @@ def _build_summary(results: list[ConjunctionAnalysisResult]) -> BatchSummary:
         highest_pc=highest_pc,
         highest_pc_satellite=highest_sat,
         highest_pc_debris=highest_deb,
+        spacetrack_cdm_events_merged=cdm_merged_total,
+        spacetrack_cdm_satellites_with_merge=cdm_satellites_with_merge,
     )
 
 
@@ -106,6 +119,8 @@ def run_batch_conjunction_analysis(
     use_advanced_pc: bool = False,
     use_anisotropic_cov: bool = False,
     use_altitude_prefilter: bool = True,
+    auto_spacetrack_cdm: bool = False,
+    spacetrack_cdm_pc_min: float | None = None,
 ) -> BatchAnalysisResult:
     if not satellite_tles:
         raise ValueError("衛星 TLE が1件以上必要です。")
@@ -132,6 +147,8 @@ def run_batch_conjunction_analysis(
                 use_advanced_pc,
                 use_anisotropic_cov,
                 use_altitude_prefilter,
+                auto_spacetrack_cdm,
+                spacetrack_cdm_pc_min,
             )
             for tle_text in satellite_tles
         ]
@@ -149,6 +166,8 @@ def run_batch_conjunction_analysis(
                 sigma_km=sigma_km,
                 use_advanced_pc=use_advanced_pc,
                 use_anisotropic_cov=use_anisotropic_cov,
+                auto_spacetrack_cdm=auto_spacetrack_cdm,
+                spacetrack_cdm_pc_min=spacetrack_cdm_pc_min,
                 debris_catalog=debris_catalog,
                 catalog_meta=catalog_meta,
             )

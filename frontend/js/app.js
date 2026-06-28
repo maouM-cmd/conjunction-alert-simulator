@@ -46,6 +46,8 @@ const els = {
   batchUseAnisotropicCov: document.getElementById("batch-use-anisotropic-cov"),
   batchUseAltitudePrefilter: document.getElementById("batch-use-altitude-prefilter"),
   batchNotifyWebhook: document.getElementById("batch-notify-webhook"),
+  batchAutoSpacetrackCdm: document.getElementById("batch-auto-spacetrack-cdm"),
+  batchAutoSpacetrackCdmWrap: document.getElementById("batch-auto-spacetrack-cdm-wrap"),
   btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
   btnBatchScan: document.getElementById("btn-batch-scan"),
   batchStatusMsg: document.getElementById("batch-status-msg"),
@@ -484,6 +486,11 @@ async function runBatchScan() {
     if (els.batchUseAdvancedPc.checked) {
       payload.use_anisotropic_cov = els.batchUseAnisotropicCov.checked;
     }
+    if (els.batchAutoSpacetrackCdm.checked) {
+      payload.auto_spacetrack_cdm = true;
+      payload.use_advanced_pc = true;
+      els.batchUseAdvancedPc.checked = true;
+    }
     const data = await apiPost("/api/v1/conjunctions/batch", payload);
 
     batchResults = data.results.map((r, i) => ({
@@ -497,6 +504,9 @@ async function runBatchScan() {
       `最高 Pc = ${formatPc(s.highest_pc)}` +
       (s.highest_pc_satellite
         ? `（${s.highest_pc_satellite} vs ${s.highest_pc_debris || "—"}）`
+        : "") +
+      (s.spacetrack_cdm_events_merged > 0
+        ? ` / Space-Track CDM: ${s.spacetrack_cdm_events_merged} 件マージ（${s.spacetrack_cdm_satellites_with_merge} 衛星）`
         : "") +
       (data.parallel
         ? ` / 並列 ${data.worker_count} workers`
@@ -818,9 +828,13 @@ async function init() {
     if (health.spacetrack_configured) {
       els.autoSpacetrackCdm.disabled = false;
       els.autoSpacetrackCdmWrap.title = "Space-Track cdm_public から RTN 共分散を自動適用";
+      els.batchAutoSpacetrackCdm.disabled = false;
+      els.batchAutoSpacetrackCdmWrap.title = "Space-Track cdm_public から RTN 共分散を自動適用";
     } else {
       els.autoSpacetrackCdm.disabled = true;
       els.autoSpacetrackCdmWrap.title = "Space-Track 認証（.env）が必要です。";
+      els.batchAutoSpacetrackCdm.disabled = true;
+      els.batchAutoSpacetrackCdmWrap.title = "Space-Track 認証（.env）が必要です。";
     }
   }
 }

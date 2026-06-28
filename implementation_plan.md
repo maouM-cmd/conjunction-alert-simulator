@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## Phase 8A — 完了
+## Phase 8A-ext — 完了
 
-`/conjunctions` に `auto_spacetrack_cdm` を追加。Space-Track `cdm_public` を NORAD マッチで接近一覧に RTN 共分散適用。UI チェックボックス + マージ件数メタ。次は batch 拡張（8A-ext）または v1.2.1 Release（別判断）。
+batch `/conjunctions/batch` に `auto_spacetrack_cdm` を追加。fleet サマリに CDM マージ件数集計。次は v1.2.1 Ship（8A + 8A-ext 反映）または Phase 8B 新機能。

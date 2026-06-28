@@ -417,6 +417,10 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | use_advanced_pc | bool | no | false | encounter plane Alfriend Pc（opt-in） |
 | use_anisotropic_cov | bool | no | false | TLE RTN 非等方共分散（`use_advanced_pc=true` 時のみ） |
 | use_altitude_prefilter | bool | no | true | 高度帯±200 km プリフィルタ（カタログ 500 件超時） |
+| auto_spacetrack_cdm | bool | no | false | 各衛星に Space-Track CDM 自動マージ（`use_advanced_pc=true` 必須） |
+| spacetrack_cdm_pc_min | float | no | null | auto 取得時の Pc 下限 |
+
+`summary` に `spacetrack_cdm_events_merged`（fleet 合計）と `spacetrack_cdm_satellites_with_merge` を含む。各 `results[]` 要素は単一衛星 `/conjunctions` レスポンスと同型（CDM メタ含む）。
 
 ---
 

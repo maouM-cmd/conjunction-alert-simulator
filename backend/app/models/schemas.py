@@ -217,6 +217,15 @@ class BatchConjunctionsRequest(BaseModel):
         default=True,
         description="高度帯±200kmプリフィルタ（500件超カタログ時）",
     )
+    auto_spacetrack_cdm: bool = Field(
+        default=False,
+        description="Space-Track cdm_public から CDM を自動取得し該当デブリに共分散を適用",
+    )
+    spacetrack_cdm_pc_min: float | None = Field(
+        default=None,
+        ge=0,
+        description="auto_spacetrack_cdm 時の Pc 下限フィルタ",
+    )
 
 
 class BatchSummaryOut(BaseModel):
@@ -225,6 +234,8 @@ class BatchSummaryOut(BaseModel):
     highest_pc: float
     highest_pc_satellite: str | None
     highest_pc_debris: str | None
+    spacetrack_cdm_events_merged: int = 0
+    spacetrack_cdm_satellites_with_merge: int = 0
 
 
 class BatchConjunctionsResponse(BaseModel):
