@@ -27,18 +27,18 @@
 
 手順: [`publish-zenn.md`](publish-zenn.md)
 
-- [ ] `blog-zenn.md` を Zenn にインポート / 貼り付け
-- [ ] Phase 5 節（5B クラウド / 5C Webhook・CDM σ）プレビュー OK
-- [ ] トピック: `Python`, `FastAPI`, `宇宙`, `OSS`, `Docker`, `SGP4`
-- [ ] **公開** → 記事 URL を控える
+- [x] `blog-zenn.md` を Zenn にインポート / 貼り付け
+- [x] Phase 5 節（5B クラウド / 5C Webhook・CDM σ）プレビュー OK
+- [x] トピック: `Python`, `FastAPI`, `宇宙`, `OSS`, `Docker`, `SGP4`
+- [x] **公開** — https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 
 ---
 
 ## 4. README 更新（Zenn 公開後）
 
-- [ ] [`README.md`](../README.md) の「技術記事」欄に Zenn URL を追記
-- [ ] [`blog-zenn.md`](demo/blog-zenn.md) の frontmatter `published: true` に変更
-- [ ] commit / push
+- [x] [`README.md`](../README.md) の「技術記事」欄に Zenn URL を追記
+- [x] [`blog-zenn.md`](demo/blog-zenn.md) の frontmatter `published: true` に変更
+- [x] commit / push
 
 ---
 
@@ -49,14 +49,14 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | 項目 | 推奨値 |
 |------|--------|
 | Description | `TLE-based satellite conjunction simulator — SGP4, Pc, CDM, CesiumJS, FastAPI` |
-| Website | Live Demo: `https://conjunction-alert-simulator.onrender.com/app/`（Zenn 公開後に差し替え可） |
+| Website | https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5 |
 | Topics | `satellite`, `conjunction`, `sgp4`, `fastapi`, `cesium`, `space-debris`, `python` |
 
 手順: [`publish-github-about.md`](publish-github-about.md)
 
 - [x] Description 設定
 - [x] Topics 設定
-- [x] Website に Live Demo URL 設定済み（Zenn 公開後に差し替え可）
+- [x] Website に Zenn URL 設定済み
 
 ---
 
@@ -76,5 +76,6 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 |------|-----|
 | リポ | https://github.com/maouM-cmd/conjunction-alert-simulator |
 | Live Demo | https://conjunction-alert-simulator.onrender.com/app/ |
+| Zenn | https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5 |
 | Release v1.1.0 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0 |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |

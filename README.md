@@ -184,13 +184,10 @@ MIT License — 詳細は [LICENSE](LICENSE)
 | | |
 |--|--|
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
-| Zenn | 準備中 — 原稿 [`docs/demo/blog-zenn.md`](docs/demo/blog-zenn.md) / 投稿手順 [`docs/publish-zenn.md`](docs/publish-zenn.md) |
+| Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
 | Release | [v1.1.0 — Phase 5](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
 | GitHub About | [`docs/publish-github-about.md`](docs/publish-github-about.md) |
-
-<!-- Zenn 公開後: 上表の Zenn 行を記事 URL に差し替え -->
-<!-- 技術記事: https://zenn.dev/... -->
 
 ## デモ
 
