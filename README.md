@@ -114,13 +114,25 @@ docker compose up --build -d
 
 `.env` に以下を設定:
 
+**Incoming Webhook（Phase 5C）:**
+
 ```env
 ALERT_WEBHOOK_URL=https://hooks.slack.com/services/XXX/YYY/ZZZ
 ALERT_WEBHOOK_FORMAT=slack
 ALERT_PC_THRESHOLD=0.00001
 ```
 
-解析リクエストで `notify_webhook: true` を指定するか、UI の **Webhook テスト** / `POST /api/v1/alerts/webhook/test` で接続確認。batch 解析でも `notify_webhook` 対応（fleet 一括 POST）。
+**Slack Bot Token（Phase 7B）** — `ALERT_WEBHOOK_URL` 不要:
+
+```env
+ALERT_WEBHOOK_FORMAT=slack_bot
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_CHANNEL_ID=C0123456789
+```
+
+Slack App 作成: [api.slack.com](https://api.slack.com/apps) → OAuth Scopes `chat:write`（公開チャンネルなら `chat:write.public` も可）→ ワークスペースにインストール → Bot User OAuth Token とチャンネル ID を `.env` に設定。
+
+解析リクエストで `notify_webhook: true` を指定するか、UI の **Webhook テスト** / `POST /api/v1/alerts/webhook/test` で接続確認。`/health` の `alert_delivery_format` で配信モードを確認可能。batch 解析でも `notify_webhook` 対応（fleet 一括 POST）。
 
 ## CLI（軌道伝播プロトタイプ）
 
