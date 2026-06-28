@@ -4,7 +4,7 @@
 
 ローカル Docker 手順は [deploy.md](deploy.md) を参照。
 
-**Phase 6C Live Demo:** 未デプロイ — [deploy-render-phase6c.md](deploy-render-phase6c.md) / [LIVE_DEMO_URL.md](LIVE_DEMO_URL.md)
+**Phase 6C Live Demo:** https://conjunction-alert-simulator.onrender.com/app/ — [LIVE_DEMO_URL.md](LIVE_DEMO_URL.md)
 
 ---
 
@@ -63,7 +63,7 @@ curl https://<your-service>.onrender.com/health
 venv\Scripts\python -m backend.cli.verify_deploy --url https://<your-service>.onrender.com
 ```
 
-ブラウザ: `https://<your-service>.onrender.com/app/`
+ブラウザ: `https://conjunction-alert-simulator.onrender.com/app/`（Phase 6C 稼働例）
 
 ### Render Free tier 注意
 

@@ -60,11 +60,11 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ## 6. Phase 6C — Render Live Demo
 
-手順: [`deploy-render-phase6c.md`](deploy-render-phase6c.md) | URL 記録: [`LIVE_DEMO_URL.md`](LIVE_DEMO_URL.md)
+手順: [`deploy-render-phase6c.md`](deploy-render-phase6c.md) | URL: [`LIVE_DEMO_URL.md`](LIVE_DEMO_URL.md)
 
-- [ ] Render Blueprint デプロイ
-- [ ] `verify_deploy --url https://<service>.onrender.com` PASS
-- [ ] `LIVE_DEMO_URL.md` + README Live Demo に App URL 追記
+- [x] Render Blueprint デプロイ
+- [x] `verify_deploy --url https://conjunction-alert-simulator.onrender.com` PASS
+- [x] `LIVE_DEMO_URL.md` + README Live Demo に App URL 追記
 
 ---
 
@@ -73,5 +73,6 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | 用途 | URL |
 |------|-----|
 | リポ | https://github.com/maouM-cmd/conjunction-alert-simulator |
+| Live Demo | https://conjunction-alert-simulator.onrender.com/app/ |
 | Release v1.1.0 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0 |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |

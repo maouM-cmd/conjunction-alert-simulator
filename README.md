@@ -28,26 +28,19 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
-## Live Demo（クラウド）
+## Live Demo
+
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render-46E3B7)](https://conjunction-alert-simulator.onrender.com/app/)
+
+**https://conjunction-alert-simulator.onrender.com/app/** — Render Free tier（API 同一オリジン）。cold start 後 **デモ TLE 読込 → 高精度 Pc ON → 接近解析**（閾値 50 km）。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
 
-Render Free tier へ Blueprint デプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。
-
-**手順:** [docs/deploy-render-phase6c.md](docs/deploy-render-phase6c.md) | **URL 確定後:** [docs/LIVE_DEMO_URL.md](docs/LIVE_DEMO_URL.md)
-
-デプロイ後の検証:
-
-```powershell
-venv\Scripts\python -m backend.cli.verify_deploy --url https://<your-service>.onrender.com
-```
-
-<!-- Phase 6C: デプロイ完了後、App URL をここに追記 -->
-<!-- Live Demo: https://<your-service>.onrender.com/app/ -->
+再デプロイ手順: [docs/deploy-render-phase6c.md](docs/deploy-render-phase6c.md) | URL 正本: [docs/LIVE_DEMO_URL.md](docs/LIVE_DEMO_URL.md)
 
 | 方法 | 手順 |
 |------|------|
-| Render | [deploy-render-phase6c.md](docs/deploy-render-phase6c.md) — [`render.yaml`](render.yaml) Blueprint |
+| Render（稼働中） | [deploy-render-phase6c.md](docs/deploy-render-phase6c.md) — [`render.yaml`](render.yaml) Blueprint |
 | Fly.io | [deploy-cloud.md](docs/deploy-cloud.md#flyio) — [`fly.toml`](fly.toml) |
 
 ## 機能
