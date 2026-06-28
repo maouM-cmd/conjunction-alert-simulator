@@ -46,7 +46,7 @@ detect_conjunctions → Foster Pc (default)
                         └─ true  → pc=Alfriend, MC on top-5 only
 ```
 
-- `pc_conjunction.py`: TLE ペア + TCA index → encounter plane Pc（等方 σ、grid 80×120）
+- `pc_conjunction.py`: TLE ペア + TCA index → encounter plane Pc（等方 σ または RTN 非等方、grid 80×120）
 - `conjunction_out.py`: `ConjunctionEvent` → `ConjunctionOut`
 - batch: 同一 `use_advanced_pc` を worker に伝播（`batch_analysis.py`）
 
@@ -57,6 +57,13 @@ detect_conjunctions → Foster Pc (default)
 - `cdm_alert_compare.py` — カタログ TLE 解決 + Foster 比較
 - `cdm_export.py` — 接近イベント → CDM KVN
 - UI「CDM アラート」タブ
+
+## Phase 4B-Ext: 非等方共分散 + Webhook
+
+- `tle_rtn_covariance.py` — TLE RTN 対角（R×2, T×0.5, N×0.5）→ encounter 2×2
+- `use_anisotropic_cov` — advanced Pc 時 opt-in、`covariance_source` を API 返却
+- `webhook_notifier.py` — `ALERT_WEBHOOK_URL` へ generic POST（失敗時 degraded ログのみ）
+- `POST /api/v1/alerts/webhook/test` — 接続確認
 
 ## Phase 4C: Docker デプロイ
 

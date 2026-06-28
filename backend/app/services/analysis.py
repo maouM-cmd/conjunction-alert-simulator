@@ -85,6 +85,7 @@ def _enrich_with_pc(
     analysis_time: datetime,
     sigma_km: float | None,
     use_advanced_pc: bool = False,
+    use_anisotropic_cov: bool = False,
     sat_points: list[OrbitPoint] | None = None,
     debris_propagated: list[tuple[int, str, str, list[OrbitPoint]]] | None = None,
 ) -> list[ConjunctionEvent]:
@@ -114,6 +115,7 @@ def _enrich_with_pc(
     if sat_points is None or debris_propagated is None:
         raise ValueError("advanced Pc には軌道点列が必要です。")
 
+    anisotropic = use_advanced_pc and use_anisotropic_cov
     deb_pts_by_id = {norad_id: pts for norad_id, _, _, pts in debris_propagated}
     enriched: list[ConjunctionEvent] = []
 
@@ -130,7 +132,9 @@ def _enrich_with_pc(
             event.tca_index,
             sigma_km=sigma_km,
             include_monte_carlo=False,
+            use_anisotropic_cov=anisotropic,
         )
+        cov_source = "tle_rtn_anisotropic" if anisotropic else "isotropic"
         risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=enc.alfriend)
         enriched.append(
             replace(
@@ -140,6 +144,7 @@ def _enrich_with_pc(
                 pc_alfriend=enc.alfriend,
                 pc_monte_carlo=None,
                 pc_method_used="encounter_advanced",
+                covariance_source=cov_source,
                 risk_level=risk,
             )
         )
@@ -162,6 +167,7 @@ def _enrich_with_pc(
             event.tca_index,
             sigma_km=sigma_km,
             include_monte_carlo=True,
+            use_anisotropic_cov=anisotropic,
         )
         final.append(replace(event, pc_monte_carlo=enc_mc.monte_carlo))
     return final
@@ -175,6 +181,7 @@ def run_conjunction_analysis(
     use_altitude_prefilter: bool = True,
     sigma_km: float | None = None,
     use_advanced_pc: bool = False,
+    use_anisotropic_cov: bool = False,
     debris_catalog: list[ParsedTle] | None = None,
     catalog_meta=None,
 ) -> ConjunctionAnalysisResult:
@@ -215,6 +222,7 @@ def run_conjunction_analysis(
         start,
         sigma_km,
         use_advanced_pc=use_advanced_pc,
+        use_anisotropic_cov=use_anisotropic_cov,
         sat_points=sat_points,
         debris_propagated=debris_propagated,
     )

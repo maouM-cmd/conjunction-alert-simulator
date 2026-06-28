@@ -42,6 +42,7 @@ class ConjunctionOut(BaseModel):
     pc_alfriend: float | None = None
     pc_monte_carlo: float | None = None
     pc_method_used: Literal["foster", "encounter_advanced"] | None = None
+    covariance_source: Literal["isotropic", "tle_rtn_anisotropic"] | None = None
 
 
 class ConjunctionsRequest(BaseModel):
@@ -51,6 +52,11 @@ class ConjunctionsRequest(BaseModel):
     step_minutes: int = Field(default=1, ge=1, le=60)
     sigma_km: float | None = Field(default=None, gt=0, description="位置不確かさ上書き (km)")
     use_advanced_pc: bool = Field(default=False, description="encounter plane Alfriend Pc を使用")
+    use_anisotropic_cov: bool = Field(
+        default=False,
+        description="TLE RTN 非等方共分散（use_advanced_pc=true 時のみ有効）",
+    )
+    notify_webhook: bool = Field(default=False, description="高リスクイベントを Webhook に通知")
 
 
 class ConjunctionsResponse(BaseModel):
@@ -168,6 +174,10 @@ class BatchConjunctionsRequest(BaseModel):
     step_minutes: int = Field(default=1, ge=1, le=60)
     sigma_km: float | None = Field(default=None, gt=0)
     use_advanced_pc: bool = Field(default=False, description="encounter plane Alfriend Pc を使用")
+    use_anisotropic_cov: bool = Field(
+        default=False,
+        description="TLE RTN 非等方共分散（use_advanced_pc=true 時のみ有効）",
+    )
 
 
 class BatchSummaryOut(BaseModel):

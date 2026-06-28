@@ -44,6 +44,7 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
         debris_catalog,
         catalog_meta,
         use_advanced_pc,
+        use_anisotropic_cov,
     ) = args
     return run_conjunction_analysis(
         tle_text,
@@ -52,6 +53,7 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
         step_minutes=step_minutes,
         sigma_km=sigma_km,
         use_advanced_pc=use_advanced_pc,
+        use_anisotropic_cov=use_anisotropic_cov,
         debris_catalog=debris_catalog,
         catalog_meta=catalog_meta,
     )
@@ -100,6 +102,7 @@ def run_batch_conjunction_analysis(
     parallel: bool = True,
     max_workers: int | None = None,
     use_advanced_pc: bool = False,
+    use_anisotropic_cov: bool = False,
 ) -> BatchAnalysisResult:
     if not satellite_tles:
         raise ValueError("衛星 TLE が1件以上必要です。")
@@ -124,6 +127,7 @@ def run_batch_conjunction_analysis(
                 debris_catalog,
                 catalog_meta,
                 use_advanced_pc,
+                use_anisotropic_cov,
             )
             for tle_text in satellite_tles
         ]
@@ -139,6 +143,7 @@ def run_batch_conjunction_analysis(
                 step_minutes=step_minutes,
                 sigma_km=sigma_km,
                 use_advanced_pc=use_advanced_pc,
+                use_anisotropic_cov=use_anisotropic_cov,
                 debris_catalog=debris_catalog,
                 catalog_meta=catalog_meta,
             )

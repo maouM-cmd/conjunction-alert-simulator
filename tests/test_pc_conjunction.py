@@ -76,3 +76,27 @@ def test_large_separation_pc_near_zero():
     )
     assert result.foster < 1e-6
     assert result.alfriend < 1e-4
+
+
+def test_use_anisotropic_cov_flag():
+    sat, deb, sat_pts, deb_pts = _propagate_pair()
+    iso = pc_for_tle_pair_at_index(
+        sat,
+        deb,
+        sat_pts,
+        deb_pts,
+        tca_index=10,
+        sigma_km=1.0,
+        use_anisotropic_cov=False,
+    )
+    aniso = pc_for_tle_pair_at_index(
+        sat,
+        deb,
+        sat_pts,
+        deb_pts,
+        tca_index=10,
+        sigma_km=1.0,
+        use_anisotropic_cov=True,
+    )
+    assert iso.sigma_equiv_km == pytest.approx(1.0)
+    assert aniso.sigma_equiv_km != pytest.approx(iso.sigma_equiv_km)

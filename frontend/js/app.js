@@ -31,11 +31,14 @@ const els = {
   thresholdKm: document.getElementById("threshold-km"),
   sigmaKm: document.getElementById("sigma-km"),
   useAdvancedPc: document.getElementById("use-advanced-pc"),
+  useAnisotropicCov: document.getElementById("use-anisotropic-cov"),
+  notifyWebhook: document.getElementById("notify-webhook"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   constellationInput: document.getElementById("constellation-input"),
   batchThresholdKm: document.getElementById("batch-threshold-km"),
   batchUseAdvancedPc: document.getElementById("batch-use-advanced-pc"),
+  batchUseAnisotropicCov: document.getElementById("batch-use-anisotropic-cov"),
   btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
   btnBatchScan: document.getElementById("btn-batch-scan"),
   batchStatusMsg: document.getElementById("batch-status-msg"),
@@ -149,6 +152,14 @@ function switchMode(mode) {
   }
 }
 
+function syncAnisotropicCheckbox(advancedEl, anisotropicEl) {
+  const enabled = advancedEl.checked;
+  anisotropicEl.disabled = !enabled;
+  if (!enabled) {
+    anisotropicEl.checked = false;
+  }
+}
+
 function renderConjunctions(data) {
   els.scanMeta.textContent = `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms / TLE: ${data.tle_provider || "celestrak"}`;
   els.conjunctionList.innerHTML = "";
@@ -163,7 +174,8 @@ function renderConjunctions(data) {
     const pcLine =
       c.pc_method_used === "encounter_advanced"
         ? `Pc: ${formatPc(c.pc)} (Alfriend) / Foster: ${formatPc(c.pc_foster)}` +
-          (c.pc_monte_carlo != null ? ` / MC: ${formatPc(c.pc_monte_carlo)}` : "")
+          (c.pc_monte_carlo != null ? ` / MC: ${formatPc(c.pc_monte_carlo)}` : "") +
+          (c.covariance_source === "tle_rtn_anisotropic" ? " (非等方 σ)" : "")
         : `Pc: ${formatPc(c.pc)} (Foster)`;
     const li = document.createElement("li");
     li.className = `risk-${c.risk_level}`;
@@ -335,7 +347,11 @@ async function runScan() {
       threshold_km: threshold,
       step_minutes: 1,
       use_advanced_pc: els.useAdvancedPc.checked,
+      notify_webhook: els.notifyWebhook.checked,
     };
+    if (els.useAdvancedPc.checked) {
+      payload.use_anisotropic_cov = els.useAnisotropicCov.checked;
+    }
     if (sigmaRaw) {
       payload.sigma_km = parseFloat(sigmaRaw);
     }
@@ -373,13 +389,17 @@ async function runBatchScan() {
 
   try {
     const threshold = parseFloat(els.batchThresholdKm.value) || 50.0;
-    const data = await apiPost("/api/v1/conjunctions/batch", {
+    const payload = {
       satellites,
       duration_days: 7,
       threshold_km: threshold,
       step_minutes: 1,
       use_advanced_pc: els.batchUseAdvancedPc.checked,
-    });
+    };
+    if (els.batchUseAdvancedPc.checked) {
+      payload.use_anisotropic_cov = els.batchUseAnisotropicCov.checked;
+    }
+    const data = await apiPost("/api/v1/conjunctions/batch", payload);
 
     batchResults = data.results.map((r, i) => ({
       ...r,
@@ -638,6 +658,14 @@ function init() {
     setStatus("ISS サンプルを読み込みました。");
   });
   els.btnLoadDemo.addEventListener("click", loadDemoTle);
+  els.useAdvancedPc.addEventListener("change", () => {
+    syncAnisotropicCheckbox(els.useAdvancedPc, els.useAnisotropicCov);
+  });
+  els.batchUseAdvancedPc.addEventListener("change", () => {
+    syncAnisotropicCheckbox(els.batchUseAdvancedPc, els.batchUseAnisotropicCov);
+  });
+  syncAnisotropicCheckbox(els.useAdvancedPc, els.useAnisotropicCov);
+  syncAnisotropicCheckbox(els.batchUseAdvancedPc, els.batchUseAnisotropicCov);
   els.btnScan.addEventListener("click", runScan);
   els.btnLoadConstellationDemo.addEventListener("click", loadConstellationDemo);
   els.btnBatchScan.addEventListener("click", runBatchScan);

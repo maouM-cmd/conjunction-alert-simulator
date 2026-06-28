@@ -40,6 +40,14 @@
           <input id="use-advanced-pc" type="checkbox" />
           高精度 Pc (Alfriend encounter plane)
         </label>
+        <label class="checkbox-row">
+          <input id="use-anisotropic-cov" type="checkbox" disabled />
+          非等方 RTN 共分散
+        </label>
+        <label class="checkbox-row">
+          <input id="notify-webhook" type="checkbox" />
+          Webhook 通知（高リスクイベント）
+        </label>
         <div class="button-row">
           <button id="btn-load-sample" type="button">ISS サンプル</button>
           <button id="btn-load-demo" type="button">デモ TLE 読込</button>
@@ -59,6 +67,10 @@
         <label class="checkbox-row">
           <input id="batch-use-advanced-pc" type="checkbox" />
           高精度 Pc (Alfriend encounter plane)
+        </label>
+        <label class="checkbox-row">
+          <input id="batch-use-anisotropic-cov" type="checkbox" disabled />
+          非等方 RTN 共分散
         </label>
         <div class="button-row">
           <button id="btn-load-constellation-demo" type="button">デモ読込</button>

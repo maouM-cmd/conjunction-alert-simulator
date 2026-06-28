@@ -59,6 +59,7 @@ async def batch_conjunctions_api(body: BatchConjunctionsRequest) -> BatchConjunc
                 True,
                 None,
                 body.use_advanced_pc,
+                body.use_anisotropic_cov if body.use_advanced_pc else False,
             ),
             timeout=BATCH_TIMEOUT_SEC,
         )

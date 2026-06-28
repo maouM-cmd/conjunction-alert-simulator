@@ -15,6 +15,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.analysis import run_conjunction_analysis
 from backend.app.services.conjunction_out import event_to_conjunction_out
+from backend.app.services.webhook_notifier import notify_conjunction_events
 
 router = APIRouter(prefix="/api/v1", tags=["conjunctions"])
 
@@ -34,6 +35,7 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
                 True,
                 body.sigma_km,
                 body.use_advanced_pc,
+                body.use_anisotropic_cov if body.use_advanced_pc else False,
             ),
             timeout=COMPUTATION_TIMEOUT_SEC,
         )
@@ -52,6 +54,13 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
         for e in result.events
         if e.risk_level in ("high", "medium", "low")
     ]
+
+    if body.notify_webhook:
+        await asyncio.to_thread(
+            notify_conjunction_events,
+            result.satellite,
+            result.events,
+        )
 
     return ConjunctionsResponse(
         satellite=SatelliteInfo(

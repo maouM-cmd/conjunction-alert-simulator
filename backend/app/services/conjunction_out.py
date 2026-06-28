@@ -21,4 +21,5 @@ def event_to_conjunction_out(event: ConjunctionEvent) -> ConjunctionOut:
         pc_alfriend=event.pc_alfriend,
         pc_monte_carlo=event.pc_monte_carlo,
         pc_method_used=method,  # type: ignore[arg-type]
+        covariance_source=event.covariance_source,  # type: ignore[arg-type]
     )

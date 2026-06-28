@@ -54,6 +54,8 @@
 | step_minutes | int | no | 1 | 伝播刻み（分） |
 | sigma_km | float | no | null | 位置不確かさ σ (km)。未指定時 TLE 経過日数から推定 |
 | use_advanced_pc | bool | no | false | true 時 encounter plane Alfriend Pc（opt-in） |
+| use_anisotropic_cov | bool | no | false | TLE RTN 非等方共分散（`use_advanced_pc=true` 時のみ） |
+| notify_webhook | bool | no | false | high/medium イベントを `ALERT_WEBHOOK_URL` に POST |
 
 ### レスポンス 200
 
@@ -81,7 +83,8 @@
       "pc_foster": 1.1e-05,
       "pc_alfriend": 1.23e-05,
       "pc_monte_carlo": 1.22e-05,
-      "pc_method_used": "encounter_advanced"
+      "pc_method_used": "encounter_advanced",
+      "covariance_source": "isotropic"
     }
   ],
   "debris_catalog_count": 4200,
@@ -95,6 +98,8 @@
 
 `use_advanced_pc=false` 時は `pc` のみ（Foster）、`pc_method_used: foster`。  
 `use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
+`use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
+`notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を Webhook POST（失敗時も解析結果は返す）。  
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー
@@ -386,6 +391,29 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | step_minutes | int | no | 1 | 伝播刻み（分） |
 | sigma_km | float | no | null | 位置不確かさ σ (km) |
 | use_advanced_pc | bool | no | false | encounter plane Alfriend Pc（opt-in） |
+| use_anisotropic_cov | bool | no | false | TLE RTN 非等方共分散（`use_advanced_pc=true` 時のみ） |
+
+---
+
+## POST /api/v1/alerts/webhook/test
+
+`ALERT_WEBHOOK_URL` へテスト ping を POST する。
+
+### レスポンス
+
+| コード | 条件 |
+|--------|------|
+| 200 | POST 成功 |
+| 503 | `ALERT_WEBHOOK_URL` 未設定 |
+
+```json
+{
+  "sent": true,
+  "alert_count": 0,
+  "degraded": false,
+  "message": "Webhook POST 成功 (200)。"
+}
+```
 
 最大 25 衛星。ProcessPool 並列実行（2 衛星以上）。
 

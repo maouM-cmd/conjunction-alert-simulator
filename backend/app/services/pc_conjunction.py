@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from backend.app.services.encounter_plane import encounter_frame_rotation, miss_vector_encounter
+from backend.app.services.tle_rtn_covariance import encounter_covariance_from_tle_pair
 from backend.app.services.pc_advanced import (
     BULK_ALFRIEND_N_R,
     BULK_ALFRIEND_N_THETA,
@@ -33,10 +34,11 @@ def pc_for_tle_pair_at_index(
     tca_index: int,
     sigma_km: float | None = None,
     include_monte_carlo: bool = False,
+    use_anisotropic_cov: bool = False,
     alfriend_grid: tuple[int, int] = (BULK_ALFRIEND_N_R, BULK_ALFRIEND_N_THETA),
     hard_body_radius_km: float = DEFAULT_COMBINED_RADIUS_KM,
 ) -> EncounterPcResult:
-    """Compute encounter-plane Pc using isotropic sigma from TLE age (no CDM)."""
+    """Compute encounter-plane Pc using isotropic or TLE RTN anisotropic sigma (no CDM)."""
     idx = min(tca_index, len(sat_pts) - 1, len(deb_pts) - 1)
     r1, v1 = _state_at_index(sat_pts, idx)
     r2, v2 = _state_at_index(deb_pts, idx)
@@ -47,9 +49,23 @@ def pc_for_tle_pair_at_index(
     if sigma_km is None:
         sigma_km = sigma_from_tle_age(satellite, debris, tca_time)
 
-    r_enc = encounter_frame_rotation(r_rel, v_rel)
-    b_2d = miss_vector_encounter(r_rel, r_enc)
-    c_2x2 = np.eye(2) * (sigma_km * sigma_km)
+    if use_anisotropic_cov:
+        c_2x2, b_2d = encounter_covariance_from_tle_pair(
+            satellite,
+            debris,
+            r1,
+            v1,
+            r2,
+            v2,
+            r_rel,
+            v_rel,
+            tca_time,
+            sigma_km=sigma_km,
+        )
+    else:
+        r_enc = encounter_frame_rotation(r_rel, v_rel)
+        b_2d = miss_vector_encounter(r_rel, r_enc)
+        c_2x2 = np.eye(2) * (sigma_km * sigma_km)
 
     n_r, n_theta = alfriend_grid
     return pc_from_encounter(

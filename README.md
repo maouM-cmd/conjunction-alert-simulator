@@ -9,7 +9,8 @@
 ## 機能
 
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
-- **衝突確率 Pc** — Foster 2D（一覧デフォルト）、opt-in で **Alfriend encounter plane**（一覧・batch）、CDM 比較では **Alfriend + Monte Carlo**
+- **衝突確率 Pc** — Foster 2D（一覧デフォルト）、opt-in で **Alfriend encounter plane** + **TLE RTN 非等方共分散**
+- **Webhook 通知** — 高リスクイベントを汎用 Webhook URL へ POST（スタブ）
 - **CDM インポート** — RTN 共分散の encounter plane 射影、外部 Pc vs CAS 3方式比較
 - **Space-Track CDM アラート** — `cdm_public` 取得、一覧比較、CAS から CDM KVN エクスポート
 - **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列）
@@ -83,6 +84,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 | `/health` | GET | 死活監視 |
 | `/api/v1/conjunctions` | POST | 接近イベント検出 |
 | `/api/v1/conjunctions/batch` | POST | 複数衛星一括接近解析 |
+| `/api/v1/alerts/webhook/test` | POST | Webhook 接続テスト |
 | `/api/v1/cdm/parse` | POST | CDM テキスト解析 |
 | `/api/v1/cdm/compare` | POST | CDM vs CAS 比較 |
 | `/api/v1/cdm/fetch` | POST | Space-Track CDM アラート取得 |
@@ -102,6 +104,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 4A](docs/requirements-phase4a.md)
 - [要件定義書 Phase 4A-Ext](docs/requirements-phase4a-ext.md)
 - [要件定義書 Phase 4B](docs/requirements-phase4b.md)
+- [要件定義書 Phase 4B-Ext](docs/requirements-phase4b-ext.md)
 - [要件定義書 Phase 4C](docs/requirements-phase4c.md)
 - [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
