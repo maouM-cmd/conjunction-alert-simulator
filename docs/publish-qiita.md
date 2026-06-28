@@ -14,19 +14,35 @@ Zenn 正本: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 
 ---
 
-## API 投稿（任意 — Phase 6F）
+## API 投稿・更新（Phase 6F / 6G）
 
-Personal access token がある場合:
+Personal access token は https://qiita.com/settings/applications で発行。**スコープに「記事の作成・更新」（write）を含める**こと（read のみだと PATCH が `403 Forbidden`）。
+
+### 新規投稿
 
 ```powershell
-$env:QIITA_ACCESS_TOKEN = "<your-token>"
+$env:QIITA_ACCESS_TOKEN = "<write スコープ付き token>"
 .\scripts\publish_qiita_item.ps1
 ```
 
-成功時 `docs/QIITA_PUBLISHED_URL.txt` に URL が保存されます。
+### 既存記事更新（Phase 6G）
+
+Item ID: `986e533b16b348f7d5e4` — 正本 [`QIITA_PUBLISHED_URL.txt`](QIITA_PUBLISHED_URL.txt)
+
+```powershell
+$env:QIITA_ACCESS_TOKEN = "<write スコープ付き token>"
+.\scripts\publish_qiita_item.ps1 -Update
+```
+
+成功時、本文・タグが [`blog-draft.md`](demo/blog-draft.md) 相当に上書きされます。
+
+### ブラウザ更新（トークンなし / write 不可時）
+
+1. https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4/edit
+2. 本文を `blog-draft.md` で置換（先頭 `# タイトル` 行はタイトル欄へ）
+3. タグ: `Python`, `FastAPI`, `宇宙`, `OSS`, `Docker`, `SGP4` → **更新**
 
 ---
-
 ## 投稿手順
 
 1. [Qiita](https://qiita.com/) にログイン
@@ -46,12 +62,18 @@ $env:QIITA_ACCESS_TOKEN = "<your-token>"
 - [x] README「技術記事」表に Qiita 行を追記
 - [x] `blog-zenn.md` / `blog-draft.md` に Qiita URL 追記
 - [x] [`publish-checklist-v1.1.0.md`](publish-checklist-v1.1.0.md) §7 Qiita を `[x]`
-- [ ] Zenn 本番記事 Web エディタで Qiita 相互リンク（任意）
+- [ ] Zenn 本番記事 Web エディタで Qiita 相互リンク — https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5/edit（[`blog-zenn.md`](demo/blog-zenn.md) まとめ節）
 
 **Qiita URL 正本:** [`QIITA_PUBLISHED_URL.txt`](QIITA_PUBLISHED_URL.txt)
 
 ---
 
+## 既存記事更新（Phase 6G）
+
+- [ ] Qiita 本文・タグ差し替え（`publish_qiita_item.ps1 -Update` またはブラウザ編集）
+- [ ] 記事プレビューで GIF / PNG / リンク確認
+
+---
 ## 画像 raw URL 一覧
 
 | ファイル | URL |

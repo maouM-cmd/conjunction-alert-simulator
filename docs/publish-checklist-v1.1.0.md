@@ -78,6 +78,13 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
+## 8. Phase 6G — 公開仕上げ
+
+- [ ] Qiita 本文・タグを [`blog-draft.md`](demo/blog-draft.md) 相当に更新 — [手順](publish-qiita.md#既存記事更新phase-6g)
+- [ ] Zenn 本番まとめに Qiita リンク — [`blog-zenn.md`](demo/blog-zenn.md) L109–117 を Web エディタに同期
+
+---
+
 ## 関連リンク
 
 | 用途 | URL |

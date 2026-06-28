@@ -157,6 +157,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [GitHub Release 手順](docs/publish-github-release.md)
 - [要件定義書 Phase 6E](docs/requirements-phase6e.md)
 - [要件定義書 Phase 6F](docs/requirements-phase6f.md)
+- [要件定義書 Phase 6G](docs/requirements-phase6g.md)
 - [Qiita 投稿手順](docs/publish-qiita.md)
 - [GitHub Social Preview](docs/publish-github-social-preview.md)
 - [要件定義書 Phase 1](docs/requirements.md)
