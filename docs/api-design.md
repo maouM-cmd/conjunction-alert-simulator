@@ -64,6 +64,8 @@
 | cdm_text | string | no | null | 共分散付き CDM KVN（任意） |
 | apply_cdm_covariance | bool | no | false | `cdm_text` 指定時、該当デブリの Pc に CDM encounter 共分散を適用 |
 | use_altitude_prefilter | bool | no | true | 高度帯±200 km プリフィルタ（カタログ 500 件超時） |
+| auto_spacetrack_cdm | bool | no | false | Space-Track `cdm_public` 自動マージ（`use_advanced_pc=true` 必須） |
+| spacetrack_cdm_pc_min | float | no | null | auto 取得時の Pc 下限 |
 
 ### レスポンス 200
 
@@ -102,7 +104,10 @@
   "computation_time_ms": 8420,
   "tle_cache_stale": false,
   "tle_provider": "celestrak",
-  "webhook": null
+  "webhook": null,
+  "spacetrack_cdm_records_fetched": 0,
+  "spacetrack_cdm_events_merged": 0,
+  "spacetrack_cdm_degraded": false
 }
 ```
 
@@ -112,6 +117,7 @@
 `use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
 `use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
 `apply_cdm_covariance=true` + `cdm_text` で該当デブリに `sigma_source: cdm_covariance` / `covariance_source: cdm_encounter`。  
+`auto_spacetrack_cdm=true` で Space-Track から CDM を自動マージ（`cdm_text` がある場合は手動優先）。認証未設定時は merged=0 で解析継続。  
 `notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
 `ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
 `ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。

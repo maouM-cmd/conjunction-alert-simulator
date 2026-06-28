@@ -36,6 +36,8 @@ const els = {
   btnWebhookTest: document.getElementById("btn-webhook-test"),
   scanCdmInput: document.getElementById("scan-cdm-input"),
   applyCdmCovariance: document.getElementById("apply-cdm-covariance"),
+  autoSpacetrackCdm: document.getElementById("auto-spacetrack-cdm"),
+  autoSpacetrackCdmWrap: document.getElementById("auto-spacetrack-cdm-wrap"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   constellationInput: document.getElementById("constellation-input"),
@@ -211,8 +213,12 @@ function formatWebhookStatus(webhook) {
 
 function formatAnalysisMeta(data) {
   const filterNote = data.altitude_prefilter_applied ? "高度帯フィルタ ON / " : "";
+  const cdmNote =
+    data.spacetrack_cdm_records_fetched > 0 || data.spacetrack_cdm_events_merged > 0
+      ? `Space-Track CDM: ${data.spacetrack_cdm_events_merged} 件マージ / `
+      : "";
   return (
-    `${filterNote}${data.conjunctions.length} 件 / 候補 ${data.debris_candidates_count} / ` +
+    `${filterNote}${cdmNote}${data.conjunctions.length} 件 / 候補 ${data.debris_candidates_count} / ` +
     `カタログ ${data.debris_catalog_count} / ${data.computation_time_ms} ms / ` +
     `TLE: ${data.tle_provider || "celestrak"}`
   );
@@ -420,6 +426,11 @@ async function runScan() {
     }
     if (els.applyCdmCovariance.checked) {
       payload.apply_cdm_covariance = true;
+    }
+    if (els.autoSpacetrackCdm.checked) {
+      payload.auto_spacetrack_cdm = true;
+      payload.use_advanced_pc = true;
+      els.useAdvancedPc.checked = true;
     }
     if (els.useAdvancedPc.checked) {
       payload.use_anisotropic_cov = els.useAnisotropicCov.checked;
@@ -804,6 +815,13 @@ async function init() {
       msg += ` / 通知: ${health.alert_delivery_format}`;
     }
     setStatus(msg);
+    if (health.spacetrack_configured) {
+      els.autoSpacetrackCdm.disabled = false;
+      els.autoSpacetrackCdmWrap.title = "Space-Track cdm_public から RTN 共分散を自動適用";
+    } else {
+      els.autoSpacetrackCdm.disabled = true;
+      els.autoSpacetrackCdmWrap.title = "Space-Track 認証（.env）が必要です。";
+    }
   }
 }
 

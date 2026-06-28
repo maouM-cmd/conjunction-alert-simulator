@@ -10,6 +10,7 @@ import numpy as np
 from sgp4.api import jday
 
 from backend.app.services.cdm_pc_enrichment import apply_cdm_covariance_to_events
+from backend.app.services.cdm_spacetrack_merge import apply_spacetrack_cdm_to_events
 from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions, resolve_risk_level
 from backend.app.services.pc_advanced import MC_TOP_N
 from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
@@ -35,6 +36,9 @@ class ConjunctionAnalysisResult:
     computation_time_ms: int
     tle_cache_stale: bool
     tle_provider: str
+    spacetrack_cdm_records_fetched: int = 0
+    spacetrack_cdm_events_merged: int = 0
+    spacetrack_cdm_degraded: bool = False
 
 
 def _utc_now() -> datetime:
@@ -187,6 +191,8 @@ def run_conjunction_analysis(
     use_anisotropic_cov: bool = False,
     cdm_text: str | None = None,
     apply_cdm_covariance: bool = False,
+    auto_spacetrack_cdm: bool = False,
+    spacetrack_cdm_pc_min: float | None = None,
     debris_catalog: list[ParsedTle] | None = None,
     catalog_meta=None,
 ) -> ConjunctionAnalysisResult:
@@ -244,6 +250,20 @@ def run_conjunction_analysis(
             sat_points,
             debris_propagated,
         )
+
+    st_records_fetched = 0
+    st_events_merged = 0
+    st_degraded = False
+    if auto_spacetrack_cdm and not cdm_text:
+        events, st_records_fetched, st_events_merged, st_degraded = apply_spacetrack_cdm_to_events(
+            events,
+            satellite,
+            threshold_km,
+            sat_points,
+            debris_propagated,
+            pc_min=spacetrack_cdm_pc_min,
+        )
+
     events = [e for e in events if e.risk_level != "none"]
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -259,6 +279,9 @@ def run_conjunction_analysis(
         computation_time_ms=elapsed_ms,
         tle_cache_stale=is_cache_stale() or catalog_meta.degraded,
         tle_provider=catalog_meta.provider,
+        spacetrack_cdm_records_fetched=st_records_fetched,
+        spacetrack_cdm_events_merged=st_events_merged,
+        spacetrack_cdm_degraded=st_degraded,
     )
 
 

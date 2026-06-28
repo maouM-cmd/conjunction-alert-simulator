@@ -74,6 +74,15 @@ class ConjunctionsRequest(BaseModel):
         default=True,
         description="高度帯±200kmプリフィルタ（500件超カタログ時）",
     )
+    auto_spacetrack_cdm: bool = Field(
+        default=False,
+        description="Space-Track cdm_public から CDM を取得し該当デブリに共分散を適用",
+    )
+    spacetrack_cdm_pc_min: float | None = Field(
+        default=None,
+        ge=0,
+        description="auto_spacetrack_cdm 時の Pc 下限フィルタ",
+    )
 
 
 class ConjunctionsResponse(BaseModel):
@@ -88,6 +97,9 @@ class ConjunctionsResponse(BaseModel):
     tle_cache_stale: bool
     tle_provider: str
     webhook: WebhookNotifyOut | None = None
+    spacetrack_cdm_records_fetched: int = 0
+    spacetrack_cdm_events_merged: int = 0
+    spacetrack_cdm_degraded: bool = False
 
 
 class OrbitRequest(BaseModel):

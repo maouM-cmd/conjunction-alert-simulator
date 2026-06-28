@@ -51,7 +51,7 @@ Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 - **Webhook 通知** — 高リスクイベントを Webhook へ POST（generic / Slack Incoming Webhook / **Slack Bot**）
 - **高度帯プリフィルタ** — UI/API で ON/OFF、候補デブリ件数メタ（Phase 7C）
 - **CDM RTN compare-alert** — Space-Track detail から RTN σ 取得、`sigma_source: cdm_covariance`（Phase 7A）
-- **CDM σ on 一覧** — `cdm_text` + `apply_cdm_covariance` で接近一覧 Pc に CDM 共分散適用
+- **CDM σ on 一覧** — 手動 `cdm_text` または **Space-Track CDM 自動適用**（Phase 8A、要認証）
 - **CDM インポート** — RTN 共分散の encounter plane 射影、外部 Pc vs CAS 3方式比較
 - **Space-Track CDM アラート** — `cdm_public` 取得、一覧比較、CAS から CDM KVN エクスポート
 - **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列）
