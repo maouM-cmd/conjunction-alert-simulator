@@ -12,7 +12,7 @@
 
 **v1.1.0（Phase 5）** — Render/Fly クラウド manifest、Slack Webhook、CDM σ on 接近一覧、Advanced Pc デモ素材を追加。Starlink 型の接近監視フローを OSS で再現したポートフォリオ作品です。
 
-## 2 分デモ（推奨）
+## 2 分デモ（ローカル）
 
 ```powershell
 git clone https://github.com/maouM-cmd/conjunction-alert-simulator.git
@@ -28,19 +28,27 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
-## Live Demo（クラウド — 準備中）
+## Live Demo（クラウド）
 
-Render / Fly.io にデプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。**現時点ではローカル / Docker の 2 分デモをご利用ください。**
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
 
-<!-- デプロイ後に URL を追記 -->
+Render Free tier へ Blueprint デプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。
+
+**手順:** [docs/deploy-render-phase6c.md](docs/deploy-render-phase6c.md) | **URL 確定後:** [docs/LIVE_DEMO_URL.md](docs/LIVE_DEMO_URL.md)
+
+デプロイ後の検証:
+
+```powershell
+venv\Scripts\python -m backend.cli.verify_deploy --url https://<your-service>.onrender.com
+```
+
+<!-- Phase 6C: デプロイ完了後、App URL をここに追記 -->
 <!-- Live Demo: https://<your-service>.onrender.com/app/ -->
 
 | 方法 | 手順 |
 |------|------|
-| Render | [deploy-cloud.md](docs/deploy-cloud.md#render) — [`render.yaml`](render.yaml) Blueprint |
+| Render | [deploy-render-phase6c.md](docs/deploy-render-phase6c.md) — [`render.yaml`](render.yaml) Blueprint |
 | Fly.io | [deploy-cloud.md](docs/deploy-cloud.md#flyio) — [`fly.toml`](fly.toml) |
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
 
 ## 機能
 
@@ -147,6 +155,9 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 ## ドキュメント
 
 - [要件定義書 Phase 6A](docs/requirements-phase6a.md)
+- [要件定義書 Phase 6C](docs/requirements-phase6c.md)
+- [Render デプロイ Phase 6C](docs/deploy-render-phase6c.md)
+- [Live Demo URL](docs/LIVE_DEMO_URL.md)
 - [GitHub Release 手順](docs/publish-github-release.md)
 - [公開チェックリスト v1.1.0](docs/publish-checklist-v1.1.0.md)
 - [要件定義書 Phase 1](docs/requirements.md)

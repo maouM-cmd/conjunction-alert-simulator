@@ -4,6 +4,8 @@
 
 ローカル Docker 手順は [deploy.md](deploy.md) を参照。
 
+**Phase 6C Live Demo:** 未デプロイ — [deploy-render-phase6c.md](deploy-render-phase6c.md) / [LIVE_DEMO_URL.md](LIVE_DEMO_URL.md)
+
 ---
 
 ## 共通前提
@@ -53,6 +55,12 @@ Free tier ではスリープ復帰後も同様に初回が遅くなります。5
 
 ```bash
 curl https://<your-service>.onrender.com/health
+```
+
+または:
+
+```powershell
+venv\Scripts\python -m backend.cli.verify_deploy --url https://<your-service>.onrender.com
 ```
 
 ブラウザ: `https://<your-service>.onrender.com/app/`
