@@ -4,29 +4,11 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
 
+from backend.app.services.cdm_types import CdmCovariance, RtnVariance
 from backend.app.services.pc_calculator import SIGMA_MAX_KM, SIGMA_MIN_KM
 
 _VARIANCE_UNIT = re.compile(r"^([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(\w*)")
-
-
-@dataclass(frozen=True)
-class RtnVariance:
-    """RTN position variance (km^2) for one object."""
-
-    cr_r: float | None = None
-    ct_t: float | None = None
-    cn_n: float | None = None
-    cr_t: float | None = None
-    cr_n: float | None = None
-    ct_n: float | None = None
-
-
-@dataclass(frozen=True)
-class CdmCovariance:
-    sat1: RtnVariance
-    sat2: RtnVariance
 
 
 def _parse_variance_km2(value: str) -> float:

@@ -31,6 +31,12 @@ Frontend (CesiumJS)  ←→  FastAPI  ←→  Services
 - **高度プレフィルタ:** 衛星平均高度 ±200 km（`analysis.py`、500 件超カタログ時）
 - **Pc 計算:** Foster 2D（`pc_calculator.py`）、イベントは Pc 降順ソート
 
+## Phase 4A: Encounter Plane Pc
+
+- CDM RTN 共分散 → TEME → encounter plane 2×2（`encounter_plane.py`, `cdm_covariance.py`）
+- CDM 比較: Foster / Alfriend / Monte Carlo 並列（`pc_advanced.py`）
+- 単一衛星 API は Foster 維持、CDM compare のみ advanced Pc
+
 ## Phase 2: TLE プロバイダ
 
 - デフォルト: CelesTrak（24h キャッシュ）

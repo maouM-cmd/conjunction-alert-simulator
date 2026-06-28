@@ -229,3 +229,22 @@ label {
   padding-top: 0.5rem;
   border-top: 1px solid #2a3858;
 }
+
+.pc-methods-table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.pc-methods-table th,
+.pc-methods-table td {
+  border: 1px solid #2a3858;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.pc-methods-table th {
+  background: #1a2540;
+  color: #b8c9ea;
+}

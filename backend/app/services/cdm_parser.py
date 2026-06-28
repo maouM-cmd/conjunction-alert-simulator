@@ -6,7 +6,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from backend.app.services.cdm_covariance import CdmCovariance, parse_cdm_covariance
+from backend.app.services.cdm_types import CdmCovariance, RtnVariance
+from backend.app.services.cdm_covariance import parse_cdm_covariance
 
 _CDM_LINE = re.compile(r"^\s*([A-Z0-9_]+)\s*=\s*(.+?)\s*$")
 

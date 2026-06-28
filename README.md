@@ -9,8 +9,8 @@
 ## 機能
 
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
-- **衝突確率 Pc**（Foster 2D モデル）と Pc ベースのリスクレベル
-- **CDM インポート** — CCSDS CDM テキスト解析、RTN 共分散から σ 推定、外部 Pc vs CAS 比較
+- **衝突確率 Pc** — Foster 2D（一覧）、CDM 比較では **Alfriend + Monte Carlo**（encounter plane）
+- **CDM インポート** — RTN 共分散の encounter plane 射影、外部 Pc vs CAS 3方式比較
 - **コンステレーション監視** — 最大 25 衛星の TLE 一括接近解析（ProcessPool 並列）
 - CesiumJS による 3D 軌道可視化・TCA マーカー・タイムスライダー
 - prograde / retrograde / normal 方向の Δv 試算（Before/After）
@@ -83,6 +83,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 2](docs/requirements-phase2.md)
 - [要件定義書 Phase 3](docs/requirements-phase3.md)
 - [要件定義書 Phase 3.5](docs/requirements-phase35.md)
+- [要件定義書 Phase 4A](docs/requirements-phase4a.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
 

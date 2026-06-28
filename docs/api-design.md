@@ -1,6 +1,6 @@
 # API 設計書
 
-**版:** 3.5  
+**版:** 4A  
 **ベース URL:** `http://127.0.0.1:8000`
 
 ---
@@ -242,11 +242,20 @@ CDM 外部値と CAS SGP4 計算値を比較する。
   "delta_miss_km": 0.37,
   "delta_pc_ratio": 0.875,
   "cas_sigma_km": 0.1523,
-  "sigma_source": "cdm_covariance"
+  "sigma_source": "cdm_covariance",
+  "pc_methods": {
+    "foster": 2.5e-05,
+    "alfriend": 2.8e-05,
+    "monte_carlo": 2.79e-05
+  },
+  "pc_method_used": "encounter_advanced",
+  "encounter_miss_km": 29.5
 }
 ```
 
-`sigma_source`: `manual` | `cdm_covariance` | `tle_age`
+`sigma_source`: `manual` | `cdm_covariance` | `tle_age`  
+`pc_method_used`: `foster_only` | `encounter_advanced`  
+`cas.pc` は primary Pc（encounter 時 Alfriend、それ以外 Foster）
 
 ---
 

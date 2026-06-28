@@ -4,12 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.services.cdm_covariance import (
-    CdmCovariance,
-    RtnVariance,
-    parse_cdm_covariance,
-    sigma_from_cdm_rtn,
-)
+from backend.app.services.cdm_types import CdmCovariance, RtnVariance
+from backend.app.services.cdm_covariance import parse_cdm_covariance, sigma_from_cdm_rtn
 from backend.app.services.cdm_parser import parse_cdm
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"

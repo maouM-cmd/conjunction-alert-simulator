@@ -132,6 +132,12 @@ class CdmCompareSide(BaseModel):
     tca: datetime | None = None
 
 
+class PcMethodsOut(BaseModel):
+    foster: float | None
+    alfriend: float | None
+    monte_carlo: float | None
+
+
 class CdmCompareResponse(BaseModel):
     cdm: CdmCompareSide
     cas: CdmCompareSide
@@ -139,6 +145,9 @@ class CdmCompareResponse(BaseModel):
     delta_pc_ratio: float | None
     cas_sigma_km: float | None
     sigma_source: Literal["manual", "cdm_covariance", "tle_age"]
+    pc_methods: PcMethodsOut
+    pc_method_used: Literal["foster_only", "encounter_advanced"]
+    encounter_miss_km: float | None
 
 
 class SatelliteInput(BaseModel):

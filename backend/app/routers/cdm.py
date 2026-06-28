@@ -12,6 +12,7 @@ from backend.app.models.schemas import (
     CdmCompareSide,
     CdmParseRequest,
     CdmRecordOut,
+    PcMethodsOut,
 )
 from backend.app.services.cdm_compare import compare_cdm_with_tles
 from backend.app.services.cdm_parser import parse_cdm
@@ -87,4 +88,13 @@ async def compare_cdm_api(body: CdmCompareRequest) -> CdmCompareResponse:
         delta_pc_ratio=round(result.delta_pc_ratio, 4) if result.delta_pc_ratio is not None else None,
         cas_sigma_km=round(result.cas_sigma_km, 4),
         sigma_source=result.sigma_source,
+        pc_methods=PcMethodsOut(
+            foster=result.pc_methods.foster,
+            alfriend=result.pc_methods.alfriend,
+            monte_carlo=result.pc_methods.monte_carlo,
+        ),
+        pc_method_used=result.pc_method_used,
+        encounter_miss_km=(
+            round(result.encounter_miss_km, 4) if result.encounter_miss_km is not None else None
+        ),
     )

@@ -338,6 +338,24 @@ async function runCdmCompare() {
     };
     const sigmaLabel = sigmaLabels[data.sigma_source] || data.sigma_source;
 
+    const pm = data.pc_methods || {};
+    const pcTableRows = [
+      ["CDM（外部）", data.cdm.pc],
+      ["Foster", pm.foster],
+      ["Alfriend", pm.alfriend],
+      ["Monte Carlo", pm.monte_carlo],
+    ]
+      .map(
+        ([label, val]) =>
+          `<tr><td>${label}</td><td>${val != null ? formatPc(val) : "—"}</td></tr>`
+      )
+      .join("");
+
+    const methodLabel =
+      data.pc_method_used === "encounter_advanced"
+        ? "encounter plane（Alfriend 優先）"
+        : "Foster のみ";
+
     els.cdmResult.innerHTML = `
       <div class="compare-grid">
         <div class="compare-col">
@@ -348,14 +366,23 @@ async function runCdmCompare() {
           <div>相対速度: ${data.cdm.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
         </div>
         <div class="compare-col">
-          <h3>CAS 計算</h3>
+          <h3>CAS 計算（${methodLabel}）</h3>
           <div>TCA: ${formatTime(data.cas.tca)}</div>
           <div>Miss distance: ${data.cas.miss_distance_km?.toFixed(3) ?? "—"} km</div>
-          <div>Pc: ${formatPc(data.cas.pc)}</div>
+          <div>Pc (primary): ${formatPc(data.cas.pc)}</div>
           <div>相対速度: ${data.cas.relative_velocity_kms?.toFixed(3) ?? "—"} km/s</div>
           <div>σ: ${data.cas_sigma_km?.toFixed(4) ?? "—"} km (${sigmaLabel})</div>
+          ${
+            data.encounter_miss_km != null
+              ? `<div>Encounter |b|: ${data.encounter_miss_km.toFixed(3)} km</div>`
+              : ""
+          }
         </div>
       </div>
+      <table class="pc-methods-table">
+        <thead><tr><th>方式</th><th>Pc</th></tr></thead>
+        <tbody>${pcTableRows}</tbody>
+      </table>
       <div class="compare-delta">
         <strong>差分:</strong> Miss Δ = ${missDelta} / Pc 比 = ${pcRatio}
       </div>
