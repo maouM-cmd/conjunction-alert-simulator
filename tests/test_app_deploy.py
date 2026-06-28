@@ -53,4 +53,4 @@ def test_cloud_deploy_manifests_present():
     assert (PROJECT_ROOT / "fly.toml").is_file()
     render_text = (PROJECT_ROOT / "render.yaml").read_text(encoding="utf-8")
     assert "healthCheckPath: /health" in render_text
-    assert "/app/data/cache" in render_text
+    assert "plan: free" in render_text

@@ -97,7 +97,7 @@ Phase 5B で manifest を同梱。詳細手順: **[deploy-cloud.md](deploy-cloud
 | Fly.io | [`fly.toml`](../fly.toml) |
 
 1. GitHub リポジトリを接続して Docker デプロイ
-2. 永続ストレージを `/app/data/cache` にマウント
+2. 永続ストレージ（任意）— Render **Free では不可**、Starter+ または Fly volume で `/app/data/cache`
 3. 公開 URL の **`/app/`** を Live Demo として使用
 
 Free tier ではスリープ・初回 TLE 取得遅延に注意。閾値 50 km 推奨。

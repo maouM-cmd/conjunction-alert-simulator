@@ -1,14 +1,12 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
+# TLE cache path in container: /app/data/cache (ephemeral on Free tier)
+# Starter+ persistent disk: see docs/deploy-cloud.md#render-starter-disk
 services:
   - type: web
     name: conjunction-alert-simulator
     runtime: docker
     plan: free
     healthCheckPath: /health
-    disk:
-      name: cas-cache
-      mountPath: /app/data/cache
-      sizeGB: 1
     envVars:
       - key: BATCH_MAX_WORKERS
         value: "2"

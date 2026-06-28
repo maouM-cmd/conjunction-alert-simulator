@@ -59,7 +59,27 @@ curl https://<your-service>.onrender.com/health
 ### Render Free tier 注意
 
 - 非アクセス時スリープ → 初回アクセスで cold start（数十秒）
-- 永続ディスクはプランにより制限あり（Starter 以上を推奨する場合あり）
+- **Free tier では永続ディスク不可** — Blueprint の `render.yaml` は disk なし（TLE キャッシュは再起動・スリープで消える）
+- 初回接近解析は毎回 CelesTrak 取得のため遅くなるが、デモ用途では問題なし
+
+### Render Starter+ で永続キャッシュ（任意） {#render-starter-disk}
+
+Dashboard で Web Service を **Starter** 以上に変更後、**Disks** を追加:
+
+| 項目 | 値 |
+|------|-----|
+| Mount path | `/app/data/cache` |
+| Size | 1 GB |
+
+または Blueprint 手動編集時のみ `render.yaml` に追加:
+
+```yaml
+    plan: starter
+    disk:
+      name: cas-cache
+      mountPath: /app/data/cache
+      sizeGB: 1
+```
 
 ---
 
