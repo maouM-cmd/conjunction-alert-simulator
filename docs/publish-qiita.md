@@ -91,6 +91,16 @@ $env:QIITA_ACCESS_TOKEN = "<write スコープ付き token>"
 - [ ] 記事プレビューで Phase 8 / SMTP 節を確認
 - [ ] Release リンクが v1.2.2
 
+### 403 Forbidden（read トークン）
+
+`.qiita-token.local` または環境変数の token が **read のみ** の場合、PATCH は 403 になる。
+
+1. https://qiita.com/settings/applications で **write スコープ**付き token を再発行
+2. `$env:QIITA_ACCESS_TOKEN = "<新 token>"` を設定（`.qiita-token.local` を上書きしても可）
+3. `.\scripts\publish_qiita_item.ps1 -Update` を再実行
+
+本番記事がプレースホルダ「a」のままの場合は、上記または [ブラウザ更新](#ブラウザ更新トークンなし--write-不可時) を実施。
+
 ---
 ## 画像 raw URL 一覧
 
