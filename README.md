@@ -169,6 +169,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 5D](docs/requirements-phase5d.md)
 - [クラウドデプロイ](docs/deploy-cloud.md)
 - [Zenn 投稿手順](docs/publish-zenn.md)
+- [GitHub About 設定](docs/publish-github-about.md)
 - [CHANGELOG](CHANGELOG.md)
 - [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
@@ -182,9 +183,11 @@ MIT License — 詳細は [LICENSE](LICENSE)
 
 | | |
 |--|--|
+| Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | 準備中 — 原稿 [`docs/demo/blog-zenn.md`](docs/demo/blog-zenn.md) / 投稿手順 [`docs/publish-zenn.md`](docs/publish-zenn.md) |
 | Release | [v1.1.0 — Phase 5](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
+| GitHub About | [`docs/publish-github-about.md`](docs/publish-github-about.md) |
 
 <!-- Zenn 公開後: 上表の Zenn 行を記事 URL に差し替え -->
 <!-- 技術記事: https://zenn.dev/... -->

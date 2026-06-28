@@ -23,6 +23,7 @@ GitHub Release 手順: [`publish-github-release.md`](publish-github-release.md)
 2. **新規記事** → **Markdown をインポート** またはエディタに貼り付け
 3. `blog-zenn.md` の **frontmatter 以降** をコピー（`---` ブロックは Zenn UI でタイトル等を設定する場合は省略可）
 4. プレビューで以下を確認:
+   - [ ] **Live Demo** リンク（https://conjunction-alert-simulator.onrender.com/app/）が有効
    - [ ] デモ GIF が表示される
    - [ ] 接近一覧（Advanced Pc）スクリーンショットが表示される
    - [ ] CDM 比較スクリーンショットが表示される
@@ -39,7 +40,7 @@ GitHub Release 手順: [`publish-github-release.md`](publish-github-release.md)
 1. [`README.md`](../README.md) の **「技術記事」** 欄に Zenn URL を追記（「準備中」を置き換え）
 2. [`blog-zenn.md`](demo/blog-zenn.md) の frontmatter を `published: true` に更新
 3. commit / push
-4. GitHub リポ **About** → Website に Zenn URL を設定（[`publish-checklist-v1.1.0.md`](publish-checklist-v1.1.0.md) 参照）
+4. GitHub リポ **About** → Website に Zenn URL を設定（[`publish-github-about.md`](publish-github-about.md) 参照。Zenn 公開前は Live Demo URL でも可）
 5. [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) でフィードバックを受け付ける旨は記事末尾に記載済み
 
 ---

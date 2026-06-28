@@ -10,6 +10,8 @@ published: false
 
 **公開リポ:** https://github.com/maouM-cmd/conjunction-alert-simulator
 
+**Live Demo:** https://conjunction-alert-simulator.onrender.com/app/（Render Free tier — cold start 後 30〜60 秒）
+
 低軌道衛星と宇宙デブリの接近（Conjunction）は、大規模コンステレーション運用では毎日の課題です。本番システムは Space-Track、CDM、Pc 計算、通知連携を含みますが、CAS では **TLE + SGP4 + REST + Cesium** でその流れを OSS として再現しました。
 
 ![Demo](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/demo.gif)
@@ -34,6 +36,7 @@ published: false
 - フロント API **同一オリジン**（クラウド URL から `/app/` だけで動作）
 - [`render.yaml`](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/render.yaml) / [`fly.toml`](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/fly.toml)
 - 手順: [deploy-cloud.md](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/docs/deploy-cloud.md)
+- **Live Demo（Phase 6C）:** https://conjunction-alert-simulator.onrender.com/app/ — Free tier のため非アクセス時スリープあり。初回接近解析は CelesTrak 取得で 30〜90 秒かかることがある
 
 ### 5C — 運用連携
 
@@ -64,6 +67,15 @@ published: false
 
 ## 2 分デモ
 
+### クラウド（推奨）
+
+→ **https://conjunction-alert-simulator.onrender.com/app/**
+
+1. cold start 後 **デモ TLE 読込** → **高精度 Pc** ON → 閾値 50 km → **接近解析**
+2. **CDM 比較** — デモ CDM 読込 → 比較実行 → **単一衛星解析へ** で CDM σ 適用も試せる
+
+### ローカル
+
 ```powershell
 git clone https://github.com/maouM-cmd/conjunction-alert-simulator.git
 cd conjunction-alert-simulator
@@ -74,8 +86,6 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 → http://127.0.0.1:8000/app/
 
-1. **デモ TLE 読込** → **高精度 Pc** ON → 閾値 50 km → **接近解析**
-2. **CDM 比較** — デモ CDM 読込 → 比較実行 → **単一衛星解析へ** で CDM σ 適用も試せる
 3. **Webhook テスト**（`.env` 設定時）
 
 ## Docker
@@ -98,9 +108,10 @@ UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.0** で Phase 5（クラウド・運用・デモ刷新）が揃いました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.0** で Phase 5（クラウド・運用・デモ刷新）が揃い、Live Demo を公開しました。
 
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
+- Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

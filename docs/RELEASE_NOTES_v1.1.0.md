@@ -8,6 +8,15 @@
 - **Phase 5C — Ops** — Slack Incoming Webhook、`cdm_text` + CDM encounter σ on `/conjunctions`、batch Webhook
 - **Phase 5D — Demo** — Advanced Pc デモペア、`demo.gif` Phase 5 版、Zenn 原稿更新
 
+## Live Demo（Phase 6C — main ブランチ）
+
+**https://conjunction-alert-simulator.onrender.com/app/**
+
+Render Free tier。cold start 後 **デモ TLE 読込 → 高精度 Pc ON → 接近解析**（閾値 50 km）。
+
+- [公開チェックリスト](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/docs/publish-checklist-v1.1.0.md)
+- [デプロイ検証 CLI](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/backend/cli/verify_deploy.py)
+
 ## 移行メモ
 
 任意の `.env` 追加:
@@ -27,6 +36,8 @@ docker compose up --build -d
 ```
 
 → http://localhost:8000/app/ — **デモ TLE 読込** → **高精度 Pc** ON → **接近解析**
+
+クラウド: **https://conjunction-alert-simulator.onrender.com/app/**
 
 ## ドキュメント
 

@@ -9,7 +9,7 @@
 - [x] tag `v1.1.0` push 済み
 - [x] [`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md) 作成済み
 - [x] [`blog-zenn.md`](demo/blog-zenn.md) Phase 5 反映済み
-- [ ] Phase 6A ドキュメント commit / push 済み
+- [x] Phase 6A / 6C ドキュメント commit / push 済み
 
 ---
 
@@ -17,9 +17,9 @@
 
 手順: [`publish-github-release.md`](publish-github-release.md)
 
-- [ ] `gh release create v1.1.0 --title "CAS v1.1.0 — Phase 5" --notes-file docs/RELEASE_NOTES_v1.1.0.md`
-- [ ] Release ページで demo.gif が表示される
-- [ ] （任意）v1.0.0 Release も未作成なら同手順で作成
+- [x] `gh release create v1.1.0 --title "CAS v1.1.0 — Phase 5" --notes-file docs/RELEASE_NOTES_v1.1.0.md`
+- [x] Release ページで demo.gif が表示される
+- [x] v1.0.0 Release 作成済み
 
 ---
 
@@ -49,8 +49,10 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | 項目 | 推奨値 |
 |------|--------|
 | Description | `TLE-based satellite conjunction simulator — SGP4, Pc, CDM, CesiumJS, FastAPI` |
-| Website | Zenn 記事 URL（または Release URL） |
+| Website | Live Demo: `https://conjunction-alert-simulator.onrender.com/app/`（Zenn 公開後に差し替え可） |
 | Topics | `satellite`, `conjunction`, `sgp4`, `fastapi`, `cesium`, `space-debris`, `python` |
+
+手順: [`publish-github-about.md`](publish-github-about.md)
 
 - [ ] Description 設定
 - [ ] Topics 設定
