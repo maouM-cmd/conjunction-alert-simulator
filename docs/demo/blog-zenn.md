@@ -24,7 +24,7 @@ published: true
 - **Space-Track CDM アラート** — 認証設定時のみ
 - **Batch** — 最大 25 衛星、ProcessPool 並列
 - **Docker / クラウド** — `docker compose up`、Render / Fly.io manifest（Phase 5B）
-- **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）/ **Slack Bot**（Phase 7B）
+- **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）/ **Slack Bot**（Phase 7B）/ **SMTP メール**（Phase 8B）
 - **高度帯プリフィルタ** — カタログ 500 件超時 ±200 km 帯（Phase 7C）
 - **CDM RTN compare-alert** — Space-Track RTN σ、`has_rtn_covariance` バッジ（Phase 7A）
 - **Space-Track CDM 自動適用** — 単一衛星 / batch で `auto_spacetrack_cdm`（Phase 8）
@@ -75,6 +75,11 @@ published: true
 
 - `/conjunctions/batch` 同機能 + fleet サマリ（`spacetrack_cdm_events_merged`）
 - コンステレーション UI チェックボックス
+
+### 8B — SMTP メール通知
+
+- `ALERT_WEBHOOK_FORMAT=smtp` + `SMTP_HOST` / `SMTP_FROM` / `SMTP_TO`
+- 単一衛星 / batch / Webhook テスト ping 対応、`/health` で `alert_delivery_format: smtp`
 
 ## 技術スタック
 
@@ -146,16 +151,29 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_CHANNEL_ID=C0123456789
 ```
 
+**SMTP（Phase 8B）:**
+
+```env
+ALERT_WEBHOOK_FORMAT=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_FROM=cas@example.com
+SMTP_TO=ops@example.com
+SMTP_USER=cas@example.com
+SMTP_PASSWORD=secret
+SMTP_USE_TLS=true
+```
+
 UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。`/health` の `alert_delivery_format` で配信モードを確認。
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.2.1** で Phase 8（Space-Track CDM 自動マージ）が揃いました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.2.2** で Phase 8（CDM 自動マージ + SMTP 通知）が揃いました。
 
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
 - Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 - Qiita: https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
-- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.2
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

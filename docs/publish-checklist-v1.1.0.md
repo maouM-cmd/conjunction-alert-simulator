@@ -115,6 +115,19 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
+## 11. Phase 8B Ship — v1.2.2 Release
+
+手順: [`publish-github-release.md`](publish-github-release.md) | 本文: [`RELEASE_NOTES_v1.2.2.md`](RELEASE_NOTES_v1.2.2.md)
+
+- [ ] `pytest tests/` PASS
+- [ ] `CHANGELOG.md` / README / `blog-zenn.md` Phase 8B 反映 commit / push
+- [ ] `git tag v1.2.2` + `git push origin v1.2.2`
+- [ ] `gh release create v1.2.2 --title "CAS v1.2.2 — Phase 8B" --notes-file docs/RELEASE_NOTES_v1.2.2.md`
+- [ ] Release ページで demo.gif 表示確認
+- [ ] （任意）Zenn 本番記事に Phase 8B 節を手動追記 — [`publish-zenn.md`](publish-zenn.md)
+
+---
+
 ## 関連リンク
 
 | 用途 | URL |
@@ -125,5 +138,6 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | Release v1.1.1 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1 |
 | Release v1.2.0 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0 |
 | Release v1.2.1 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1 |
+| Release v1.2.2 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.2 |
 | Phase 7 | [`requirements-phase7.md`](requirements-phase7.md) |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |

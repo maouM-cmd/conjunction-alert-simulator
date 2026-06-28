@@ -4,6 +4,14 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.2] - 2026-06-28
+
+Phase 8B — SMTP メール通知。
+
+### Added
+
+- **Phase 8B:** `ALERT_WEBHOOK_FORMAT=smtp`、`SMTP_*` env、単一衛星 / batch / test ping 対応、`/health` `alert_delivery_format: smtp`
+
 ## [1.2.1] - 2026-06-28
 
 Phase 8 — Space-Track CDM 自動マージ（単一衛星 + batch）。
@@ -66,6 +74,7 @@ Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker
 - 接近イベント一覧は Pc 降順ソート（Phase 2 以降）
 - リスクレベルは Pc 優先判定（high ≥ 10⁻⁴、medium ≥ 10⁻⁶）
 
+[1.2.2]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.2
 [1.2.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1
 [1.2.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0
 [1.1.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
