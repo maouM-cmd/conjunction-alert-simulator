@@ -4,6 +4,15 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.1] - 2026-06-28
+
+Phase 8 — Space-Track CDM 自動マージ（単一衛星 + batch）。
+
+### Added
+
+- **Phase 8A:** `auto_spacetrack_cdm` on `/conjunctions`、`spacetrack_cdm_*` レスポンスメタ、UI チェックボックス
+- **Phase 8A-ext:** batch `/conjunctions/batch` 同機能、`BatchSummaryOut` fleet CDM 集計
+
 ## [1.2.0] - 2026-06-28
 
 Phase 7 機能拡張 — 高度プリフィルタ UX、Space-Track CDM RTN 共分散、Slack Bot 通知。
@@ -57,6 +66,7 @@ Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker
 - 接近イベント一覧は Pc 降順ソート（Phase 2 以降）
 - リスクレベルは Pc 優先判定（high ≥ 10⁻⁴、medium ≥ 10⁻⁶）
 
+[1.2.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1
 [1.2.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0
 [1.1.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 [1.1.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0

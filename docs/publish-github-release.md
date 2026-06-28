@@ -6,6 +6,7 @@ CAS の GitHub Release を tag から作成するチェックリストです。
 
 | Tag | 本文 | タイトル例 |
 |-----|------|-----------|
+| `v1.2.1` | [`RELEASE_NOTES_v1.2.1.md`](RELEASE_NOTES_v1.2.1.md) | CAS v1.2.1 — Phase 8 |
 | `v1.2.0` | [`RELEASE_NOTES_v1.2.0.md`](RELEASE_NOTES_v1.2.0.md) | CAS v1.2.0 — Phase 7 |
 | `v1.1.0` | [`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md) | CAS v1.1.0 — Phase 5 |
 | `v1.0.0` | [`RELEASE_NOTES_v1.0.0.md`](RELEASE_NOTES_v1.0.0.md) | CAS v1.0.0 — Phase 4 complete |
@@ -22,6 +23,23 @@ CAS の GitHub Release を tag から作成するチェックリストです。
 cd C:\Users\admin\OneDrive\ドキュメント\conjunction-alert-simulator
 git fetch --tags
 git tag -l "v1.*"
+```
+
+---
+
+## v1.2.1 Release 作成
+
+```powershell
+cd C:\Users\admin\OneDrive\ドキュメント\conjunction-alert-simulator
+git tag v1.2.1
+git push origin v1.2.1
+gh release create v1.2.1 --title "CAS v1.2.1 — Phase 8" --notes-file docs/RELEASE_NOTES_v1.2.1.md
+```
+
+既に Release がある場合:
+
+```powershell
+gh release edit v1.2.1 --title "CAS v1.2.1 — Phase 8" --notes-file docs/RELEASE_NOTES_v1.2.1.md
 ```
 
 ---

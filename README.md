@@ -5,13 +5,13 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
 [![deploy](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml)
-[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1)
 
 ![Demo](docs/demo/demo.gif)
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
-**v1.2.0（Phase 7）** — 高度プリフィルタ UX、Space-Track CDM RTN 共分散 compare-alert、Slack Bot 通知。Phase 6 Live Demo / CI/CD、Phase 5 Webhook・CDM σ も含む OSS 作品です。
+**v1.2.1（Phase 8）** — Space-Track CDM 自動マージ（単一衛星 + batch）。Phase 7 高度プリフィルタ UX、CDM RTN compare-alert、Slack Bot 通知、Phase 6 Live Demo / CI/CD、Phase 5 Webhook・CDM σ も含む OSS 作品です。
 
 ## 2 分デモ（ローカル）
 
@@ -208,7 +208,7 @@ MIT License — 詳細は [LICENSE](LICENSE)
 |--|--|
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
-| Release | [v1.2.0 — Phase 7](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0) |
+| Release | [v1.2.1 — Phase 8](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1) |
 | Social Preview | 設定済み — [手順](docs/publish-github-social-preview.md) |
 | Phase 7 要件 | [`docs/requirements-phase7.md`](docs/requirements-phase7.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |

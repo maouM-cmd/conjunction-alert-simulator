@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## Phase 8A-ext — 完了
+## v1.2.1 Ship — 完了
 
-batch `/conjunctions/batch` に `auto_spacetrack_cdm` を追加。fleet サマリに CDM マージ件数集計。次は v1.2.1 Ship（8A + 8A-ext 反映）または Phase 8B 新機能。
+Phase 8A + 8A-ext を CHANGELOG / Release Notes / README / Zenn 原稿に反映。`git tag v1.2.1` + GitHub Release 公開。次は Phase 8B 新機能（例: SMTP 通知）またはポートフォリオ仕上げ。

@@ -27,6 +27,7 @@ published: true
 - **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）/ **Slack Bot**（Phase 7B）
 - **高度帯プリフィルタ** — カタログ 500 件超時 ±200 km 帯（Phase 7C）
 - **CDM RTN compare-alert** — Space-Track RTN σ、`has_rtn_covariance` バッジ（Phase 7A）
+- **Space-Track CDM 自動適用** — 単一衛星 / batch で `auto_spacetrack_cdm`（Phase 8）
 - CesiumJS 3D + 回避マニューバ試算
 
 ![接近一覧 Advanced Pc](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png)
@@ -62,6 +63,18 @@ published: true
 
 - `ALERT_WEBHOOK_FORMAT=slack_bot` + `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID`
 - Slack Web API `chat.postMessage`（Incoming Webhook 互換維持）
+
+## Phase 8 で追加したこと
+
+### 8A — Space-Track CDM 自動マージ（単一衛星）
+
+- `auto_spacetrack_cdm` on `/conjunctions` — 手動 CDM ペーストなしで接近一覧に RTN 共分散 Pc
+- レスポンスメタ `spacetrack_cdm_*`、UI「Space-Track CDM 自動適用」チェックボックス
+
+### 8A-ext — batch 拡張
+
+- `/conjunctions/batch` 同機能 + fleet サマリ（`spacetrack_cdm_events_merged`）
+- コンステレーション UI チェックボックス
 
 ## 技術スタック
 
@@ -137,12 +150,12 @@ UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。`/he
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.2.0** で Phase 7（性能 UX、CDM RTN、Slack Bot）が揃いました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.2.1** で Phase 8（Space-Track CDM 自動マージ）が揃いました。
 
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
 - Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 - Qiita: https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
-- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.1
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。
