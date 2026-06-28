@@ -10,7 +10,9 @@
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
-## 2 分デモ
+**v1.1.0（Phase 5）** — Render/Fly クラウド manifest、Slack Webhook、CDM σ on 接近一覧、Advanced Pc デモ素材を追加。Starlink 型の接近監視フローを OSS で再現したポートフォリオ作品です。
+
+## 2 分デモ（推奨）
 
 ```powershell
 git clone https://github.com/maouM-cmd/conjunction-alert-simulator.git
@@ -26,9 +28,9 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
-## Live Demo（クラウド）
+## Live Demo（クラウド — 準備中）
 
-Render / Fly.io にデプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。
+Render / Fly.io にデプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。**現時点ではローカル / Docker の 2 分デモをご利用ください。**
 
 <!-- デプロイ後に URL を追記 -->
 <!-- Live Demo: https://<your-service>.onrender.com/app/ -->
@@ -144,6 +146,9 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 
 ## ドキュメント
 
+- [要件定義書 Phase 6A](docs/requirements-phase6a.md)
+- [GitHub Release 手順](docs/publish-github-release.md)
+- [公開チェックリスト v1.1.0](docs/publish-checklist-v1.1.0.md)
 - [要件定義書 Phase 1](docs/requirements.md)
 - [要件定義書 Phase 2](docs/requirements-phase2.md)
 - [要件定義書 Phase 3](docs/requirements-phase3.md)
@@ -169,6 +174,17 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 
 MIT License — 詳細は [LICENSE](LICENSE)
 
+## 技術記事
+
+| | |
+|--|--|
+| Zenn | 準備中 — 原稿 [`docs/demo/blog-zenn.md`](docs/demo/blog-zenn.md) / 投稿手順 [`docs/publish-zenn.md`](docs/publish-zenn.md) |
+| Release | [v1.1.0 — Phase 5](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0) |
+| 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
+
+<!-- Zenn 公開後: 上表の Zenn 行を記事 URL に差し替え -->
+<!-- 技術記事: https://zenn.dev/... -->
+
 ## デモ
 
 | | |
@@ -183,5 +199,3 @@ MIT License — 詳細は [LICENSE](LICENSE)
 
 手順: [docs/demo/README.md](docs/demo/README.md) | 技術ブログ: [docs/demo/blog-zenn.md](docs/demo/blog-zenn.md) | Zenn 投稿: [docs/publish-zenn.md](docs/publish-zenn.md)
 
-<!-- Zenn 公開後: 記事 URL をここに追記 -->
-<!-- 技術記事: https://zenn.dev/... -->
