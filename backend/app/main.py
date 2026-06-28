@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.routers import alerts, batch, cdm, conjunctions, health, maneuver, orbit
+from backend.app.routers import alerts, batch, cdm, conjunctions, fleets, health, maneuver, orbit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -32,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(fleets.router)
 app.include_router(conjunctions.router)
 app.include_router(alerts.router)
 app.include_router(batch.router)

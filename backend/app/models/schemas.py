@@ -301,3 +301,61 @@ class CdmExportRequest(BaseModel):
 
 class CdmExportResponse(BaseModel):
     cdm_text: str
+
+
+class FleetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class FleetUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    tags: list[str] | None = None
+
+
+class FleetOut(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    tags: list[str]
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+    satellite_count: int | None = None
+
+
+class SatelliteCreate(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    norad_id: int | None = None
+    tle: str = Field(min_length=1)
+
+
+class SatelliteUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    tle: str | None = Field(default=None, min_length=1)
+
+
+class SatelliteOut(BaseModel):
+    id: str
+    fleet_id: str
+    name: str
+    norad_id: int
+    tle: str
+    tle_updated_at: datetime
+    active: bool
+
+
+class SatelliteListOut(BaseModel):
+    items: list[SatelliteOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class TleRevisionOut(BaseModel):
+    id: str
+    satellite_id: str
+    tle: str
+    created_at: datetime

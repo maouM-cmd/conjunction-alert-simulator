@@ -130,3 +130,9 @@
 | W7-9 | CesiumJS 3D |
 | W10-11 | 回避試算 UI |
 | W12 | デモ・公開 |
+
+---
+
+## 8. 商用コンステ運用版
+
+大規模コンステ（1,000+ 衛星）向け運用ワークフロー拡張の要件は **[requirements-commercial-ops.md](requirements-commercial-ops.md)** を参照。Phase 9A 着手詳細: [requirements-phase9a.md](requirements-phase9a.md)。

@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cas
+      POSTGRES_PASSWORD: cas
+      POSTGRES_DB: cas
+    volumes:
+      - cas-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cas -d cas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   cas:
     build: .
     ports:
@@ -8,8 +23,12 @@ services:
     environment:
       CAS_HOST: "0.0.0.0"
       CAS_PORT: "8000"
+      DATABASE_URL: postgresql://cas:cas@postgres:5432/cas
     volumes:
       - cas-cache:/app/data/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -19,3 +38,4 @@ services:
 
 volumes:
   cas-cache:
+  cas-pg:

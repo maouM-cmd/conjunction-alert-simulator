@@ -470,6 +470,87 @@ CAS 接近イベントから CDM KVN テキストを生成。
 
 ---
 
+## Fleet Registry（Phase 9A）
+
+**前提:** 環境変数 `DATABASE_URL` が設定されていること。未設定時は全エンドポイント **503**。
+
+### POST /api/v1/fleets
+
+艦隊を作成する。
+
+**リクエスト:**
+
+```json
+{
+  "name": "Demo Constellation",
+  "description": "LEO demo fleet",
+  "tags": ["leo", "demo"]
+}
+```
+
+**レスポンス 201:** `FleetOut`（`satellite_count: 0`）
+
+### GET /api/v1/fleets
+
+アクティブな艦隊一覧。各要素に `satellite_count` を含む。
+
+### GET /api/v1/fleets/{fleet_id}
+
+艦隊詳細。存在しない / 論理削除済みは **404**。
+
+### PATCH /api/v1/fleets/{fleet_id}
+
+`name` / `description` / `tags` の部分更新。
+
+### DELETE /api/v1/fleets/{fleet_id}
+
+論理削除（`active=false`）。**204**。
+
+### POST /api/v1/fleets/{fleet_id}/satellites
+
+衛星を艦隊に追加。TLE は既存 `parse_tle` で検証。
+
+**リクエスト:**
+
+```json
+{
+  "name": "ISS (ZARYA)",
+  "norad_id": 25544,
+  "tle": "ISS (ZARYA)\n1 25544U ...\n2 25544 ..."
+}
+```
+
+`name` / `norad_id` 省略時は TLE から推定。同一艦隊内 NORAD 重複は **409**。
+
+### GET /api/v1/fleets/{fleet_id}/satellites
+
+クエリ: `limit`（default 100, max 500）、`offset`（default 0）。
+
+**レスポンス 200:**
+
+```json
+{
+  "items": [ /* SatelliteOut */ ],
+  "total": 1,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+### PATCH /api/v1/satellites/{satellite_id}
+
+`name` または `tle` を更新。TLE 変更時は旧 TLE を `tle_revisions` に保存（最新 2 世代保持）。
+
+### DELETE /api/v1/satellites/{satellite_id}
+
+衛星を論理削除。**204**。
+
+### POST /api/v1/satellites/{satellite_id}/rollback
+
+直近 revision の TLE を現行に復元。revision なしは **404**。
+
+---
+
 ## Pydantic モデル対応表
 
 | モデル | ファイル |
@@ -479,6 +560,7 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | CdmParseRequest / CdmRecordOut | 同上 |
 | CdmCompareRequest / CdmCompareResponse | 同上 |
 | BatchConjunctionsRequest / BatchConjunctionsResponse | 同上 |
+| FleetCreate / FleetOut / SatelliteCreate / SatelliteOut | 同上 |
 | OrbitRequest / OrbitResponse | 同上 |
 | ManeuverPreviewRequest / ManeuverPreviewResponse | 同上 |
 

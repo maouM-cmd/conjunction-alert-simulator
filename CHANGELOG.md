@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-06-28
+
+Phase 9A — Fleet Registry & Persistence（商用運用ロードマップ第一フェーズ）。
+
+### Added
+
+- **Phase 9A:** PostgreSQL + SQLAlchemy + Alembic — `fleets` / `satellites` / `tle_revisions`
+- REST: `/api/v1/fleets` CRUD、`/fleets/{id}/satellites`、TLE 更新 revision（2 世代）、`POST /satellites/{id}/rollback`
+- `docker-compose.yml` に `postgres` サービス、起動時 `alembic upgrade head`
+- `DATABASE_URL` 未設定時 fleet API は 503、既存 ad-hoc batch / conjunction は互換維持
+
 ## [1.2.2] - 2026-06-28
 
 Phase 8B — SMTP メール通知。
