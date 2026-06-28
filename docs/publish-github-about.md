@@ -20,9 +20,9 @@ Zenn 記事公開後、Website を Zenn URL に差し替えても OK（Live Demo
 
 ## チェックリスト
 
-- [ ] Description 設定
-- [ ] Topics 設定（上記 7 個）
-- [ ] Website に Live Demo URL（または Zenn URL）
+- [x] Description 設定
+- [x] Topics 設定（7 個）
+- [x] Website に Live Demo URL（Zenn 公開後に差し替え可）
 
 ---
 

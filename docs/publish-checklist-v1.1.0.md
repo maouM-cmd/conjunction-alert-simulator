@@ -54,9 +54,9 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 手順: [`publish-github-about.md`](publish-github-about.md)
 
-- [ ] Description 設定
-- [ ] Topics 設定
-- [ ] Website に Zenn URL（公開後）
+- [x] Description 設定
+- [x] Topics 設定
+- [x] Website に Live Demo URL 設定済み（Zenn 公開後に差し替え可）
 
 ---
 
