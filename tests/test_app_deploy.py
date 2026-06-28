@@ -45,3 +45,12 @@ def test_demo_assets_present():
         "05-cdm-compare.png",
     ):
         assert (DEMO_DIR / name).is_file()
+
+
+def test_cloud_deploy_manifests_present():
+    """Phase 5B: Render and Fly.io deploy configs committed."""
+    assert (PROJECT_ROOT / "render.yaml").is_file()
+    assert (PROJECT_ROOT / "fly.toml").is_file()
+    render_text = (PROJECT_ROOT / "render.yaml").read_text(encoding="utf-8")
+    assert "healthCheckPath: /health" in render_text
+    assert "/app/data/cache" in render_text

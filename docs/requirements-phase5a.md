@@ -46,7 +46,7 @@ Phase 4D 完了後、ポートフォリオ公開・訴求を整える。Zenn 投
 ## 3. スコープ外
 
 - Zenn ブラウザからの**実投稿**（手順まで）
-- Render / Fly.io 常時公開デモ URL
+- Render / Fly.io 常時公開デモ URL → **Phase 5B で manifest・手順対応済み**（[`requirements-phase5b.md`](requirements-phase5b.md)）
 - Slack Bot 本番連携
 
 ---

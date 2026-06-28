@@ -87,17 +87,20 @@ docker compose down -v
 
 ---
 
-## PaaS デプロイ（参考）
+## クラウドデプロイ（Render / Fly.io）
 
-実際のデプロイはユーザー環境で実施。共通手順:
+Phase 5B で manifest を同梱。詳細手順: **[deploy-cloud.md](deploy-cloud.md)**
 
-1. リポジトリを GitHub に push（済み）
-2. Render / Fly.io 等で **Dockerfile** デプロイを選択
-3. 環境変数に Space-Track 認証を設定（任意）
-4. 永続ディスクを `/app/data/cache` にマウント（TLE キャッシュ推奨）
-5. 公開 URL の `/app/` をブックマーク
+| プラットフォーム | ファイル |
+|-----------------|---------|
+| Render Blueprint | [`render.yaml`](../render.yaml) |
+| Fly.io | [`fly.toml`](../fly.toml) |
 
-HTTPS は各 PaaS の自動 TLS を利用。
+1. GitHub リポジトリを接続して Docker デプロイ
+2. 永続ストレージを `/app/data/cache` にマウント
+3. 公開 URL の **`/app/`** を Live Demo として使用
+
+Free tier ではスリープ・初回 TLE 取得遅延に注意。閾値 50 km 推奨。
 
 ---
 

@@ -26,6 +26,20 @@ venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
+## Live Demo（クラウド）
+
+Render / Fly.io にデプロイ後、公開 URL の **`/app/`** からそのまま試せます（API は同一オリジン）。
+
+<!-- デプロイ後に URL を追記 -->
+<!-- Live Demo: https://<your-service>.onrender.com/app/ -->
+
+| 方法 | 手順 |
+|------|------|
+| Render | [deploy-cloud.md](docs/deploy-cloud.md#render) — [`render.yaml`](render.yaml) Blueprint |
+| Fly.io | [deploy-cloud.md](docs/deploy-cloud.md#flyio) — [`fly.toml`](fly.toml) |
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
+
 ## 機能
 
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
@@ -139,6 +153,8 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 4C](docs/requirements-phase4c.md)
 - [要件定義書 Phase 4D](docs/requirements-phase4d.md)
 - [要件定義書 Phase 5A](docs/requirements-phase5a.md)
+- [要件定義書 Phase 5B](docs/requirements-phase5b.md)
+- [クラウドデプロイ](docs/deploy-cloud.md)
 - [Zenn 投稿手順](docs/publish-zenn.md)
 - [CHANGELOG](CHANGELOG.md)
 - [デプロイ手順](docs/deploy.md)

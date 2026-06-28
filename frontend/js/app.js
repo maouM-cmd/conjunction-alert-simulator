@@ -6,9 +6,8 @@ import {
   getTcaPositionFromOrbits,
 } from "./cesium_viewer.js";
 
-const API_BASE = window.location.origin.includes("8000")
-  ? ""
-  : "http://127.0.0.1:8000";
+const API_BASE =
+  window.location.port === "8080" ? "http://127.0.0.1:8000" : "";
 
 const ISS_SAMPLE = `ISS (ZARYA)
 1 25544U 98067A   25179.51782528  .00016717  00000+0  10270-3 0  9993

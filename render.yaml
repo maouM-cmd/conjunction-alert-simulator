@@ -1,0 +1,16 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: conjunction-alert-simulator
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    disk:
+      name: cas-cache
+      mountPath: /app/data/cache
+      sizeGB: 1
+    envVars:
+      - key: BATCH_MAX_WORKERS
+        value: "2"
+      - key: PYTHONUNBUFFERED
+        value: "1"
