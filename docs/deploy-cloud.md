@@ -6,6 +6,8 @@
 
 **Phase 6C Live Demo:** https://conjunction-alert-simulator.onrender.com/app/ — [LIVE_DEMO_URL.md](LIVE_DEMO_URL.md)
 
+**Phase 6B CI/CD:** [deploy-render-cicd.md](deploy-render-cicd.md) — GitHub Actions → Render Deploy Hook → verify_deploy
+
 ---
 
 ## 共通前提

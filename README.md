@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
+[![deploy](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml)
 [![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0)
 
 ![Demo](docs/demo/demo.gif)
@@ -36,7 +37,7 @@ Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
 
-再デプロイ手順: [docs/deploy-render-phase6c.md](docs/deploy-render-phase6c.md) | URL 正本: [docs/LIVE_DEMO_URL.md](docs/LIVE_DEMO_URL.md)
+再デプロイ手順: [docs/deploy-render-phase6c.md](docs/deploy-render-phase6c.md) | CI/CD: [docs/deploy-render-cicd.md](docs/deploy-render-cicd.md) | URL 正本: [docs/LIVE_DEMO_URL.md](docs/LIVE_DEMO_URL.md)
 
 | 方法 | 手順 |
 |------|------|
@@ -149,6 +150,8 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 
 - [要件定義書 Phase 6A](docs/requirements-phase6a.md)
 - [要件定義書 Phase 6C](docs/requirements-phase6c.md)
+- [要件定義書 Phase 6B](docs/requirements-phase6b.md)
+- [Render CI/CD Phase 6B](docs/deploy-render-cicd.md)
 - [Render デプロイ Phase 6C](docs/deploy-render-phase6c.md)
 - [Live Demo URL](docs/LIVE_DEMO_URL.md)
 - [GitHub Release 手順](docs/publish-github-release.md)
