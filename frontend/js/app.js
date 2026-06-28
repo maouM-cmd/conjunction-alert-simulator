@@ -109,7 +109,7 @@ async function waitForBackend(maxSec = 60, intervalMs = 2000) {
     try {
       const res = await fetch(`${API_BASE}/health`);
       if (res.ok) {
-        return true;
+        return res.json();
       }
     } catch {
       // cold start 中は接続失敗を許容
@@ -118,7 +118,7 @@ async function waitForBackend(maxSec = 60, intervalMs = 2000) {
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   setStatus("サーバーに接続できません。しばらく待ってからページを再読み込みしてください。", true);
-  return false;
+  return null;
 }
 
 async function apiPost(path, body) {
@@ -797,9 +797,13 @@ async function init() {
   initViewer();
   els.tleInput.value = ISS_SAMPLE;
   initEventListeners();
-  const ready = await waitForBackend();
-  if (ready) {
-    setStatus("準備完了。デモ TLE 読込 → 接近解析を実行してください。");
+  const health = await waitForBackend();
+  if (health) {
+    let msg = "準備完了。デモ TLE 読込 → 接近解析を実行してください。";
+    if (health.alert_delivery_configured && health.alert_delivery_format) {
+      msg += ` / 通知: ${health.alert_delivery_format}`;
+    }
+    setStatus(msg);
   }
 }
 

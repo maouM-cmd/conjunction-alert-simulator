@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## Phase 7A — 完了
+## Phase 7B — 完了
 
-Space-Track `cdm_public` / detail から RTN 共分散をパースし `cdm_public_to_kvn` で KVN 出力。compare-alert は RTN 無し時 lazy detail 取得。API `has_rtn_covariance`、UI RTN バッジ・compare 表示。次は Phase 7B（Slack Bot OAuth）の要件定義から。
+`ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage` 配信を追加。Incoming Webhook / generic 互換維持。`/health` の `alert_delivery_*` と UI ステータスで配信モード表示。Phase 7 ロードマップ完了。

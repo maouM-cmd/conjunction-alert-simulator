@@ -19,6 +19,8 @@ def test_health_returns_ok():
     assert data["status"] == "ok"
     assert "spacetrack_configured" in data
     assert "spacetrack_cdm_available" in data
+    assert "alert_delivery_configured" in data
+    assert "alert_delivery_format" in data
 
 
 def test_root_links_to_app():

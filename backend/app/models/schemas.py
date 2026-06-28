@@ -131,6 +131,8 @@ class HealthResponse(BaseModel):
     tle_provider: str
     spacetrack_configured: bool
     spacetrack_cdm_available: bool = False
+    alert_delivery_configured: bool = False
+    alert_delivery_format: str | None = None
 
 
 class CdmParseRequest(BaseModel):

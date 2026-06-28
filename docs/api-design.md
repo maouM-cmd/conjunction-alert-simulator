@@ -24,9 +24,14 @@
   "tle_cache_stale": false,
   "tle_provider": "celestrak",
   "spacetrack_configured": false,
-  "spacetrack_cdm_available": false
+  "spacetrack_cdm_available": false,
+  "alert_delivery_configured": false,
+  "alert_delivery_format": null
 }
 ```
+
+`alert_delivery_configured`: 通知配信に必要な env が揃っている場合 `true`。  
+`alert_delivery_format`: `generic` | `slack` | `slack_bot`（未設定時 `null`）。秘密値は返さない。
 
 ---
 
@@ -107,8 +112,9 @@
 `use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
 `use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
 `apply_cdm_covariance=true` + `cdm_text` で該当デブリに `sigma_source: cdm_covariance` / `covariance_source: cdm_encounter`。  
-`notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を Webhook POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
-`ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。
+`notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
+`ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
+`ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー
@@ -410,14 +416,14 @@ CAS 接近イベントから CDM KVN テキストを生成。
 
 ## POST /api/v1/alerts/webhook/test
 
-`ALERT_WEBHOOK_URL` へテスト ping を POST する。
+設定済みの通知配信先へテスト ping を POST する（Incoming Webhook / Slack Bot 共通）。
 
 ### レスポンス
 
 | コード | 条件 |
 |--------|------|
 | 200 | POST 成功 |
-| 503 | `ALERT_WEBHOOK_URL` 未設定 |
+| 503 | 配信先未設定（`ALERT_WEBHOOK_URL` または `SLACK_BOT_TOKEN`+`SLACK_CHANNEL_ID`） |
 
 ```json
 {
