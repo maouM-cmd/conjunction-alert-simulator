@@ -31,7 +31,7 @@
 ```
 
 `alert_delivery_configured`: 通知配信に必要な env が揃っている場合 `true`。  
-`alert_delivery_format`: `generic` | `slack` | `slack_bot`（未設定時 `null`）。秘密値は返さない。
+`alert_delivery_format`: `generic` | `slack` | `slack_bot` | `smtp`（未設定時 `null`）。秘密値は返さない。
 
 ---
 
@@ -120,7 +120,8 @@
 `auto_spacetrack_cdm=true` で Space-Track から CDM を自動マージ（`cdm_text` がある場合は手動優先）。認証未設定時は merged=0 で解析継続。  
 `notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
 `ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
-`ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。
+`ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。  
+`ALERT_WEBHOOK_FORMAT=smtp` で SMTP メール（`SMTP_HOST` + `SMTP_FROM` + `SMTP_TO`、任意 `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_USE_TLS`）。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー
@@ -433,7 +434,7 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | コード | 条件 |
 |--------|------|
 | 200 | POST 成功 |
-| 503 | 配信先未設定（`ALERT_WEBHOOK_URL` または `SLACK_BOT_TOKEN`+`SLACK_CHANNEL_ID`） |
+| 503 | 配信先未設定（`ALERT_WEBHOOK_URL` または `SLACK_BOT_TOKEN`+`SLACK_CHANNEL_ID` または `SMTP_HOST`+`SMTP_FROM`+`SMTP_TO`） |
 
 ```json
 {

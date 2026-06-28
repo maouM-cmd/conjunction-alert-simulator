@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## v1.2.1 Ship — 完了
+## Phase 8B — SMTP メール通知
 
-Phase 8A + 8A-ext を CHANGELOG / Release Notes / README / Zenn 原稿に反映。`git tag v1.2.1` + GitHub Release 公開。次は Phase 8B 新機能（例: SMTP 通知）またはポートフォリオ仕上げ。
+`ALERT_WEBHOOK_FORMAT=smtp` を [`webhook_notifier.py`](backend/app/services/webhook_notifier.py) に追加。`smtplib` で単一衛星 / batch / test ping を配信。generic / slack / slack_bot 互換維持。要件: [`docs/requirements-phase8b.md`](docs/requirements-phase8b.md)。完了後 v1.2.2 Ship または次機能。

@@ -234,3 +234,100 @@ def test_webhook_test_endpoint_slack_bot_without_token_returns_503():
     ):
         response = client.post("/api/v1/alerts/webhook/test")
         assert response.status_code == 503
+
+
+SMTP_ENV = {
+    "ALERT_WEBHOOK_FORMAT": "smtp",
+    "SMTP_HOST": "smtp.example.com",
+    "SMTP_PORT": "587",
+    "SMTP_FROM": "cas@example.com",
+    "SMTP_TO": "ops@example.com",
+    "SMTP_USER": "cas@example.com",
+    "SMTP_PASSWORD": "secret",
+    "SMTP_USE_TLS": "true",
+}
+
+
+def test_notify_smtp_without_host():
+    with patch.dict(
+        os.environ,
+        {"ALERT_WEBHOOK_FORMAT": "smtp", "SMTP_HOST": "", "SMTP_FROM": "", "SMTP_TO": ""},
+        clear=False,
+    ):
+        sat = parse_tle(DEMO_SAT)
+        result = notify_conjunction_events(sat, [_sample_event(1e-3)])
+        assert result.sent is False
+        assert "SMTP_HOST" in result.message
+
+
+@patch("backend.app.services.webhook_notifier.smtplib.SMTP")
+def test_send_test_webhook_smtp_success(mock_smtp_cls):
+    mock_smtp = MagicMock()
+    mock_smtp.__enter__ = MagicMock(return_value=mock_smtp)
+    mock_smtp.__exit__ = MagicMock(return_value=False)
+    mock_smtp_cls.return_value = mock_smtp
+
+    with patch.dict(os.environ, SMTP_ENV, clear=False):
+        result = send_test_webhook()
+        assert result.sent is True
+        assert result.message == "SMTP 送信成功。"
+        mock_smtp_cls.assert_called_once_with("smtp.example.com", 587, timeout=10.0)
+        mock_smtp.starttls.assert_called_once()
+        mock_smtp.login.assert_called_once_with("cas@example.com", "secret")
+        mock_smtp.send_message.assert_called_once()
+        msg = mock_smtp.send_message.call_args.args[0]
+        assert msg["Subject"] == "CAS webhook test"
+        assert msg["To"] == "ops@example.com"
+
+
+@patch("backend.app.services.webhook_notifier.smtplib.SMTP")
+def test_notify_smtp_payload(mock_smtp_cls):
+    mock_smtp = MagicMock()
+    mock_smtp.__enter__ = MagicMock(return_value=mock_smtp)
+    mock_smtp.__exit__ = MagicMock(return_value=False)
+    mock_smtp_cls.return_value = mock_smtp
+
+    with patch.dict(os.environ, SMTP_ENV, clear=False):
+        sat = parse_tle(DEMO_SAT)
+        result = notify_conjunction_events(sat, [_sample_event(1e-3)])
+        assert result.sent is True
+        msg = mock_smtp.send_message.call_args.args[0]
+        assert msg["Subject"] == "CAS conjunction alert"
+        assert "CAS conjunction alert" in msg.get_content()
+
+
+@patch("backend.app.services.webhook_notifier.smtplib.SMTP")
+def test_send_test_webhook_smtp_failure(mock_smtp_cls):
+    import smtplib
+
+    mock_smtp = MagicMock()
+    mock_smtp.__enter__ = MagicMock(return_value=mock_smtp)
+    mock_smtp.__exit__ = MagicMock(return_value=False)
+    mock_smtp.starttls.side_effect = smtplib.SMTPException("TLS failed")
+    mock_smtp_cls.return_value = mock_smtp
+
+    with patch.dict(os.environ, SMTP_ENV, clear=False):
+        result = send_test_webhook()
+        assert result.sent is False
+        assert result.degraded is True
+        assert "TLS failed" in result.message
+
+
+def test_webhook_test_endpoint_smtp_without_host_returns_503():
+    with patch.dict(
+        os.environ,
+        {"ALERT_WEBHOOK_FORMAT": "smtp", "SMTP_HOST": "", "SMTP_FROM": "", "SMTP_TO": ""},
+        clear=False,
+    ):
+        response = client.post("/api/v1/alerts/webhook/test")
+        assert response.status_code == 503
+
+
+@patch("backend.app.services.webhook_notifier.smtplib.SMTP")
+def test_health_smtp_format(mock_smtp_cls):
+    with patch.dict(os.environ, SMTP_ENV, clear=False):
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["alert_delivery_configured"] is True
+        assert data["alert_delivery_format"] == "smtp"

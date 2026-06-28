@@ -48,7 +48,7 @@ Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
 - 自衛星 TLE 入力 → デブリ接近イベント一覧（閾値可変）
 - **衝突確率 Pc** — Foster 2D（一覧デフォルト）、opt-in で **Alfriend encounter plane** + **TLE RTN 非等方共分散**
-- **Webhook 通知** — 高リスクイベントを Webhook へ POST（generic / Slack Incoming Webhook / **Slack Bot**）
+- **Webhook 通知** — 高リスクイベントを Webhook へ POST（generic / Slack Incoming Webhook / **Slack Bot** / **SMTP メール**）
 - **高度帯プリフィルタ** — UI/API で ON/OFF、候補デブリ件数メタ（Phase 7C）
 - **CDM RTN compare-alert** — Space-Track detail から RTN σ 取得、`sigma_source: cdm_covariance`（Phase 7A）
 - **CDM σ on 一覧** — 手動 `cdm_text` または **Space-Track CDM 自動適用**（Phase 8A、要認証）
@@ -130,6 +130,19 @@ ALERT_PC_THRESHOLD=0.00001
 ALERT_WEBHOOK_FORMAT=slack_bot
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_CHANNEL_ID=C0123456789
+```
+
+**SMTP メール（Phase 8B）** — `ALERT_WEBHOOK_URL` 不要:
+
+```env
+ALERT_WEBHOOK_FORMAT=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_FROM=cas@example.com
+SMTP_TO=ops@example.com
+SMTP_USER=cas@example.com
+SMTP_PASSWORD=secret
+SMTP_USE_TLS=true
 ```
 
 Slack App 作成: [api.slack.com](https://api.slack.com/apps) → OAuth Scopes `chat:write`（公開チャンネルなら `chat:write.public` も可）→ ワークスペースにインストール → Bot User OAuth Token とチャンネル ID を `.env` に設定。
