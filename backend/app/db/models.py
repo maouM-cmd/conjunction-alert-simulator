@@ -68,3 +68,56 @@ class TleRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     satellite: Mapped[Satellite] = relationship("Satellite", back_populates="tle_revisions")
+
+
+class ScreeningSchedule(Base):
+    __tablename__ = "screening_schedules"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fleet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("fleets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    cron_expression: Mapped[str] = mapped_column(String(128), nullable=False)
+    threshold_km: Mapped[float] = mapped_column(nullable=False, default=5.0)
+    duration_days: Mapped[float] = mapped_column(nullable=False, default=7.0)
+    step_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    use_advanced_pc: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    use_altitude_prefilter: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auto_spacetrack_cdm: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    spacetrack_cdm_pc_min: Mapped[float | None] = mapped_column(nullable=True)
+    notify_on_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    fleet: Mapped[Fleet] = relationship("Fleet")
+    runs: Mapped[list[ScreeningRun]] = relationship("ScreeningRun", back_populates="schedule")
+
+
+class ScreeningRun(Base):
+    __tablename__ = "screening_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    schedule_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("screening_schedules.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    fleet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("fleets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    satellite_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    event_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    degraded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    computation_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    schedule: Mapped[ScreeningSchedule | None] = relationship("ScreeningSchedule", back_populates="runs")
+    fleet: Mapped[Fleet] = relationship("Fleet")

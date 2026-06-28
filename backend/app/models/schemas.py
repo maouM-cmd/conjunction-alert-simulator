@@ -359,3 +359,75 @@ class TleRevisionOut(BaseModel):
     satellite_id: str
     tle: str
     created_at: datetime
+
+
+ScreeningRunStatus = Literal["pending", "running", "completed", "failed", "dead_letter"]
+
+
+class ScreeningScheduleCreate(BaseModel):
+    fleet_id: str
+    name: str = Field(min_length=1, max_length=255)
+    cron_expression: str = Field(min_length=9, max_length=128)
+    threshold_km: float = Field(default=5.0, gt=0)
+    duration_days: float = Field(default=7.0, gt=0, le=30)
+    step_minutes: int = Field(default=1, ge=1, le=60)
+    use_advanced_pc: bool = False
+    use_altitude_prefilter: bool = True
+    auto_spacetrack_cdm: bool = False
+    spacetrack_cdm_pc_min: float | None = Field(default=None, ge=0)
+    notify_on_complete: bool = False
+
+
+class ScreeningScheduleUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    cron_expression: str | None = Field(default=None, min_length=9, max_length=128)
+    threshold_km: float | None = Field(default=None, gt=0)
+    duration_days: float | None = Field(default=None, gt=0, le=30)
+    step_minutes: int | None = Field(default=None, ge=1, le=60)
+    use_advanced_pc: bool | None = None
+    use_altitude_prefilter: bool | None = None
+    auto_spacetrack_cdm: bool | None = None
+    spacetrack_cdm_pc_min: float | None = Field(default=None, ge=0)
+    notify_on_complete: bool | None = None
+
+
+class ScreeningScheduleOut(BaseModel):
+    id: str
+    fleet_id: str
+    name: str
+    cron_expression: str
+    threshold_km: float
+    duration_days: float
+    step_minutes: int
+    use_advanced_pc: bool
+    use_altitude_prefilter: bool
+    auto_spacetrack_cdm: bool
+    spacetrack_cdm_pc_min: float | None
+    notify_on_complete: bool
+    active: bool
+    last_run_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ScreeningRunOut(BaseModel):
+    id: str
+    schedule_id: str | None
+    fleet_id: str
+    status: ScreeningRunStatus
+    started_at: datetime | None
+    finished_at: datetime | None
+    satellite_count: int
+    event_count: int
+    degraded: bool
+    retry_count: int
+    error_message: str | None
+    computation_time_ms: int | None
+    created_at: datetime
+
+
+class ScreeningRunListOut(BaseModel):
+    items: list[ScreeningRunOut]
+    total: int
+    limit: int
+    offset: int

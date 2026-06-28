@@ -57,6 +57,34 @@ def is_database_configured() -> bool:
     return get_database_url() is not None
 
 
+def get_redis_url() -> str | None:
+    url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
+    if url:
+        return url.strip()
+    return None
+
+
+def is_redis_configured() -> bool:
+    return get_redis_url() is not None
+
+
+def is_screening_configured() -> bool:
+    return is_database_configured() and is_redis_configured()
+
+
+def require_screening() -> None:
+    if not is_database_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="データベースが設定されていません。DATABASE_URL を設定してください。",
+        )
+    if not is_redis_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Redis が設定されていません。REDIS_URL を設定してください。",
+        )
+
+
 def require_db() -> Generator[Session, None, None]:
     factory = get_session_factory()
     if factory is None:

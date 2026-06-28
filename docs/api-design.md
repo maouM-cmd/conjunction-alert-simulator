@@ -551,6 +551,51 @@ CAS 接近イベントから CDM KVN テキストを生成。
 
 ---
 
+## Scheduled Screening（Phase 9B）
+
+**前提:** `DATABASE_URL` と `REDIS_URL` が設定されていること。未設定時は **503**。
+
+### POST /api/v1/screening/schedules
+
+スクリーニングスケジュールを作成。cron 式は 5 フィールド（`croniter` 検証）。
+
+**リクエスト例:**
+
+```json
+{
+  "fleet_id": "<uuid>",
+  "name": "Daily LEO",
+  "cron_expression": "0 0 * * *",
+  "threshold_km": 5.0,
+  "duration_days": 7,
+  "notify_on_complete": false
+}
+```
+
+### GET /api/v1/screening/schedules
+
+アクティブなスケジュール一覧。`fleet_id` クエリで絞り込み可。
+
+### PATCH /api/v1/screening/schedules/{schedule_id}
+
+解析パラメータ / cron / notify_on_complete 等を部分更新。
+
+### DELETE /api/v1/screening/schedules/{schedule_id}
+
+論理削除。**204**。
+
+### POST /api/v1/screening/schedules/{schedule_id}/run
+
+手動即時 Run を enqueue。**202** — Celery eager 時は同期完了後の Run 状態を返す。
+
+### GET /api/v1/screening/runs
+
+Run 履歴。`fleet_id` / `status` フィルタ、`limit` / `offset` ページネーション。
+
+**Run status:** `pending` | `running` | `completed` | `failed` | `dead_letter`
+
+---
+
 ## Pydantic モデル対応表
 
 | モデル | ファイル |
@@ -561,6 +606,7 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | CdmCompareRequest / CdmCompareResponse | 同上 |
 | BatchConjunctionsRequest / BatchConjunctionsResponse | 同上 |
 | FleetCreate / FleetOut / SatelliteCreate / SatelliteOut | 同上 |
+| ScreeningScheduleCreate / ScreeningRunOut | 同上 |
 | OrbitRequest / OrbitResponse | 同上 |
 | ManeuverPreviewRequest / ManeuverPreviewResponse | 同上 |
 

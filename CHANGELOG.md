@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-06-28
+
+Phase 9B — Scheduled Screening Jobs（Celery + Redis + Beat）。
+
+### Added
+
+- **Phase 9B:** `screening_schedules` / `screening_runs`（PostgreSQL + Alembic 002）
+- REST: `/api/v1/screening/schedules` CRUD、手動 Run、`/runs` 一覧
+- Celery worker + Beat（60s poll）で cron 定期スクリーニング
+- 既存 `run_batch_conjunction_analysis` + `notify_batch_fleet_events` を worker から再利用
+- `docker-compose.yml` に `redis` / `worker` / `beat` サービス
+- 艦隊 > 25 衛星は先頭 25 で実行し `degraded=true`（9D でチャンク対応予定）
+
 ## [1.3.0] - 2026-06-28
 
 Phase 9A — Fleet Registry & Persistence（商用運用ロードマップ第一フェーズ）。
