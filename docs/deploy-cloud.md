@@ -46,6 +46,7 @@ Free tier ではスリープ復帰後も同様に初回が遅くなります。5
    - `SPACE_TRACK_USER` / `SPACE_TRACK_PASSWORD`
    - `TLE_PROVIDER=spacetrack`
    - `ALERT_WEBHOOK_URL`
+   - `ALERT_WEBHOOK_FORMAT=slack`（Slack Incoming Webhook 時）
    - `BATCH_MAX_WORKERS=2`
 
 ### 3. 確認

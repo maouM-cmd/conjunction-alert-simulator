@@ -34,6 +34,7 @@ class ConjunctionEvent:
     pc_monte_carlo: float | None = None
     pc_method_used: str | None = None
     covariance_source: str | None = None
+    sigma_source: str | None = None
 
 
 def find_closest_approach(

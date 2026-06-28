@@ -42,7 +42,15 @@ class ConjunctionOut(BaseModel):
     pc_alfriend: float | None = None
     pc_monte_carlo: float | None = None
     pc_method_used: Literal["foster", "encounter_advanced"] | None = None
-    covariance_source: Literal["isotropic", "tle_rtn_anisotropic"] | None = None
+    covariance_source: Literal["isotropic", "tle_rtn_anisotropic", "cdm_encounter"] | None = None
+    sigma_source: Literal["manual", "cdm_covariance", "tle_age"] | None = None
+
+
+class WebhookNotifyOut(BaseModel):
+    sent: bool
+    alert_count: int
+    degraded: bool
+    message: str
 
 
 class ConjunctionsRequest(BaseModel):
@@ -57,6 +65,11 @@ class ConjunctionsRequest(BaseModel):
         description="TLE RTN 非等方共分散（use_advanced_pc=true 時のみ有効）",
     )
     notify_webhook: bool = Field(default=False, description="高リスクイベントを Webhook に通知")
+    cdm_text: str | None = Field(default=None, description="共分散付き CDM KVN（任意）")
+    apply_cdm_covariance: bool = Field(
+        default=False,
+        description="cdm_text 指定時、該当デブリの Pc に CDM encounter 共分散を適用",
+    )
 
 
 class ConjunctionsResponse(BaseModel):
@@ -68,6 +81,7 @@ class ConjunctionsResponse(BaseModel):
     computation_time_ms: int
     tle_cache_stale: bool
     tle_provider: str
+    webhook: WebhookNotifyOut | None = None
 
 
 class OrbitRequest(BaseModel):
@@ -178,6 +192,7 @@ class BatchConjunctionsRequest(BaseModel):
         default=False,
         description="TLE RTN 非等方共分散（use_advanced_pc=true 時のみ有効）",
     )
+    notify_webhook: bool = Field(default=False, description="高リスクイベントを Webhook に一括通知")
 
 
 class BatchSummaryOut(BaseModel):
@@ -195,6 +210,7 @@ class BatchConjunctionsResponse(BaseModel):
     tle_provider: str
     parallel: bool
     worker_count: int
+    webhook: WebhookNotifyOut | None = None
 
 
 class CdmPublicRecordOut(BaseModel):

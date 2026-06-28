@@ -56,6 +56,8 @@
 | use_advanced_pc | bool | no | false | true 時 encounter plane Alfriend Pc（opt-in） |
 | use_anisotropic_cov | bool | no | false | TLE RTN 非等方共分散（`use_advanced_pc=true` 時のみ） |
 | notify_webhook | bool | no | false | high/medium イベントを `ALERT_WEBHOOK_URL` に POST |
+| cdm_text | string | no | null | 共分散付き CDM KVN（任意） |
+| apply_cdm_covariance | bool | no | false | `cdm_text` 指定時、該当デブリの Pc に CDM encounter 共分散を適用 |
 
 ### レスポンス 200
 
@@ -84,13 +86,15 @@
       "pc_alfriend": 1.23e-05,
       "pc_monte_carlo": 1.22e-05,
       "pc_method_used": "encounter_advanced",
-      "covariance_source": "isotropic"
+      "covariance_source": "isotropic",
+      "sigma_source": "tle_age"
     }
   ],
   "debris_catalog_count": 4200,
   "computation_time_ms": 8420,
   "tle_cache_stale": false,
-  "tle_provider": "celestrak"
+  "tle_provider": "celestrak",
+  "webhook": null
 }
 ```
 
@@ -99,7 +103,9 @@
 `use_advanced_pc=false` 時は `pc` のみ（Foster）、`pc_method_used: foster`。  
 `use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
 `use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
-`notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を Webhook POST（失敗時も解析結果は返す）。  
+`apply_cdm_covariance=true` + `cdm_text` で該当デブリに `sigma_source: cdm_covariance` / `covariance_source: cdm_encounter`。  
+`notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を Webhook POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
+`ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー

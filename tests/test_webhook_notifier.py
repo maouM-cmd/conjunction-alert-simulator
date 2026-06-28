@@ -59,6 +59,57 @@ def test_notify_filters_by_threshold():
 
 
 @patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_send_test_webhook_slack_format(mock_client_cls):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    with patch.dict(
+        os.environ,
+        {
+            "ALERT_WEBHOOK_URL": "https://example.com/hook",
+            "ALERT_WEBHOOK_FORMAT": "slack",
+        },
+        clear=False,
+    ):
+        result = send_test_webhook()
+        assert result.sent is True
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert "text" in payload
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_notify_slack_payload_has_text(mock_client_cls):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    with patch.dict(
+        os.environ,
+        {
+            "ALERT_WEBHOOK_URL": "https://example.com/hook",
+            "ALERT_WEBHOOK_FORMAT": "slack",
+        },
+        clear=False,
+    ):
+        sat = parse_tle(DEMO_SAT)
+        notify_conjunction_events(sat, [_sample_event(1e-3)])
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert "text" in payload
+        assert "CAS conjunction alert" in payload["text"]
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
 def test_send_test_webhook_success(mock_client_cls):
     mock_response = MagicMock()
     mock_response.status_code = 200

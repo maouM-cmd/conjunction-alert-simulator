@@ -4,6 +4,14 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Phase 5C:** Slack Incoming Webhook format (`ALERT_WEBHOOK_FORMAT=slack`)
+- **Phase 5C:** `cdm_text` + `apply_cdm_covariance` on `POST /conjunctions`
+- **Phase 5C:** batch `notify_webhook` fleet summary + UI Webhook test button
+
 ## [1.0.0] - 2026-06-28
 
 Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker まで一気通貫。

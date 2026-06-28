@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 from sgp4.api import jday
 
+from backend.app.services.cdm_pc_enrichment import apply_cdm_covariance_to_events
 from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions, resolve_risk_level
 from backend.app.services.pc_advanced import MC_TOP_N
 from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
@@ -182,6 +183,8 @@ def run_conjunction_analysis(
     sigma_km: float | None = None,
     use_advanced_pc: bool = False,
     use_anisotropic_cov: bool = False,
+    cdm_text: str | None = None,
+    apply_cdm_covariance: bool = False,
     debris_catalog: list[ParsedTle] | None = None,
     catalog_meta=None,
 ) -> ConjunctionAnalysisResult:
@@ -226,6 +229,15 @@ def run_conjunction_analysis(
         sat_points=sat_points,
         debris_propagated=debris_propagated,
     )
+    if apply_cdm_covariance and cdm_text:
+        events = apply_cdm_covariance_to_events(
+            events,
+            satellite,
+            cdm_text,
+            threshold_km,
+            sat_points,
+            debris_propagated,
+        )
     events = [e for e in events if e.risk_level != "none"]
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)

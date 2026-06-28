@@ -49,6 +49,17 @@
           Webhook 通知（高リスクイベント）
         </label>
         <div class="button-row">
+          <button id="btn-webhook-test" type="button">Webhook テスト</button>
+        </div>
+        <details class="cdm-scan-details">
+          <summary>CDM 共分散（任意）</summary>
+          <textarea id="scan-cdm-input" rows="5" placeholder="共分散付き CDM KVN..."></textarea>
+          <label class="checkbox-row">
+            <input id="apply-cdm-covariance" type="checkbox" />
+            CDM 共分散を Pc に適用
+          </label>
+        </details>
+        <div class="button-row">
           <button id="btn-load-sample" type="button">ISS サンプル</button>
           <button id="btn-load-demo" type="button">デモ TLE 読込</button>
           <button id="btn-scan" type="button" class="primary">接近解析</button>
@@ -71,6 +82,10 @@
         <label class="checkbox-row">
           <input id="batch-use-anisotropic-cov" type="checkbox" disabled />
           非等方 RTN 共分散
+        </label>
+        <label class="checkbox-row">
+          <input id="batch-notify-webhook" type="checkbox" />
+          Webhook 通知（fleet 一括）
         </label>
         <div class="button-row">
           <button id="btn-load-constellation-demo" type="button">デモ読込</button>
@@ -95,6 +110,7 @@
         <div class="button-row">
           <button id="btn-load-cdm-demo" type="button">デモ CDM 読込</button>
           <button id="btn-cdm-compare" type="button" class="primary">比較実行</button>
+          <button id="btn-cdm-to-scan" type="button">単一衛星解析へ</button>
         </div>
         <p id="cdm-status-msg" class="status-msg" aria-live="polite"></p>
         <div id="cdm-result" class="cdm-result hidden"></div>

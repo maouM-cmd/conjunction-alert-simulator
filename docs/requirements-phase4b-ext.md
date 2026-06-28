@@ -51,8 +51,8 @@ Phase 4C 完了後、TLE 由来の RTN 非等方共分散を encounter plane Pc 
 
 ## 3. スコープ外
 
-- CDM 共分散の一覧 API 自動適用（CDM compare / compare-alert のみ）
-- メール / Slack Bot 本番連携（汎用 Webhook URL のみ）
+- CDM 共分散の一覧 API 自動適用 → **Phase 5C で opt-in 対応済み**（[`requirements-phase5c.md`](requirements-phase5c.md)）
+- メール / Slack Bot 本番連携 → **Slack Incoming Webhook 形式は Phase 5C 対応**（Bot OAuth はスコープ外）
 - Phase 4D ポートフォリオ素材 → **Phase 4D で対応済み**（[`requirements-phase4d.md`](requirements-phase4d.md)）
 
 ---

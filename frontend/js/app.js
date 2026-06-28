@@ -32,12 +32,16 @@ const els = {
   useAdvancedPc: document.getElementById("use-advanced-pc"),
   useAnisotropicCov: document.getElementById("use-anisotropic-cov"),
   notifyWebhook: document.getElementById("notify-webhook"),
+  btnWebhookTest: document.getElementById("btn-webhook-test"),
+  scanCdmInput: document.getElementById("scan-cdm-input"),
+  applyCdmCovariance: document.getElementById("apply-cdm-covariance"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   constellationInput: document.getElementById("constellation-input"),
   batchThresholdKm: document.getElementById("batch-threshold-km"),
   batchUseAdvancedPc: document.getElementById("batch-use-advanced-pc"),
   batchUseAnisotropicCov: document.getElementById("batch-use-anisotropic-cov"),
+  batchNotifyWebhook: document.getElementById("batch-notify-webhook"),
   btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
   btnBatchScan: document.getElementById("btn-batch-scan"),
   batchStatusMsg: document.getElementById("batch-status-msg"),
@@ -49,6 +53,7 @@ const els = {
   cdmDebTle: document.getElementById("cdm-deb-tle"),
   btnLoadCdmDemo: document.getElementById("btn-load-cdm-demo"),
   btnCdmCompare: document.getElementById("btn-cdm-compare"),
+  btnCdmToScan: document.getElementById("btn-cdm-to-scan"),
   cdmStatusMsg: document.getElementById("cdm-status-msg"),
   cdmResult: document.getElementById("cdm-result"),
   alertNoradId: document.getElementById("alert-norad-id"),
@@ -159,8 +164,20 @@ function syncAnisotropicCheckbox(advancedEl, anisotropicEl) {
   }
 }
 
+function formatWebhookStatus(webhook) {
+  if (!webhook) return "";
+  if (webhook.sent) {
+    return ` / Webhook: ${webhook.alert_count} 件送信`;
+  }
+  if (webhook.degraded) {
+    return ` / Webhook 失敗: ${webhook.message}`;
+  }
+  return ` / Webhook: ${webhook.message}`;
+}
+
 function renderConjunctions(data) {
-  els.scanMeta.textContent = `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms / TLE: ${data.tle_provider || "celestrak"}`;
+  els.scanMeta.textContent =
+    `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms / TLE: ${data.tle_provider || "celestrak"}`;
   els.conjunctionList.innerHTML = "";
 
   if (data.conjunctions.length === 0) {
@@ -174,8 +191,10 @@ function renderConjunctions(data) {
       c.pc_method_used === "encounter_advanced"
         ? `Pc: ${formatPc(c.pc)} (Alfriend) / Foster: ${formatPc(c.pc_foster)}` +
           (c.pc_monte_carlo != null ? ` / MC: ${formatPc(c.pc_monte_carlo)}` : "") +
-          (c.covariance_source === "tle_rtn_anisotropic" ? " (非等方 σ)" : "")
-        : `Pc: ${formatPc(c.pc)} (Foster)`;
+          (c.covariance_source === "tle_rtn_anisotropic" ? " (非等方 σ)" : "") +
+          (c.sigma_source === "cdm_covariance" ? " (CDM σ)" : "")
+        : `Pc: ${formatPc(c.pc)} (Foster)` +
+          (c.sigma_source === "cdm_covariance" ? " (CDM σ)" : "");
     const li = document.createElement("li");
     li.className = `risk-${c.risk_level}`;
     li.innerHTML = `
@@ -348,6 +367,13 @@ async function runScan() {
       use_advanced_pc: els.useAdvancedPc.checked,
       notify_webhook: els.notifyWebhook.checked,
     };
+    const cdmText = els.scanCdmInput.value.trim();
+    if (cdmText) {
+      payload.cdm_text = cdmText;
+    }
+    if (els.applyCdmCovariance.checked) {
+      payload.apply_cdm_covariance = true;
+    }
     if (els.useAdvancedPc.checked) {
       payload.use_anisotropic_cov = els.useAnisotropicCov.checked;
     }
@@ -356,7 +382,7 @@ async function runScan() {
     }
     const data = await apiPost("/api/v1/conjunctions", payload);
     renderConjunctions(data);
-    setStatus(`解析完了（${data.computation_time_ms} ms）`);
+    setStatus(`解析完了（${data.computation_time_ms} ms）${formatWebhookStatus(data.webhook)}`);
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -394,6 +420,7 @@ async function runBatchScan() {
       threshold_km: threshold,
       step_minutes: 1,
       use_advanced_pc: els.batchUseAdvancedPc.checked,
+      notify_webhook: els.batchNotifyWebhook.checked,
     };
     if (els.batchUseAdvancedPc.checked) {
       payload.use_anisotropic_cov = els.batchUseAnisotropicCov.checked;
@@ -428,7 +455,7 @@ async function runBatchScan() {
     if (batchResults.length > 0) {
       showBatchSatellite(0);
     }
-    setBatchStatus(`一括解析完了（${data.computation_time_ms} ms）`);
+    setBatchStatus(`一括解析完了（${data.computation_time_ms} ms）${formatWebhookStatus(data.webhook)}`);
   } catch (err) {
     setBatchStatus(err.message, true);
   } finally {
@@ -441,6 +468,40 @@ function showBatchSatellite(index) {
   if (!result) return;
   lastSatelliteTle = result.tle;
   renderConjunctions(result);
+}
+
+async function runWebhookTest() {
+  els.btnWebhookTest.disabled = true;
+  setStatus("Webhook テスト送信中...");
+  try {
+    const data = await apiPost("/api/v1/alerts/webhook/test", {});
+    setStatus(
+      data.sent
+        ? `Webhook テスト成功: ${data.message}`
+        : `Webhook: ${data.message}`,
+      data.degraded
+    );
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    els.btnWebhookTest.disabled = false;
+  }
+}
+
+function transferCdmToScan() {
+  const cdmText = els.cdmInput.value.trim();
+  const satTle = els.cdmSatTle.value.trim();
+  if (!cdmText) {
+    setCdmStatus("CDM テキストを入力してください。", true);
+    return;
+  }
+  els.scanCdmInput.value = cdmText;
+  els.applyCdmCovariance.checked = true;
+  if (satTle) {
+    els.tleInput.value = satTle;
+  }
+  switchMode("single");
+  setStatus("CDM を単一衛星解析に引き渡しました。「接近解析」を実行してください。");
 }
 
 async function runCdmCompare() {
@@ -666,6 +727,7 @@ function init() {
   syncAnisotropicCheckbox(els.useAdvancedPc, els.useAnisotropicCov);
   syncAnisotropicCheckbox(els.batchUseAdvancedPc, els.batchUseAnisotropicCov);
   els.btnScan.addEventListener("click", runScan);
+  els.btnWebhookTest.addEventListener("click", runWebhookTest);
   els.btnLoadConstellationDemo.addEventListener("click", loadConstellationDemo);
   els.btnBatchScan.addEventListener("click", runBatchScan);
   els.satelliteSelect.addEventListener("change", () => {
@@ -673,6 +735,7 @@ function init() {
   });
   els.btnLoadCdmDemo.addEventListener("click", loadCdmDemo);
   els.btnCdmCompare.addEventListener("click", runCdmCompare);
+  els.btnCdmToScan.addEventListener("click", transferCdmToScan);
   els.btnAlertLoadIss.addEventListener("click", () => {
     els.alertSatTle.value = ISS_SAMPLE;
     setAlertStatus("ISS サンプル TLE を読み込みました。");
