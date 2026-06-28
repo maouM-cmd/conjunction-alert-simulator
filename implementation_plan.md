@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## Phase 6G-ext — ポートフォリオ仕上げ（v1.2.2 同期）
+## Phase 6G-ext live — 本番反映（進行中）
 
-[`blog-zenn.md`](docs/demo/blog-zenn.md) を正本に [`blog-draft.md`](docs/demo/blog-draft.md) を Phase 7/8/8B まで同期。Qiita API 更新（トークンあり時）、投稿手順更新。tag 新設なし。要件: [`docs/requirements-phase6g-ext.md`](docs/requirements-phase6g-ext.md)。
+Repo 原稿同期完了（`0361a5f`）。Qiita API `-Update` は **403**（write スコープ token 要）。Qiita 本番は「a」プレースホルダ、Zenn はログイン後 Web 編集で [`blog-zenn.md`](docs/demo/blog-zenn.md) を反映。手順: [`publish-qiita.md`](docs/publish-qiita.md) / [`publish-zenn.md`](docs/publish-zenn.md)。

@@ -132,11 +132,13 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 手順: [`publish-qiita.md`](publish-qiita.md) / [`publish-zenn.md`](publish-zenn.md) | 要件: [`requirements-phase6g-ext.md`](requirements-phase6g-ext.md)
 
-- [ ] `blog-draft.md` を v1.2.2 相当に更新 commit / push
-- [ ] `pytest tests/` PASS
-- [ ] Qiita DryRun または `publish_qiita_item.ps1 -Update`
-- [ ] （任意）Zenn 本番記事を `blog-zenn.md` と同期 — Phase 7/8/8B 節
-- [ ] （任意）Qiita 本番プレビューで Phase 8 / SMTP 節確認
+- [x] `blog-draft.md` を v1.2.2 相当に更新 commit / push（`0361a5f`）
+- [x] `pytest tests/` PASS
+- [x] Qiita DryRun（body 5739 chars, Item `986e533b16b348f7d5e4`）
+- [ ] Qiita `publish_qiita_item.ps1 -Update` — **403 Forbidden**（`.qiita-token.local` が read のみ。write スコープ token を `$env:QIITA_ACCESS_TOKEN` に設定して再実行）
+- [ ] Qiita 本番反映 — 現状本文はプレースホルダ「a」。ブラウザ: https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4/edit（ログイン要）
+- [ ] Zenn 本番記事を `blog-zenn.md` と同期 — https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5/edit（ログイン要）
+- [ ] Qiita / Zenn 本番プレビューで Phase 8 / SMTP 節確認
 
 **tag 新設なし**（6G 方針踏襲）
 
