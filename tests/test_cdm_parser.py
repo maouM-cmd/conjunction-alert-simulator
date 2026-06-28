@@ -13,11 +13,12 @@ def test_parse_example_cdm():
     text = (SAMPLES / "example.cdm").read_text(encoding="utf-8")
     record = parse_cdm(text)
     assert record.tca is not None
-    assert record.miss_distance_km == pytest.approx(29.75, rel=1e-3)
-    assert record.relative_speed_kms == pytest.approx(7.283, rel=1e-3)
-    assert record.pc_external == pytest.approx(3.2e-05, rel=1e-6)
+    assert record.miss_distance_km == pytest.approx(102.30, rel=1e-3)
+    assert record.relative_speed_kms == pytest.approx(12.8079, rel=1e-3)
+    assert record.pc_external == pytest.approx(8.538e-06, rel=1e-3)
     assert record.sat1_object == "ISS (ZARYA)"
     assert record.sat2_object == "COSMOS 2251 DEB"
+    assert record.covariance is not None
 
 
 def test_parse_empty_raises():

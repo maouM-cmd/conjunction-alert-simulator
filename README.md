@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0)
 
 ![Demo](docs/demo/demo.gif)
 
@@ -157,6 +157,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 5A](docs/requirements-phase5a.md)
 - [要件定義書 Phase 5B](docs/requirements-phase5b.md)
 - [要件定義書 Phase 5C](docs/requirements-phase5c.md)
+- [要件定義書 Phase 5D](docs/requirements-phase5d.md)
 - [クラウドデプロイ](docs/deploy-cloud.md)
 - [Zenn 投稿手順](docs/publish-zenn.md)
 - [CHANGELOG](CHANGELOG.md)

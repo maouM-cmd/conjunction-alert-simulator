@@ -1,6 +1,9 @@
 {
-  "conjunction_count": 2,
-  "closest_km": 28.4756,
+  "phase": "5D",
+  "conjunction_count": 3,
+  "closest_km": 38.1478,
+  "pc": 0.0,
+  "sigma_source": "cdm_covariance",
   "pc_method_used": "encounter_advanced",
   "generated": [
     "01-initial.png",

@@ -4,13 +4,15 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.1.0] - 2026-06-28
+
+Phase 5 リリース — クラウド manifest、運用 Webhook、CDM σ 一覧、デモ刷新。
 
 ### Added
 
-- **Phase 5C:** Slack Incoming Webhook format (`ALERT_WEBHOOK_FORMAT=slack`)
-- **Phase 5C:** `cdm_text` + `apply_cdm_covariance` on `POST /conjunctions`
-- **Phase 5C:** batch `notify_webhook` fleet summary + UI Webhook test button
+- **Phase 5B:** 同一オリジン API、Render/Fly manifest、`docs/deploy-cloud.md`、動的 `PORT`
+- **Phase 5C:** Slack Incoming Webhook（`ALERT_WEBHOOK_FORMAT=slack`）、`cdm_text` + `apply_cdm_covariance` on `/conjunctions`、batch Webhook + UI テスト
+- **Phase 5D:** `find_demo_pair` Advanced Pc メタ、Phase 5 デモ PNG/GIF、Zenn 原稿更新
 
 ## [1.0.0] - 2026-06-28
 
@@ -34,4 +36,5 @@ Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker
 - 接近イベント一覧は Pc 降順ソート（Phase 2 以降）
 - リスクレベルは Pc 優先判定（high ≥ 10⁻⁴、medium ≥ 10⁻⁶）
 
+[1.1.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0

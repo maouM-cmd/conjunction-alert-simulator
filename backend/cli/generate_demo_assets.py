@@ -63,7 +63,7 @@ def title_card(out_path: Path) -> None:
     ax.text(
         0.5,
         0.42,
-        "Phase 4: Pc (Foster / Alfriend) | CDM compare | Batch | Docker | Webhook\n"
+        "Phase 5: Cloud deploy | Slack Webhook | CDM sigma on list | Pc / CDM / Batch\n"
         "ISS vs COSMOS 2251 DEB | SGP4 + FastAPI + CesiumJS",
         ha="center",
         va="center",
@@ -84,13 +84,15 @@ def conjunction_table(events: list, out_path: Path, advanced: bool = False) -> N
         pc = e.get("pc", 0)
         method = e.get("pc_method_used", "foster")
         cov = e.get("covariance_source")
+        sigma = e.get("sigma_source")
         cov_note = f" [{cov}]" if cov else ""
+        sigma_note = " (CDM σ)" if sigma == "cdm_covariance" else ""
         if method == "encounter_advanced":
             foster = e.get("pc_foster")
             foster_txt = f" / Foster {foster:.2e}" if foster is not None else ""
             lines.append(
                 f"- {e['debris_name']} | {e['miss_distance_km']:.2f} km | "
-                f"Pc {pc:.2e}{foster_txt}{cov_note} | {e['risk_level']}"
+                f"Pc {pc:.2e}{foster_txt}{cov_note}{sigma_note} | {e['risk_level']}"
             )
         else:
             lines.append(
@@ -186,6 +188,8 @@ def main() -> None:
                 "threshold_km": 50,
                 "duration_days": 7,
                 "use_advanced_pc": True,
+                "cdm_text": cdm_text,
+                "apply_cdm_covariance": True,
             },
         )
         conj.raise_for_status()
@@ -238,10 +242,17 @@ def main() -> None:
     cdm_compare_card(cdm_compare, p5)
     make_gif([p1, p2, p3, p4, p5], OUT_DIR / "demo.gif")
 
+    demo_event = next(
+        (e for e in conj_data["conjunctions"] if e.get("sigma_source") == "cdm_covariance"),
+        first,
+    )
     meta = {
+        "phase": "5D",
         "conjunction_count": len(conj_data["conjunctions"]),
         "closest_km": first["miss_distance_km"],
-        "pc_method_used": first.get("pc_method_used"),
+        "pc": demo_event.get("pc"),
+        "sigma_source": demo_event.get("sigma_source"),
+        "pc_method_used": demo_event.get("pc_method_used"),
         "generated": [str(p.name) for p in (p1, p2, p3, p4, p5, OUT_DIR / "demo.gif")],
     }
     (OUT_DIR / "assets-meta.json").write_text(
