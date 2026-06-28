@@ -9,6 +9,7 @@ venv/
 # TLE cache
 data/cache/*.tle
 data/cache/*.meta
+data/cache/*.json
 
 # IDE
 .vscode/

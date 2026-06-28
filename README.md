@@ -58,6 +58,18 @@ python -m http.server 8080
 
 FastAPI 経由でフロントも配信する場合は `http://127.0.0.1:8000/app/` を開いてください。
 
+## Docker で起動（Phase 4C）
+
+```powershell
+copy .env.example .env   # 任意（Space-Track 利用時は編集）
+docker compose up --build -d
+```
+
+- UI: **http://localhost:8000/app/**
+- ヘルス: `curl http://localhost:8000/health`
+
+詳細は [docs/deploy.md](docs/deploy.md) を参照。
+
 ## CLI（軌道伝播プロトタイプ）
 
 ```powershell
@@ -90,6 +102,8 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 4A](docs/requirements-phase4a.md)
 - [要件定義書 Phase 4A-Ext](docs/requirements-phase4a-ext.md)
 - [要件定義書 Phase 4B](docs/requirements-phase4b.md)
+- [要件定義書 Phase 4C](docs/requirements-phase4c.md)
+- [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
 

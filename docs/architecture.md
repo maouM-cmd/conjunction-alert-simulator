@@ -58,6 +58,19 @@ detect_conjunctions → Foster Pc (default)
 - `cdm_export.py` — 接近イベント → CDM KVN
 - UI「CDM アラート」タブ
 
+## Phase 4C: Docker デプロイ
+
+```
+docker compose up
+    → uvicorn :8000 (1 worker)
+    → volume cas-cache → data/cache/
+    → /app/ frontend + /api/v1/*
+```
+
+- [`Dockerfile`](../Dockerfile) + [`docker-compose.yml`](../docker-compose.yml)
+- 本番: reload なし、`0.0.0.0:8000`
+- 手順: [`docs/deploy.md`](deploy.md)
+
 ## Phase 2: TLE プロバイダ
 
 - デフォルト: CelesTrak（24h キャッシュ）
