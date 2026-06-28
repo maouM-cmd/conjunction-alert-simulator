@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-06-28
+
+Phase 7 機能拡張 — 高度プリフィルタ UX、Space-Track CDM RTN 共分散、Slack Bot 通知。
+
+### Added
+
+- **Phase 7C:** `use_altitude_prefilter` on `/conjunctions` and batch、`debris_candidates_count`、Live Demo cold start `/health` ポーリング / `apiPost` リトライ
+- **Phase 7A:** Space-Track CDM RTN 共分散パース、`fetch_cdm_detail` lazy 取得、compare-alert `sigma_source: cdm_covariance`、`has_rtn_covariance` UI バッジ
+- **Phase 7B:** `ALERT_WEBHOOK_FORMAT=slack_bot`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）、`/health` `alert_delivery_*`
+
 ## [1.1.1] - 2026-06-28
 
 Phase 6 ポートフォリオ完結 — Live Demo、Zenn 公開、Render CI/CD、仕上げドキュメント。
@@ -47,6 +57,7 @@ Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker
 - 接近イベント一覧は Pc 降順ソート（Phase 2 以降）
 - リスクレベルは Pc 優先判定（high ≥ 10⁻⁴、medium ≥ 10⁻⁶）
 
+[1.2.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0
 [1.1.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 [1.1.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0

@@ -24,7 +24,9 @@ published: true
 - **Space-Track CDM アラート** — 認証設定時のみ
 - **Batch** — 最大 25 衛星、ProcessPool 並列
 - **Docker / クラウド** — `docker compose up`、Render / Fly.io manifest（Phase 5B）
-- **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）
+- **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）/ **Slack Bot**（Phase 7B）
+- **高度帯プリフィルタ** — カタログ 500 件超時 ±200 km 帯（Phase 7C）
+- **CDM RTN compare-alert** — Space-Track RTN σ、`has_rtn_covariance` バッジ（Phase 7A）
 - CesiumJS 3D + 回避マニューバ試算
 
 ![接近一覧 Advanced Pc](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png)
@@ -43,6 +45,23 @@ published: true
 - `ALERT_WEBHOOK_FORMAT=slack` で Slack 通知
 - `cdm_text` + `apply_cdm_covariance` で接近一覧に CDM encounter σ を opt-in 適用
 - UI **Webhook テスト**、CDM 比較 → **単一衛星解析へ** 導線
+
+## Phase 7 で追加したこと
+
+### 7C — 性能・UX
+
+- **高度帯プリフィルタ** — UI チェックボックス + API `use_altitude_prefilter`、候補デブリ件数表示
+- Live Demo **cold start** — `/health` ポーリング、初回 API リトライ 1 回
+
+### 7A — Space-Track CDM RTN 共分散
+
+- `cdm_public` / detail から RTN σ をパース → compare-alert で `sigma_source: cdm_covariance`
+- CDM アラート一覧に **RTN σ** / **要詳細** バッジ
+
+### 7B — Slack Bot 通知
+
+- `ALERT_WEBHOOK_FORMAT=slack_bot` + `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID`
+- Slack Web API `chat.postMessage`（Incoming Webhook 互換維持）
 
 ## 技術スタック
 
@@ -98,22 +117,32 @@ docker compose up --build -d
 
 ## Webhook（任意）
 
+**Incoming Webhook:**
+
 ```env
 ALERT_WEBHOOK_URL=https://hooks.slack.com/services/XXX/YYY/ZZZ
 ALERT_WEBHOOK_FORMAT=slack
 ALERT_PC_THRESHOLD=0.00001
 ```
 
-UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。
+**Slack Bot（Phase 7B）:**
+
+```env
+ALERT_WEBHOOK_FORMAT=slack_bot
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_CHANNEL_ID=C0123456789
+```
+
+UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。`/health` の `alert_delivery_format` で配信モードを確認。
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.1** で Phase 6（公開・Live Demo・CI/CD）が揃いました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.2.0** で Phase 7（性能 UX、CDM RTN、Slack Bot）が揃いました。
 
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
 - Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 - Qiita: https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
-- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

@@ -89,6 +89,19 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
+## 9. Phase 7 Ship — v1.2.0 Release
+
+手順: [`publish-github-release.md`](publish-github-release.md) | 本文: [`RELEASE_NOTES_v1.2.0.md`](RELEASE_NOTES_v1.2.0.md)
+
+- [ ] `pytest tests/` PASS
+- [ ] `CHANGELOG.md` / README / `blog-zenn.md` Phase 7 反映 commit / push
+- [ ] `git tag v1.2.0` + `git push origin v1.2.0`
+- [ ] `gh release create v1.2.0 --title "CAS v1.2.0 — Phase 7" --notes-file docs/RELEASE_NOTES_v1.2.0.md`
+- [ ] Release ページで demo.gif 表示確認
+- [ ] （任意）Zenn 本番記事に Phase 7 節を手動追記 — [`publish-zenn.md`](publish-zenn.md)
+
+---
+
 ## 関連リンク
 
 | 用途 | URL |
@@ -97,5 +110,6 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | Live Demo | https://conjunction-alert-simulator.onrender.com/app/ |
 | Zenn | https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5 |
 | Release v1.1.1 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1 |
+| Release v1.2.0 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.2.0 |
 | Phase 7 | [`requirements-phase7.md`](requirements-phase7.md) |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |
