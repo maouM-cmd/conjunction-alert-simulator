@@ -4,6 +4,8 @@
 
 **素材:** [`.github/social-preview.png`](../.github/social-preview.png)（`02-conjunctions.png` ベース）
 
+**設定済み（Phase 6F）:** `repository-images.githubusercontent.com` にホストされた OGP 画像。
+
 ---
 
 ## 設定手順

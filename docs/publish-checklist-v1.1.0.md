@@ -72,7 +72,7 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ## 7. Phase 6F — 公開完結
 
-- [ ] [`.github/social-preview.png`](../.github/social-preview.png) を GitHub Settings → Social preview にアップロード — [手順](publish-github-social-preview.md)
+- [x] [`.github/social-preview.png`](../.github/social-preview.png) を GitHub Settings → Social preview にアップロード — [手順](publish-github-social-preview.md)
 - [x] Qiita 投稿 — https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4
 - [x] v1.1.1 Release
 
