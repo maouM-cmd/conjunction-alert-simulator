@@ -68,3 +68,23 @@ def test_batch_parallel_preserves_order(_mock_fetch):
     assert len(result.results) == 2
     assert result.results[0].satellite.name == "STARLINK-1007"
     assert result.results[1].satellite.name == "STARLINK-1008"
+
+
+@patch("backend.app.services.batch_analysis.fetch_debris_catalog", side_effect=_fake_catalog)
+def test_batch_use_advanced_pc(_mock_fetch):
+    result = run_batch_conjunction_analysis(
+        [DEMO_SAT],
+        duration_days=7.0,
+        threshold_km=500.0,
+        step_minutes=5,
+        parallel=False,
+        use_advanced_pc=True,
+    )
+    events = result.results[0].events
+    assert events, "demo pair should detect at least one conjunction"
+    advanced = [e for e in events if e.pc_method_used == "encounter_advanced"]
+    assert advanced, "use_advanced_pc=True should set encounter_advanced"
+    top = advanced[0]
+    assert top.pc_alfriend is not None
+    assert top.pc_foster is not None
+    assert top.pc == top.pc_alfriend

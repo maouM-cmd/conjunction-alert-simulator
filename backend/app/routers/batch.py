@@ -16,6 +16,7 @@ from backend.app.models.schemas import (
     SatelliteInfo,
 )
 from backend.app.services.batch_analysis import run_batch_conjunction_analysis
+from backend.app.services.conjunction_out import event_to_conjunction_out
 
 router = APIRouter(prefix="/api/v1", tags=["batch"])
 
@@ -24,16 +25,7 @@ BATCH_TIMEOUT_SEC = 600.0
 
 def _to_conjunctions_response(result) -> ConjunctionsResponse:
     conjunctions = [
-        ConjunctionOut(
-            debris_norad_id=e.debris_norad_id,
-            debris_name=e.debris_name,
-            debris_tle=e.debris_tle,
-            tca=e.tca,
-            miss_distance_km=round(e.miss_distance_km, 4),
-            relative_velocity_kms=round(e.relative_velocity_kms, 4),
-            risk_level=e.risk_level,  # type: ignore[arg-type]
-            pc=e.pc,
-        )
+        event_to_conjunction_out(e)
         for e in result.events
         if e.risk_level in ("high", "medium", "low")
     ]
@@ -64,6 +56,9 @@ async def batch_conjunctions_api(body: BatchConjunctionsRequest) -> BatchConjunc
                 body.threshold_km,
                 body.step_minutes,
                 body.sigma_km,
+                True,
+                None,
+                body.use_advanced_pc,
             ),
             timeout=BATCH_TIMEOUT_SEC,
         )

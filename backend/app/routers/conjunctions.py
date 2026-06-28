@@ -14,6 +14,7 @@ from backend.app.models.schemas import (
     SatelliteInfo,
 )
 from backend.app.services.analysis import run_conjunction_analysis
+from backend.app.services.conjunction_out import event_to_conjunction_out
 
 router = APIRouter(prefix="/api/v1", tags=["conjunctions"])
 
@@ -32,6 +33,7 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
                 body.step_minutes,
                 True,
                 body.sigma_km,
+                body.use_advanced_pc,
             ),
             timeout=COMPUTATION_TIMEOUT_SEC,
         )
@@ -46,16 +48,7 @@ async def detect_conjunctions_api(body: ConjunctionsRequest) -> ConjunctionsResp
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     conjunctions = [
-        ConjunctionOut(
-            debris_norad_id=e.debris_norad_id,
-            debris_name=e.debris_name,
-            debris_tle=e.debris_tle,
-            tca=e.tca,
-            miss_distance_km=round(e.miss_distance_km, 4),
-            relative_velocity_kms=round(e.relative_velocity_kms, 4),
-            risk_level=e.risk_level,  # type: ignore[arg-type]
-            pc=e.pc,
-        )
+        event_to_conjunction_out(e)
         for e in result.events
         if e.risk_level in ("high", "medium", "low")
     ]

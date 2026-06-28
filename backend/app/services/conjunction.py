@@ -28,6 +28,11 @@ class ConjunctionEvent:
     relative_velocity_kms: float
     risk_level: str
     pc: float = 0.0
+    tca_index: int = 0
+    pc_foster: float | None = None
+    pc_alfriend: float | None = None
+    pc_monte_carlo: float | None = None
+    pc_method_used: str | None = None
 
 
 def find_closest_approach(
@@ -101,6 +106,7 @@ def detect_conjunctions(
                     miss_distance_km=ca.miss_distance_km,
                     relative_velocity_kms=ca.relative_velocity_kms,
                     risk_level=risk_level_from_distance(ca.miss_distance_km, threshold_km),
+                    tca_index=ca.index,
                 )
             )
     events.sort(key=lambda e: e.miss_distance_km)

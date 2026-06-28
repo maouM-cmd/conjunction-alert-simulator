@@ -10,6 +10,8 @@ import numpy as np
 from sgp4.api import jday
 
 from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions, resolve_risk_level
+from backend.app.services.pc_advanced import MC_TOP_N
+from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
 from backend.app.services.pc_calculator import compute_pc_for_conjunction
 from backend.app.services.propagator import OrbitPoint, create_satrec, propagate_orbit
 from backend.app.services.tle_fetcher import fetch_debris_catalog, is_cache_stale, set_last_provider_label
@@ -82,21 +84,87 @@ def _enrich_with_pc(
     threshold_km: float,
     analysis_time: datetime,
     sigma_km: float | None,
+    use_advanced_pc: bool = False,
+    sat_points: list[OrbitPoint] | None = None,
+    debris_propagated: list[tuple[int, str, str, list[OrbitPoint]]] | None = None,
 ) -> list[ConjunctionEvent]:
+    if not use_advanced_pc:
+        enriched: list[ConjunctionEvent] = []
+        for event in events:
+            debris = parse_tle(event.debris_tle)
+            pc = compute_pc_for_conjunction(
+                event.miss_distance_km,
+                satellite,
+                debris,
+                analysis_time,
+                sigma_km=sigma_km,
+            )
+            risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=pc)
+            enriched.append(
+                replace(
+                    event,
+                    pc=pc,
+                    risk_level=risk,
+                    pc_method_used="foster",
+                )
+            )
+        enriched.sort(key=lambda e: e.pc, reverse=True)
+        return enriched
+
+    if sat_points is None or debris_propagated is None:
+        raise ValueError("advanced Pc には軌道点列が必要です。")
+
+    deb_pts_by_id = {norad_id: pts for norad_id, _, _, pts in debris_propagated}
     enriched: list[ConjunctionEvent] = []
+
     for event in events:
         debris = parse_tle(event.debris_tle)
-        pc = compute_pc_for_conjunction(
-            event.miss_distance_km,
+        deb_pts = deb_pts_by_id.get(event.debris_norad_id)
+        if deb_pts is None:
+            continue
+        enc = pc_for_tle_pair_at_index(
             satellite,
             debris,
-            analysis_time,
+            sat_points,
+            deb_pts,
+            event.tca_index,
             sigma_km=sigma_km,
+            include_monte_carlo=False,
         )
-        risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=pc)
-        enriched.append(replace(event, pc=pc, risk_level=risk))
+        risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=enc.alfriend)
+        enriched.append(
+            replace(
+                event,
+                pc=enc.alfriend,
+                pc_foster=enc.foster,
+                pc_alfriend=enc.alfriend,
+                pc_monte_carlo=None,
+                pc_method_used="encounter_advanced",
+                risk_level=risk,
+            )
+        )
+
     enriched.sort(key=lambda e: e.pc, reverse=True)
-    return enriched
+
+    top_ids = {e.debris_norad_id for e in enriched[:MC_TOP_N]}
+    final: list[ConjunctionEvent] = []
+    for event in enriched:
+        if event.debris_norad_id not in top_ids:
+            final.append(event)
+            continue
+        debris = parse_tle(event.debris_tle)
+        deb_pts = deb_pts_by_id[event.debris_norad_id]
+        enc_mc = pc_for_tle_pair_at_index(
+            satellite,
+            debris,
+            sat_points,
+            deb_pts,
+            event.tca_index,
+            sigma_km=sigma_km,
+            include_monte_carlo=True,
+        )
+        final.append(replace(event, pc_monte_carlo=enc_mc.monte_carlo))
+    return final
 
 
 def run_conjunction_analysis(
@@ -106,6 +174,7 @@ def run_conjunction_analysis(
     step_minutes: int = 1,
     use_altitude_prefilter: bool = True,
     sigma_km: float | None = None,
+    use_advanced_pc: bool = False,
     debris_catalog: list[ParsedTle] | None = None,
     catalog_meta=None,
 ) -> ConjunctionAnalysisResult:
@@ -139,7 +208,16 @@ def run_conjunction_analysis(
             continue
 
     events = detect_conjunctions(sat_points, debris_propagated, threshold_km)
-    events = _enrich_with_pc(events, satellite, threshold_km, start, sigma_km)
+    events = _enrich_with_pc(
+        events,
+        satellite,
+        threshold_km,
+        start,
+        sigma_km,
+        use_advanced_pc=use_advanced_pc,
+        sat_points=sat_points,
+        debris_propagated=debris_propagated,
+    )
     events = [e for e in events if e.risk_level != "none"]
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)

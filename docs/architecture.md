@@ -35,7 +35,20 @@ Frontend (CesiumJS)  ←→  FastAPI  ←→  Services
 
 - CDM RTN 共分散 → TEME → encounter plane 2×2（`encounter_plane.py`, `cdm_covariance.py`）
 - CDM 比較: Foster / Alfriend / Monte Carlo 並列（`pc_advanced.py`）
-- 単一衛星 API は Foster 維持、CDM compare のみ advanced Pc
+- 単一衛星 API: デフォルト Foster、`use_advanced_pc=true` で Alfriend（`pc_conjunction.py`, `analysis.py`）
+
+### Phase 4A-Ext: 一覧 API Advanced Pc
+
+```
+detect_conjunctions → Foster Pc (default)
+                   → use_advanced_pc?
+                        ├─ false → pc=foster, pc_method_used=foster
+                        └─ true  → pc=Alfriend, MC on top-5 only
+```
+
+- `pc_conjunction.py`: TLE ペア + TCA index → encounter plane Pc（等方 σ、grid 80×120）
+- `conjunction_out.py`: `ConjunctionEvent` → `ConjunctionOut`
+- batch: 同一 `use_advanced_pc` を worker に伝播（`batch_analysis.py`）
 
 ## Phase 2: TLE プロバイダ
 

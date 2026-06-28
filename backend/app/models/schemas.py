@@ -38,6 +38,10 @@ class ConjunctionOut(BaseModel):
     relative_velocity_kms: float
     risk_level: Literal["high", "medium", "low"]
     pc: float
+    pc_foster: float | None = None
+    pc_alfriend: float | None = None
+    pc_monte_carlo: float | None = None
+    pc_method_used: Literal["foster", "encounter_advanced"] | None = None
 
 
 class ConjunctionsRequest(BaseModel):
@@ -46,6 +50,7 @@ class ConjunctionsRequest(BaseModel):
     threshold_km: float = Field(default=5.0, gt=0)
     step_minutes: int = Field(default=1, ge=1, le=60)
     sigma_km: float | None = Field(default=None, gt=0, description="位置不確かさ上書き (km)")
+    use_advanced_pc: bool = Field(default=False, description="encounter plane Alfriend Pc を使用")
 
 
 class ConjunctionsResponse(BaseModel):
@@ -161,6 +166,7 @@ class BatchConjunctionsRequest(BaseModel):
     duration_days: float = Field(default=7.0, gt=0, le=30)
     step_minutes: int = Field(default=1, ge=1, le=60)
     sigma_km: float | None = Field(default=None, gt=0)
+    use_advanced_pc: bool = Field(default=False, description="encounter plane Alfriend Pc を使用")
 
 
 class BatchSummaryOut(BaseModel):

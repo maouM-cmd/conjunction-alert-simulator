@@ -165,6 +165,17 @@ label {
   font-size: 0.85rem;
 }
 
+label.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+label.checkbox-row input[type="checkbox"] {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;

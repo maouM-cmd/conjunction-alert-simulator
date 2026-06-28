@@ -52,6 +52,7 @@
 | threshold_km | float | no | 5.0 | 接近閾値（km） |
 | step_minutes | int | no | 1 | 伝播刻み（分） |
 | sigma_km | float | no | null | 位置不確かさ σ (km)。未指定時 TLE 経過日数から推定 |
+| use_advanced_pc | bool | no | false | true 時 encounter plane Alfriend Pc（opt-in） |
 
 ### レスポンス 200
 
@@ -75,7 +76,11 @@
       "miss_distance_km": 2.3,
       "relative_velocity_kms": 7.1,
       "risk_level": "medium",
-      "pc": 1.23e-05
+      "pc": 1.23e-05,
+      "pc_foster": 1.1e-05,
+      "pc_alfriend": 1.23e-05,
+      "pc_monte_carlo": 1.22e-05,
+      "pc_method_used": "encounter_advanced"
     }
   ],
   "debris_catalog_count": 4200,
@@ -86,6 +91,10 @@
 ```
 
 `conjunctions` は Phase 2 以降 **Pc 降順** でソート。
+
+`use_advanced_pc=false` 時は `pc` のみ（Foster）、`pc_method_used: foster`。  
+`use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
+一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー
 
@@ -274,9 +283,19 @@ CDM 外部値と CAS SGP4 計算値を比較する。
   "threshold_km": 50,
   "duration_days": 7,
   "step_minutes": 1,
-  "sigma_km": null
+  "sigma_km": null,
+  "use_advanced_pc": false
 }
 ```
+
+| フィールド | 型 | 必須 | デフォルト | 説明 |
+|-----------|-----|------|-----------|------|
+| satellites | array | yes | — | `{ name, tle }` 最大 25 件 |
+| threshold_km | float | no | 50 | 接近閾値（km） |
+| duration_days | float | no | 7 | 解析期間（日） |
+| step_minutes | int | no | 1 | 伝播刻み（分） |
+| sigma_km | float | no | null | 位置不確かさ σ (km) |
+| use_advanced_pc | bool | no | false | encounter plane Alfriend Pc（opt-in） |
 
 最大 25 衛星。ProcessPool 並列実行（2 衛星以上）。
 

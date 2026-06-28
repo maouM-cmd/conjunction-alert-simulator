@@ -45,7 +45,7 @@ Phase 4A では CDM RTN 共分散を **encounter plane** に射影し、**Alfrie
 
 ## 3. スコープ外
 
-- 単一衛星 `/conjunctions` への Alfriend/MC 適用（Foster 維持）
+- 単一衛星 `/conjunctions` への Alfriend/MC 適用（Foster 維持）→ **Phase 4A-Ext で opt-in 対応済み**（[`requirements-phase4a-ext.md`](requirements-phase4a-ext.md)）
 - Space-Track CDM API
 - scipy 依存
 - クラウドデプロイ

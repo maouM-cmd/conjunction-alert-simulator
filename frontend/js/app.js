@@ -28,10 +28,12 @@ const els = {
   btnLoadDemo: document.getElementById("btn-load-demo"),
   thresholdKm: document.getElementById("threshold-km"),
   sigmaKm: document.getElementById("sigma-km"),
+  useAdvancedPc: document.getElementById("use-advanced-pc"),
   btnScan: document.getElementById("btn-scan"),
   statusMsg: document.getElementById("status-msg"),
   constellationInput: document.getElementById("constellation-input"),
   batchThresholdKm: document.getElementById("batch-threshold-km"),
+  batchUseAdvancedPc: document.getElementById("batch-use-advanced-pc"),
   btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
   btnBatchScan: document.getElementById("btn-batch-scan"),
   batchStatusMsg: document.getElementById("batch-status-msg"),
@@ -137,13 +139,18 @@ function renderConjunctions(data) {
   }
 
   for (const c of data.conjunctions) {
+    const pcLine =
+      c.pc_method_used === "encounter_advanced"
+        ? `Pc: ${formatPc(c.pc)} (Alfriend) / Foster: ${formatPc(c.pc_foster)}` +
+          (c.pc_monte_carlo != null ? ` / MC: ${formatPc(c.pc_monte_carlo)}` : "")
+        : `Pc: ${formatPc(c.pc)} (Foster)`;
     const li = document.createElement("li");
     li.className = `risk-${c.risk_level}`;
     li.innerHTML = `
       <strong>${c.debris_name}</strong> (NORAD ${c.debris_norad_id})<br />
       TCA: ${formatTime(c.tca)}<br />
       距離: ${c.miss_distance_km.toFixed(2)} km /
-      Pc: ${formatPc(c.pc)} /
+      ${pcLine} /
       相対速度: ${c.relative_velocity_kms.toFixed(2)} km/s /
       <span class="risk-${c.risk_level}">${c.risk_level}</span>
     `;
@@ -211,6 +218,7 @@ async function runScan() {
       duration_days: 7,
       threshold_km: threshold,
       step_minutes: 1,
+      use_advanced_pc: els.useAdvancedPc.checked,
     };
     if (sigmaRaw) {
       payload.sigma_km = parseFloat(sigmaRaw);
@@ -254,6 +262,7 @@ async function runBatchScan() {
       duration_days: 7,
       threshold_km: threshold,
       step_minutes: 1,
+      use_advanced_pc: els.batchUseAdvancedPc.checked,
     });
 
     batchResults = data.results.map((r, i) => ({

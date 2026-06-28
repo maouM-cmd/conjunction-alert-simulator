@@ -13,6 +13,9 @@ MC_SAMPLES = 10_000
 MC_SEED = 42
 ALFRIEND_N_R = 150
 ALFRIEND_N_THETA = 240
+BULK_ALFRIEND_N_R = 80
+BULK_ALFRIEND_N_THETA = 120
+MC_TOP_N = 5
 
 
 @dataclass(frozen=True)
@@ -104,11 +107,14 @@ def pc_from_encounter(
     b_2d: np.ndarray,
     c_2x2: np.ndarray,
     r_km: float = DEFAULT_COMBINED_RADIUS_KM,
+    include_monte_carlo: bool = True,
+    alfriend_n_r: int = ALFRIEND_N_R,
+    alfriend_n_theta: int = ALFRIEND_N_THETA,
 ) -> EncounterPcResult:
-    """Compute Foster, Alfriend, and Monte Carlo Pc from encounter plane state."""
+    """Compute Foster, Alfriend, and optionally Monte Carlo Pc from encounter plane state."""
     foster, b_scalar, sigma_equiv = foster_from_encounter(b_2d, c_2x2, r_km)
-    alfriend = alfriend_pc(b_2d, c_2x2, r_km)
-    mc = monte_carlo_pc(b_2d, c_2x2, r_km)
+    alfriend = alfriend_pc(b_2d, c_2x2, r_km, n_r=alfriend_n_r, n_theta=alfriend_n_theta)
+    mc = monte_carlo_pc(b_2d, c_2x2, r_km) if include_monte_carlo else 0.0
     return EncounterPcResult(
         foster=foster,
         alfriend=alfriend,
