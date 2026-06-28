@@ -8,9 +8,22 @@ Zenn 正本: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 
 ## 事前確認
 
-- [ ] GitHub `main` に最新コミットが push 済み（画像 raw URL が有効）
-- [ ] [`blog-draft.md`](demo/blog-draft.md) の Live Demo / Zenn リンクが有効
-- [ ] ローカルで `pytest tests/` が PASS
+- [x] GitHub `main` に最新コミットが push 済み（画像 raw URL が有効）
+- [x] [`blog-draft.md`](demo/blog-draft.md) の Live Demo / Zenn リンクが有効
+- [x] ローカルで `pytest tests/` が PASS
+
+---
+
+## API 投稿（任意 — Phase 6F）
+
+Personal access token がある場合:
+
+```powershell
+$env:QIITA_ACCESS_TOKEN = "<your-token>"
+.\scripts\publish_qiita_item.ps1
+```
+
+成功時 `docs/QIITA_PUBLISHED_URL.txt` に URL が保存されます。
 
 ---
 
@@ -28,10 +41,13 @@ Zenn 正本: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 
 ---
 
-## 公開後（任意）
+## 公開後
 
-- README「技術記事」表に Qiita 行を追記
-- Zenn 記事末尾に Qiita URL を追記（相互リンク）
+- [ ] README「技術記事」表に Qiita 行を追記（公開 URL 確定後）
+- [ ] Zenn 記事末尾に Qiita URL を追記（相互リンク）
+- [ ] [`publish-checklist-v1.1.0.md`](publish-checklist-v1.1.0.md) §7 Qiita を `[x]`
+
+**Qiita URL 正本:** 公開後 `docs/QIITA_PUBLISHED_URL.txt` に保存（API 投稿時）または README に直接追記。
 
 ---
 

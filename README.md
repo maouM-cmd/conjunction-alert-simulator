@@ -11,7 +11,7 @@
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
-**v1.1.0（Phase 5）** — Render/Fly クラウド manifest、Slack Webhook、CDM σ on 接近一覧、Advanced Pc デモ素材を追加。Starlink 型の接近監視フローを OSS で再現したポートフォリオ作品です。
+**v1.1.1（Phase 6）** — Live Demo（Render）、Zenn 公開、GitHub Actions CI/CD、ポートフォリオ仕上げ。Phase 5 のクラウド manifest・Slack Webhook・CDM σ 一覧も含む OSS 作品です。
 
 ## 2 分デモ（ローカル）
 
@@ -156,6 +156,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [Live Demo URL](docs/LIVE_DEMO_URL.md)
 - [GitHub Release 手順](docs/publish-github-release.md)
 - [要件定義書 Phase 6E](docs/requirements-phase6e.md)
+- [要件定義書 Phase 6F](docs/requirements-phase6f.md)
 - [Qiita 投稿手順](docs/publish-qiita.md)
 - [GitHub Social Preview](docs/publish-github-social-preview.md)
 - [要件定義書 Phase 1](docs/requirements.md)

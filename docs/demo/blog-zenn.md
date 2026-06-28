@@ -108,11 +108,11 @@ UI の **Webhook テスト** または `POST /api/v1/alerts/webhook/test`。
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.0** で Phase 5（クラウド・運用・デモ刷新）が揃い、Live Demo を公開しました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.1** で Phase 6（公開・Live Demo・CI/CD）が揃いました。
 
 - リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
 - Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 - Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
-- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 
 MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。

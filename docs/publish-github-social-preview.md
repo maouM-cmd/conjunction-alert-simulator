@@ -21,6 +21,13 @@
 ## 確認
 
 - リポ URL を X / Slack 等に貼り付け、プレビュー画像が表示されることを確認
+- CLI 確認（設定前は GitHub デフォルト OGP）:
+
+```powershell
+gh api graphql -f query='query { repository(owner:"maouM-cmd", name:"conjunction-alert-simulator") { openGraphImageUrl } }' --jq .data.repository.openGraphImageUrl
+```
+
+カスタム画像反映後、`opengraph.githubassets.com` 以外の URL になる場合があります。
 
 ---
 
