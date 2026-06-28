@@ -7,7 +7,6 @@ from pathlib import Path
 
 import httpx
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib import font_manager
 from PIL import Image
 
@@ -53,7 +52,7 @@ def title_card(out_path: Path) -> None:
     ax.axis("off")
     ax.text(
         0.5,
-        0.62,
+        0.68,
         "Conjunction Alert Simulator",
         ha="center",
         va="center",
@@ -64,26 +63,73 @@ def title_card(out_path: Path) -> None:
     ax.text(
         0.5,
         0.42,
-        "ISS vs COSMOS 2251 DEB\n7-day conjunction scan | SGP4 + FastAPI + CesiumJS",
+        "Phase 4: Pc (Foster / Alfriend) | CDM compare | Batch | Docker | Webhook\n"
+        "ISS vs COSMOS 2251 DEB | SGP4 + FastAPI + CesiumJS",
         ha="center",
         va="center",
-        fontsize=12,
+        fontsize=11,
         color="#9fb0d0",
     )
     fig.savefig(out_path, dpi=120, facecolor=fig.get_facecolor())
     plt.close(fig)
 
 
-def conjunction_table(events: list, out_path: Path) -> None:
+def conjunction_table(events: list, out_path: Path, advanced: bool = False) -> None:
     fig, ax = plt.subplots(figsize=(10, 6), facecolor="#0b1020")
     ax.set_facecolor("#11182b")
     ax.axis("off")
-    lines = ["Top conjunction events (threshold 50 km):", ""]
+    mode = "Advanced Pc (Alfriend encounter plane)" if advanced else "Foster Pc"
+    lines = [f"Top conjunction events — {mode} (threshold 50 km):", ""]
     for e in events[:8]:
-        lines.append(
-            f"- {e['debris_name']} | {e['miss_distance_km']:.2f} km | "
-            f"Pc {e.get('pc', 0):.2e} | {e['risk_level']} | TCA {e['tca'][:19]}Z"
-        )
+        pc = e.get("pc", 0)
+        method = e.get("pc_method_used", "foster")
+        cov = e.get("covariance_source")
+        cov_note = f" [{cov}]" if cov else ""
+        if method == "encounter_advanced":
+            foster = e.get("pc_foster")
+            foster_txt = f" / Foster {foster:.2e}" if foster is not None else ""
+            lines.append(
+                f"- {e['debris_name']} | {e['miss_distance_km']:.2f} km | "
+                f"Pc {pc:.2e}{foster_txt}{cov_note} | {e['risk_level']}"
+            )
+        else:
+            lines.append(
+                f"- {e['debris_name']} | {e['miss_distance_km']:.2f} km | "
+                f"Pc {pc:.2e} | {e['risk_level']}"
+            )
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(lines),
+        ha="left",
+        va="top",
+        fontsize=9,
+        color="#e8edf7",
+        family="monospace",
+    )
+    fig.savefig(out_path, dpi=120, facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def cdm_compare_card(compare: dict, out_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor="#0b1020")
+    ax.set_facecolor("#11182b")
+    ax.axis("off")
+    pm = compare.get("pc_methods") or {}
+    lines = [
+        "CDM vs CAS compare (encounter plane)",
+        "",
+        f"CDM Pc:        {compare['cdm'].get('pc')}",
+        f"CAS Pc:        {compare['cas'].get('pc')}",
+        f"Miss CDM/CAS:  {compare['cdm'].get('miss_distance_km')} / "
+        f"{compare['cas'].get('miss_distance_km')} km",
+        f"Sigma source:  {compare.get('sigma_source')}",
+        "",
+        f"Foster:        {pm.get('foster')}",
+        f"Alfriend:      {pm.get('alfriend')}",
+        f"Monte Carlo:   {pm.get('monte_carlo')}",
+        f"Method used:   {compare.get('pc_method_used')}",
+    ]
     ax.text(
         0.05,
         0.95,
@@ -130,12 +176,21 @@ def main() -> None:
 
     sat_tle = (SAMPLES / "demo-satellite.tle").read_text(encoding="utf-8")
     deb_tle = (SAMPLES / "demo-debris.tle").read_text(encoding="utf-8")
+    cdm_text = (SAMPLES / "example.cdm").read_text(encoding="utf-8")
 
     with httpx.Client(timeout=120.0) as client:
         conj = client.post(
             f"{API}/api/v1/conjunctions",
-            json={"tle": sat_tle, "threshold_km": 50, "duration_days": 7},
-        ).json()
+            json={
+                "tle": sat_tle,
+                "threshold_km": 50,
+                "duration_days": 7,
+                "use_advanced_pc": True,
+            },
+        )
+        conj.raise_for_status()
+        conj_data = conj.json()
+
         sat_orbit = client.post(
             f"{API}/api/v1/orbit",
             json={"tle": sat_tle, "duration_days": 7, "step_minutes": 5},
@@ -144,7 +199,7 @@ def main() -> None:
             f"{API}/api/v1/orbit",
             json={"tle": deb_tle, "duration_days": 7, "step_minutes": 5},
         ).json()
-        first = conj["conjunctions"][0]
+        first = conj_data["conjunctions"][0]
         maneuver = client.post(
             f"{API}/api/v1/maneuver/preview",
             json={
@@ -154,14 +209,25 @@ def main() -> None:
                 "delta_v_ms": 0.1,
             },
         ).json()
+        cdm_compare = client.post(
+            f"{API}/api/v1/cdm/compare",
+            json={
+                "cdm_text": cdm_text,
+                "satellite_tle": sat_tle,
+                "debris_tle": deb_tle,
+                "duration_days": 7,
+                "step_minutes": 1,
+            },
+        ).json()
 
     p1 = OUT_DIR / "01-initial.png"
     p2 = OUT_DIR / "02-conjunctions.png"
     p3 = OUT_DIR / "03-orbit-tca.png"
     p4 = OUT_DIR / "04-maneuver.png"
+    p5 = OUT_DIR / "05-cdm-compare.png"
 
     title_card(p1)
-    conjunction_table(conj["conjunctions"], p2)
+    conjunction_table(conj_data["conjunctions"], p2, advanced=True)
     plot_orbits(
         sat_orbit["points"],
         deb_orbit["points"],
@@ -169,12 +235,14 @@ def main() -> None:
         p3,
     )
     maneuver_card(maneuver["before"], maneuver["after"], p4)
-    make_gif([p1, p2, p3, p4], OUT_DIR / "demo.gif")
+    cdm_compare_card(cdm_compare, p5)
+    make_gif([p1, p2, p3, p4, p5], OUT_DIR / "demo.gif")
 
     meta = {
-        "conjunction_count": len(conj["conjunctions"]),
+        "conjunction_count": len(conj_data["conjunctions"]),
         "closest_km": first["miss_distance_km"],
-        "generated": [str(p.name) for p in (p1, p2, p3, p4, OUT_DIR / "demo.gif")],
+        "pc_method_used": first.get("pc_method_used"),
+        "generated": [str(p.name) for p in (p1, p2, p3, p4, p5, OUT_DIR / "demo.gif")],
     }
     (OUT_DIR / "assets-meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"

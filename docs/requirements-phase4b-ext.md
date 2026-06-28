@@ -53,7 +53,7 @@ Phase 4C 完了後、TLE 由来の RTN 非等方共分散を encounter plane Pc 
 
 - CDM 共分散の一覧 API 自動適用（CDM compare / compare-alert のみ）
 - メール / Slack Bot 本番連携（汎用 Webhook URL のみ）
-- Phase 4D ポートフォリオ素材
+- Phase 4D ポートフォリオ素材 → **Phase 4D で対応済み**（[`requirements-phase4d.md`](requirements-phase4d.md)）
 
 ---
 

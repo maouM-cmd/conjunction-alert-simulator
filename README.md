@@ -71,6 +71,17 @@ docker compose up --build -d
 
 詳細は [docs/deploy.md](docs/deploy.md) を参照。
 
+## Webhook 通知（任意）
+
+`.env` に以下を設定:
+
+```env
+ALERT_WEBHOOK_URL=https://example.com/webhook
+ALERT_PC_THRESHOLD=0.00001
+```
+
+解析リクエストで `notify_webhook: true` を指定するか、`POST /api/v1/alerts/webhook/test` で接続確認。
+
 ## CLI（軌道伝播プロトタイプ）
 
 ```powershell
@@ -106,6 +117,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 4B](docs/requirements-phase4b.md)
 - [要件定義書 Phase 4B-Ext](docs/requirements-phase4b-ext.md)
 - [要件定義書 Phase 4C](docs/requirements-phase4c.md)
+- [要件定義書 Phase 4D](docs/requirements-phase4d.md)
 - [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
 - [アーキテクチャ](docs/architecture.md)
@@ -119,10 +131,11 @@ MIT License — 詳細は [LICENSE](LICENSE)
 | | |
 |--|--|
 | 初期画面 | ![01](docs/demo/01-initial.png) |
-| 接近一覧 | ![02](docs/demo/02-conjunctions.png) |
+| 接近一覧（Advanced Pc） | ![02](docs/demo/02-conjunctions.png) |
 | 3D 軌道 | ![03](docs/demo/03-orbit-tca.png) |
 | 回避試算 | ![04](docs/demo/04-maneuver.png) |
+| CDM 比較 | ![05](docs/demo/05-cdm-compare.png) |
 
-**UI デモ:** 「デモ TLE 読込」→ 接近解析（閾値 50 km）→ イベント選択 → 3D 表示 → 試算実行
+**UI デモ:** 「デモ TLE 読込」→ **高精度 Pc** ON → 接近解析（閾値 50 km）→ イベント選択 → 3D 表示 → 試算実行
 
 手順: [docs/demo/README.md](docs/demo/README.md) | 技術ブログ: [docs/demo/blog-draft.md](docs/demo/blog-draft.md)

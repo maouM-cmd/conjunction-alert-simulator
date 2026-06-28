@@ -1,11 +1,13 @@
 {
   "conjunction_count": 2,
-  "closest_km": 29.8306,
+  "closest_km": 28.4756,
+  "pc_method_used": "encounter_advanced",
   "generated": [
     "01-initial.png",
     "02-conjunctions.png",
     "03-orbit-tca.png",
     "04-maneuver.png",
+    "05-cdm-compare.png",
     "demo.gif"
   ]
 }
