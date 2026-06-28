@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2026-06-28
+
+Phase 9C — Alert Lifecycle & Ops Dashboard。
+
+### Added
+
+- **Phase 9C:** `conjunction_alerts` 永続化（Alembic 003）、triage 状態遷移
+- REST: `/api/v1/ops/alerts`、`/ops/fleets/{id}/summary`
+- screening run から ingest、±24h 重複抑制、**新規 open のみ** webhook
+- UI: **運用 Ops** タブ（艦隊サマリ、アラート一覧、Ack / 対策計画 / クローズ / 誤検知）
+
 ## [1.4.0] - 2026-06-28
 
 Phase 9B — Scheduled Screening Jobs（Celery + Redis + Beat）。

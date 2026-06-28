@@ -20,10 +20,12 @@ const els = {
   tabConstellation: document.getElementById("tab-constellation"),
   tabCdm: document.getElementById("tab-cdm"),
   tabAlerts: document.getElementById("tab-alerts"),
+  tabOps: document.getElementById("tab-ops"),
   panelSingle: document.getElementById("panel-single"),
   panelConstellation: document.getElementById("panel-constellation"),
   panelCdm: document.getElementById("panel-cdm"),
   panelAlerts: document.getElementById("panel-alerts"),
+  panelOps: document.getElementById("panel-ops"),
   tleInput: document.getElementById("tle-input"),
   btnLoadSample: document.getElementById("btn-load-sample"),
   btnLoadDemo: document.getElementById("btn-load-demo"),
@@ -79,6 +81,13 @@ const els = {
   deltaV: document.getElementById("delta-v"),
   btnManeuver: document.getElementById("btn-maneuver"),
   maneuverResult: document.getElementById("maneuver-result"),
+  opsFleetSelect: document.getElementById("ops-fleet-select"),
+  opsStatusFilter: document.getElementById("ops-status-filter"),
+  btnOpsRefresh: document.getElementById("btn-ops-refresh"),
+  opsSummary: document.getElementById("ops-summary"),
+  opsStatusMsg: document.getElementById("ops-status-msg"),
+  opsAlertTable: document.getElementById("ops-alert-table"),
+  opsAlertTableBody: document.getElementById("ops-alert-table-body"),
 };
 
 let selectedConjunction = null;
@@ -123,6 +132,147 @@ async function waitForBackend(maxSec = 60, intervalMs = 2000) {
   }
   setStatus("サーバーに接続できません。しばらく待ってからページを再読み込みしてください。", true);
   return null;
+}
+
+async function apiGet(path) {
+  const res = await fetch(`${API_BASE}${path}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(", ")
+          : `API エラー (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function apiPatch(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail;
+    const msg = typeof detail === "string" ? detail : `API エラー (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function loadOpsFleets() {
+  try {
+    const fleets = await apiGet("/api/v1/fleets");
+    const current = els.opsFleetSelect.value;
+    els.opsFleetSelect.innerHTML = '<option value="">— 艦隊を選択 —</option>';
+    for (const f of fleets) {
+      const opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = `${f.name} (${f.satellite_count ?? 0} sat)`;
+      els.opsFleetSelect.appendChild(opt);
+    }
+    if (current) {
+      els.opsFleetSelect.value = current;
+    }
+    setOpsStatus("艦隊一覧を読み込みました。");
+  } catch (err) {
+    setOpsStatus(
+      err.message.includes("503")
+        ? "DATABASE_URL 未設定 — docker compose で起動してください。"
+        : err.message,
+      true
+    );
+  }
+}
+
+function opsStatusBadge(status) {
+  return `<span class="ops-status-badge ops-status-${status}">${status}</span>`;
+}
+
+async function refreshOpsDashboard() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId) {
+    setOpsStatus("艦隊を選択してください。", true);
+    return;
+  }
+  try {
+    const summary = await apiGet(`/api/v1/ops/fleets/${fleetId}/summary`);
+    els.opsSummary.innerHTML = `
+      <strong>${summary.fleet_name}</strong><br/>
+      open: ${summary.open_count} /
+      ack: ${summary.acknowledged_count} /
+      対策計画: ${summary.mitigation_planned_count} /
+      closed: ${summary.closed_count}<br/>
+      最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}
+    `;
+    const statusQ = els.opsStatusFilter.value;
+    const path = statusQ
+      ? `/api/v1/ops/alerts?fleet_id=${fleetId}&status=${statusQ}`
+      : `/api/v1/ops/alerts?fleet_id=${fleetId}`;
+    const listing = await apiGet(path);
+    els.opsAlertTableBody.innerHTML = "";
+    for (const a of listing.items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${a.satellite_name}<br/><small>NORAD ${a.satellite_norad_id}</small></td>
+        <td>${a.debris_name}<br/><small>NORAD ${a.debris_norad_id}</small></td>
+        <td>${formatTime(a.tca)}</td>
+        <td>${formatPc(a.pc)}</td>
+        <td>${opsStatusBadge(a.status)}</td>
+        <td class="ops-actions" data-alert-id="${a.id}"></td>
+      `;
+      const actions = tr.querySelector(".ops-actions");
+      const commentInput = document.createElement("input");
+      commentInput.type = "text";
+      commentInput.className = "ops-comment-input";
+      commentInput.placeholder = "コメント（任意）";
+      commentInput.value = a.comment || "";
+      actions.appendChild(commentInput);
+      const transitions = {
+        open: [
+          { label: "Ack", status: "acknowledged" },
+          { label: "誤検知", status: "false_positive" },
+        ],
+        acknowledged: [
+          { label: "対策計画", status: "mitigation_planned" },
+          { label: "クローズ", status: "closed" },
+          { label: "誤検知", status: "false_positive" },
+        ],
+        mitigation_planned: [
+          { label: "クローズ", status: "closed" },
+          { label: "誤検知", status: "false_positive" },
+        ],
+      };
+      for (const t of transitions[a.status] || []) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = t.label;
+        btn.addEventListener("click", async () => {
+          try {
+            await apiPatch(`/api/v1/ops/alerts/${a.id}`, {
+              status: t.status,
+              comment: commentInput.value || null,
+            });
+            await refreshOpsDashboard();
+            setOpsStatus(`${t.label} しました。`);
+          } catch (err) {
+            setOpsStatus(err.message, true);
+          }
+        });
+        actions.appendChild(btn);
+      }
+      els.opsAlertTableBody.appendChild(tr);
+    }
+    els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
+    setOpsStatus(`${listing.total} 件のアラートを表示中。`);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
 }
 
 async function apiPost(path, body) {
@@ -180,17 +330,26 @@ function parseConstellationBlocks(text) {
   });
 }
 
+function setOpsStatus(msg, isError = false) {
+  els.opsStatusMsg.textContent = msg;
+  els.opsStatusMsg.classList.toggle("error", isError);
+}
+
 function switchMode(mode) {
   currentMode = mode;
-  for (const tab of [els.tabSingle, els.tabConstellation, els.tabCdm, els.tabAlerts]) {
+  for (const tab of [els.tabSingle, els.tabConstellation, els.tabCdm, els.tabAlerts, els.tabOps]) {
     tab.classList.toggle("active", tab.dataset.mode === mode);
   }
   els.panelSingle.classList.toggle("hidden", mode !== "single");
   els.panelConstellation.classList.toggle("hidden", mode !== "constellation");
   els.panelCdm.classList.toggle("hidden", mode !== "cdm");
   els.panelAlerts.classList.toggle("hidden", mode !== "alerts");
+  els.panelOps.classList.toggle("hidden", mode !== "ops");
   if (mode === "alerts" && !els.alertSatTle.value.trim()) {
     els.alertSatTle.value = els.tleInput.value.trim() || ISS_SAMPLE;
+  }
+  if (mode === "ops") {
+    loadOpsFleets();
   }
 }
 
@@ -781,6 +940,15 @@ function initEventListeners() {
   els.tabConstellation.addEventListener("click", () => switchMode("constellation"));
   els.tabCdm.addEventListener("click", () => switchMode("cdm"));
   els.tabAlerts.addEventListener("click", () => switchMode("alerts"));
+  els.tabOps.addEventListener("click", () => switchMode("ops"));
+
+  els.btnOpsRefresh.addEventListener("click", refreshOpsDashboard);
+  els.opsFleetSelect.addEventListener("change", () => {
+    if (els.opsFleetSelect.value) {
+      refreshOpsDashboard();
+    }
+  });
+  els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
 
   els.btnLoadSample.addEventListener("click", () => {
     els.tleInput.value = ISS_SAMPLE;

@@ -15,7 +15,7 @@ logger = get_task_logger(__name__)
 MAX_RETRIES = 3
 
 
-def mark_dead_letter_on_final_failure(task, exc, task_id, args, kwargs, einfo):
+def mark_dead_letter_on_final_failure(self, exc, task_id, args, kwargs, einfo):
     if isinstance(exc, MaxRetriesExceededError) and args:
         db = _session()
         try:

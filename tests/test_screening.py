@@ -209,6 +209,8 @@ def test_run_marks_degraded_when_fleet_truncated(mock_list, mock_batch, screenin
 
     class FakeSat:
         tle = DEMO_SAT
+        norad_id = parsed.norad_id
+        id = __import__("uuid").uuid4()
 
     mock_list.return_value = ([FakeSat()] * 25, 30)
 

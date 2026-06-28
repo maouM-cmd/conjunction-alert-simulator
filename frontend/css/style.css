@@ -292,3 +292,59 @@ label.checkbox-row input[type="checkbox"] {
   padding: 0.15rem 0.45rem;
   cursor: pointer;
 }
+
+.ops-summary {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  background: #151d33;
+  border: 1px solid #2a3858;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.ops-alert-table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.ops-alert-table th,
+.ops-alert-table td {
+  border: 1px solid #2a3858;
+  padding: 0.35rem 0.4rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ops-status-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.ops-status-open { background: #5c2a2a; color: #ffb4b4; }
+.ops-status-acknowledged { background: #4a4020; color: #ffe08a; }
+.ops-status-mitigation_planned { background: #2a3a5c; color: #a8c8ff; }
+.ops-status-closed { background: #2a3a2a; color: #b8e0b8; }
+.ops-status-false_positive { background: #3a3a3a; color: #ccc; }
+
+.ops-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ops-actions button {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.ops-comment-input {
+  width: 100%;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+}

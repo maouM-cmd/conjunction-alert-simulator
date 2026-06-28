@@ -21,6 +21,7 @@
     <button id="tab-constellation" type="button" class="tab" data-mode="constellation" role="tab">コンステレーション</button>
     <button id="tab-cdm" type="button" class="tab" data-mode="cdm" role="tab">CDM 比較</button>
     <button id="tab-alerts" type="button" class="tab" data-mode="alerts" role="tab">CDM アラート</button>
+    <button id="tab-ops" type="button" class="tab" data-mode="ops" role="tab">運用 Ops</button>
   </nav>
 
   <main class="layout">
@@ -164,6 +165,46 @@
           <tbody id="alert-table-body"></tbody>
         </table>
         <div id="alert-compare-result" class="cdm-result hidden"></div>
+      </section>
+
+      <section id="panel-ops" class="mode-panel hidden">
+        <h2>運用 Ops — アラート triage</h2>
+        <p class="meta">PostgreSQL + Fleet 登録が必要（docker compose）。</p>
+        <label>
+          艦隊
+          <select id="ops-fleet-select">
+            <option value="">— 艦隊を選択 —</option>
+          </select>
+        </label>
+        <label>
+          状態フィルタ
+          <select id="ops-status-filter">
+            <option value="">すべて</option>
+            <option value="open">open</option>
+            <option value="acknowledged">acknowledged</option>
+            <option value="mitigation_planned">mitigation_planned</option>
+            <option value="closed">closed</option>
+            <option value="false_positive">false_positive</option>
+          </select>
+        </label>
+        <div class="button-row">
+          <button id="btn-ops-refresh" type="button" class="primary">更新</button>
+        </div>
+        <div id="ops-summary" class="ops-summary"></div>
+        <p id="ops-status-msg" class="status-msg" aria-live="polite"></p>
+        <table id="ops-alert-table" class="ops-alert-table hidden">
+          <thead>
+            <tr>
+              <th>衛星</th>
+              <th>デブリ</th>
+              <th>TCA</th>
+              <th>Pc</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="ops-alert-table-body"></tbody>
+        </table>
       </section>
 
       <section>

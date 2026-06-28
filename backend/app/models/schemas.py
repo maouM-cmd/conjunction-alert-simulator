@@ -431,3 +431,52 @@ class ScreeningRunListOut(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+AlertStatus = Literal[
+    "open", "acknowledged", "mitigation_planned", "closed", "false_positive"
+]
+
+
+class ConjunctionAlertOut(BaseModel):
+    id: str
+    fleet_id: str
+    satellite_id: str
+    satellite_name: str
+    satellite_norad_id: int
+    screening_run_id: str | None
+    debris_norad_id: int
+    debris_name: str
+    tca: datetime
+    pc: float
+    miss_distance_km: float
+    risk_level: str
+    status: AlertStatus
+    comment: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConjunctionAlertListOut(BaseModel):
+    items: list[ConjunctionAlertOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class AlertTransition(BaseModel):
+    status: AlertStatus
+    comment: str | None = None
+
+
+class FleetOpsSummaryOut(BaseModel):
+    fleet_id: str
+    fleet_name: str
+    open_count: int
+    acknowledged_count: int
+    mitigation_planned_count: int
+    closed_count: int
+    false_positive_count: int
+    latest_run_id: str | None
+    latest_run_status: str | None
+    latest_run_finished_at: datetime | None

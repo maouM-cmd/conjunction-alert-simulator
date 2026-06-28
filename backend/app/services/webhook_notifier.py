@@ -141,13 +141,17 @@ def _pc_threshold() -> float:
         return DEFAULT_PC_THRESHOLD
 
 
-def _filter_alert_events(events: list[ConjunctionEvent]) -> list[ConjunctionEvent]:
+def filter_alert_events(events: list[ConjunctionEvent]) -> list[ConjunctionEvent]:
     threshold = _pc_threshold()
     return [
         e
         for e in events
         if e.risk_level in ("high", "medium") and e.pc >= threshold
     ]
+
+
+def _filter_alert_events(events: list[ConjunctionEvent]) -> list[ConjunctionEvent]:
+    return filter_alert_events(events)
 
 
 def _format_pc(pc: float) -> str:
@@ -483,6 +487,67 @@ def notify_batch_fleet_events(results: list[ConjunctionAnalysisResult]) -> Webho
         [],
         batch_alerts=batch_alerts,
         satellite_count=len(results),
+    )
+    return _post_payload(payload, len(batch_alerts))
+
+
+def notify_new_alerts(alerts: list) -> WebhookResult:
+    """POST webhook for newly opened persisted alerts (Phase 9C screening path)."""
+    from backend.app.db.models import ConjunctionAlert
+
+    if not _is_delivery_configured():
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message=_delivery_not_configured_message(),
+        )
+    if not alerts:
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="通知対象イベントがありません。",
+        )
+
+    batch_alerts: list[tuple[ParsedTle, ConjunctionEvent]] = []
+    for alert in alerts:
+        if not isinstance(alert, ConjunctionAlert):
+            continue
+        satellite = alert.satellite
+        if satellite is None:
+            continue
+        sat = ParsedTle(
+            name=satellite.name,
+            line1="1 00000U          00000.00000000  .00000000  00000+0  00000+0 0  9999",
+            line2="2 00000   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000000000",
+            norad_id=satellite.norad_id,
+        )
+        event = ConjunctionEvent(
+            debris_norad_id=alert.debris_norad_id,
+            debris_name=alert.debris_name,
+            debris_tle="",
+            tca=alert.tca,
+            miss_distance_km=alert.miss_distance_km,
+            relative_velocity_kms=0.0,
+            risk_level=alert.risk_level,
+            pc=alert.pc,
+        )
+        batch_alerts.append((sat, event))
+
+    if not batch_alerts:
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="通知対象イベントがありません。",
+        )
+
+    payload = _serialize_payload(
+        None,
+        [],
+        batch_alerts=batch_alerts,
+        satellite_count=len({a.satellite_id for a in alerts if isinstance(a, ConjunctionAlert)}),
     )
     return _post_payload(payload, len(batch_alerts))
 

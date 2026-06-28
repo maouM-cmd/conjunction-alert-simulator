@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -121,3 +121,38 @@ class ScreeningRun(Base):
 
     schedule: Mapped[ScreeningSchedule | None] = relationship("ScreeningSchedule", back_populates="runs")
     fleet: Mapped[Fleet] = relationship("Fleet")
+    alerts: Mapped[list[ConjunctionAlert]] = relationship("ConjunctionAlert", back_populates="screening_run")
+
+
+class ConjunctionAlert(Base):
+    __tablename__ = "conjunction_alerts"
+    __table_args__ = (
+        Index("ix_conjunction_alerts_sat_debris", "satellite_id", "debris_norad_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fleet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("fleets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    satellite_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("satellites.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    screening_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("screening_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    debris_norad_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    debris_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    tca: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    pc: Mapped[float] = mapped_column(Float, nullable=False)
+    miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    fleet: Mapped[Fleet] = relationship("Fleet")
+    satellite: Mapped[Satellite] = relationship("Satellite")
+    screening_run: Mapped[ScreeningRun | None] = relationship("ScreeningRun", back_populates="alerts")

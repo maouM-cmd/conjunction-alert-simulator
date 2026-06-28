@@ -7,9 +7,9 @@ import uuid
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import ScreeningRun
-from backend.app.services import fleet_service, screening_service
+from backend.app.services import alert_service, fleet_service, screening_service
 from backend.app.services.batch_analysis import MAX_SATELLITES, run_batch_conjunction_analysis
-from backend.app.services.webhook_notifier import notify_batch_fleet_events
+from backend.app.services.webhook_notifier import notify_new_alerts
 
 
 class ScreeningRunnerError(Exception):
@@ -65,8 +65,19 @@ def execute_screening_run(db: Session, run_id: uuid.UUID) -> ScreeningRun:
             spacetrack_cdm_pc_min=spacetrack_cdm_pc_min,
         )
 
-        if schedule and schedule.notify_on_complete:
-            notify_batch_fleet_events(batch.results)
+        satellite_by_norad = {s.norad_id: s.id for s in satellites}
+        new_opens = alert_service.ingest_screening_results(
+            db,
+            run_id=run.id,
+            fleet_id=run.fleet_id,
+            results=batch.results,
+            satellite_by_norad=satellite_by_norad,
+        )
+        for alert in new_opens:
+            db.refresh(alert, attribute_names=["satellite"])
+
+        if schedule and schedule.notify_on_complete and new_opens:
+            notify_new_alerts(new_opens)
 
         return screening_service.mark_run_completed(
             db,

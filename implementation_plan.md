@@ -1,13 +1,13 @@
 # implementation_plan — CAS
 
-## Phase 9C — Alert Lifecycle & Ops Dashboard（次着手）
+## Phase 9D — Scale-Out（1,000+ 衛星）（次着手）
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) の第三フェーズ。`conjunction_alerts` 永続化、triage 状態遷移、Ops UI。9B の screening run 結果からアラートを生成・通知（新規 open のみ）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) の第四フェーズ。艦隊チャンク分割、worker 水平スケール、Prometheus `/metrics`。
+
+## Phase 9C — 完了
+
+`conjunction_alerts` 永続化、triage API、Ops UI タブ、新規 open のみ webhook。v1.5.0 ship 済み。
 
 ## Phase 9B — 完了
 
-Celery + Redis + Beat で定期スクリーニング。`screening_schedules` / `screening_runs` REST API。v1.4.0 ship 済み。
-
-## Phase 9A — 完了
-
-PostgreSQL Fleet / Satellite CRUD、TLE revision。v1.3.0 ship 済み。
+Celery + Redis 定期スクリーニング。v1.4.0 ship 済み。
