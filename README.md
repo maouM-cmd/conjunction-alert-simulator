@@ -5,7 +5,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
 [![deploy](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml)
-[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1)
 
 ![Demo](docs/demo/demo.gif)
 
@@ -155,7 +155,9 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [Render デプロイ Phase 6C](docs/deploy-render-phase6c.md)
 - [Live Demo URL](docs/LIVE_DEMO_URL.md)
 - [GitHub Release 手順](docs/publish-github-release.md)
-- [公開チェックリスト v1.1.0](docs/publish-checklist-v1.1.0.md)
+- [要件定義書 Phase 6E](docs/requirements-phase6e.md)
+- [Qiita 投稿手順](docs/publish-qiita.md)
+- [GitHub Social Preview](docs/publish-github-social-preview.md)
 - [要件定義書 Phase 1](docs/requirements.md)
 - [要件定義書 Phase 2](docs/requirements-phase2.md)
 - [要件定義書 Phase 3](docs/requirements-phase3.md)
@@ -173,6 +175,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [クラウドデプロイ](docs/deploy-cloud.md)
 - [Zenn 投稿手順](docs/publish-zenn.md)
 - [GitHub About 設定](docs/publish-github-about.md)
+- [公開チェックリスト v1.1.0](docs/publish-checklist-v1.1.0.md)
 - [CHANGELOG](CHANGELOG.md)
 - [デプロイ手順](docs/deploy.md)
 - [API 設計書](docs/api-design.md)
@@ -188,7 +191,9 @@ MIT License — 詳細は [LICENSE](LICENSE)
 |--|--|
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
-| Release | [v1.1.0 — Phase 5](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0) |
+| Release | [v1.1.1 — Phase 6 portfolio](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1) |
+| Qiita | 準備中 — 原稿 [`docs/demo/blog-draft.md`](docs/demo/blog-draft.md) / [`docs/publish-qiita.md`](docs/publish-qiita.md) |
+| Social Preview | [`docs/publish-github-social-preview.md`](docs/publish-github-social-preview.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
 | GitHub About | [`docs/publish-github-about.md`](docs/publish-github-about.md) |
 

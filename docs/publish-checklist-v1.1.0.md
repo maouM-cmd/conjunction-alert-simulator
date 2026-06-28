@@ -70,6 +70,14 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
+## 7. Phase 6E — 仕上げ（任意）
+
+- [ ] [`.github/social-preview.png`](../.github/social-preview.png) を GitHub Settings → Social preview にアップロード — [手順](publish-github-social-preview.md)
+- [ ] Qiita 投稿 — [手順](publish-qiita.md) / 原稿 [`blog-draft.md`](demo/blog-draft.md)
+- [x] v1.1.1 Release
+
+---
+
 ## 関連リンク
 
 | 用途 | URL |
@@ -77,5 +85,5 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | リポ | https://github.com/maouM-cmd/conjunction-alert-simulator |
 | Live Demo | https://conjunction-alert-simulator.onrender.com/app/ |
 | Zenn | https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5 |
-| Release v1.1.0 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0 |
+| Release v1.1.1 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1 |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |

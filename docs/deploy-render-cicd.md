@@ -21,7 +21,9 @@ Live Demo: https://conjunction-alert-simulator.onrender.com/app/
 3. Name: `RENDER_DEPLOY_HOOK_URL`
 4. Value: 上記 Deploy Hook URL
 
-Secret 未設定時: `deploy` job は skip、`test` + `verify` は実行されます。
+Secret 未設定時: deploy job は Hook を skip（`hook_triggered=false`）、`test` + `verify` は実行されます。
+
+**CI 最適化（Phase 6E）:** `test.yml` は PR のみ。`main` push の pytest は `deploy.yml` が担当。
 
 ---
 
@@ -42,7 +44,7 @@ Render の **Auto-Deploy**（GitHub 連携）が ON の場合、`main` push で 
 |-----|------|------|
 | test | 常時 | `pytest tests/` |
 | deploy | Secret あり | `curl -X POST` Deploy Hook |
-| verify | test 成功 | 初回 3 分待機 → verify_deploy 最大 8 回 |
+| verify | test 成功 | Hook あり: 180s 待機 / なし: 30s 待機 → verify_deploy 最大 8 回 |
 
 手動実行: GitHub **Actions** → **deploy** → **Run workflow**
 

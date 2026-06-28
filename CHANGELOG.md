@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] - 2026-06-28
+
+Phase 6 ポートフォリオ完結 — Live Demo、Zenn 公開、Render CI/CD、仕上げドキュメント。
+
+### Added
+
+- **Phase 6A:** 公開チェックリスト、GitHub Release v1.1.0、Zenn 原稿・投稿手順
+- **Phase 6C:** Render Live Demo URL、verify_deploy CLI、deploy-render-phase6c.md
+- **Phase 6B:** GitHub Actions deploy.yml（pytest → Render Hook → verify_deploy）
+- **Phase 6E:** Qiita 原稿、Social Preview 素材、CI pytest 一本化、v1.1.1 release notes
+
 ## [1.1.0] - 2026-06-28
 
 Phase 5 リリース — クラウド manifest、運用 Webhook、CDM σ 一覧、デモ刷新。
@@ -36,5 +47,6 @@ Phase 4 完成リリース — 接近監視から Pc / CDM 運用連携 / Docker
 - 接近イベント一覧は Pc 降順ソート（Phase 2 以降）
 - リスクレベルは Pc 優先判定（high ≥ 10⁻⁴、medium ≥ 10⁻⁶）
 
+[1.1.1]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 [1.1.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.0
 [1.0.0]: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0

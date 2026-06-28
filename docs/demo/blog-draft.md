@@ -2,55 +2,61 @@
 
 **公開リポ:** https://github.com/maouM-cmd/conjunction-alert-simulator
 
-## はじめに
+**Live Demo:** https://conjunction-alert-simulator.onrender.com/app/
 
-低軌道（LEO）衛星の数は増え続け、宇宙デブリとの接近（Conjunction）は日常の運用課題になっています。本番の衝突回避システムは Space-Track 認証、CDM（Conjunction Data Message）、衝突確率 Pc、Webhook 通知などを組み合わせます。
+**Zenn 版:** https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
 
-OSS として公開した **Conjunction Alert Simulator（CAS）** は、その流れを **TLE + SGP4 + FastAPI + CesiumJS** で縮小再現したポートフォリオ向けツールです。
+低軌道衛星と宇宙デブリの接近（Conjunction）は、大規模コンステレーション運用では毎日の課題です。本番システムは Space-Track、CDM、Pc 計算、通知連携を含みますが、CAS では **TLE + SGP4 + REST + Cesium** でその流れを OSS として再現しました。
 
 ![Demo](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/demo.gif)
 
-## 何ができるか（Phase 4 完成版）
+## できること
 
-1. 自衛星 TLE 入力（**デモ TLE 読込** ボタン付き）
-2. CelesTrak / Space-Track デブリカタログと 7 日間・1 分刻み SGP4 伝播
-3. 接近イベント一覧 — Foster Pc（デフォルト）または **Alfriend encounter plane Pc**（opt-in）
-4. **TLE RTN 非等方共分散** — advanced Pc 時に opt-in
-5. CesiumJS 3D 可視化 + prograde / retrograde / normal Δv 試算
-6. **CDM 比較** — 外部 Pc vs CAS（Foster / Alfriend / Monte Carlo）
-7. **Space-Track CDM アラート** — `cdm_public` 取得 → CAS 比較（`.env` 認証時）
-8. **コンステレーション batch** — 最大 25 衛星、ProcessPool 並列
-9. **Docker** — `docker compose up` でワンコマンド起動
-10. **Webhook 通知スタブ** — 高リスクイベントを汎用 URL へ POST
+- 7 日間デブリ接近検出（CelesTrak / Space-Track）
+- **Pc** — Foster（デフォルト）、Alfriend encounter plane（opt-in）、TLE RTN 非等方 / **CDM σ on 一覧**
+- **CDM 比較** — Foster / Alfriend / Monte Carlo 並列
+- **Space-Track CDM アラート** — 認証設定時のみ
+- **Batch** — 最大 25 衛星、ProcessPool 並列
+- **Docker / クラウド** — Render / Fly.io manifest（Phase 5B）
+- **Webhook** — generic JSON / **Slack Incoming Webhook**（Phase 5C）
+- CesiumJS 3D + 回避マニューバ試算
 
-## Pc 計算の進化
+![接近一覧 Advanced Pc](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png)
 
-| フェーズ | 内容 |
-|---------|------|
-| Phase 2 | Foster 2D（距離 + σ 推定） |
-| Phase 4A | CDM RTN 共分散 → encounter plane → Alfriend / MC |
-| Phase 4A-Ext | 一覧 API に advanced Pc opt-in |
-| Phase 4B-Ext | TLE 由来 RTN 非等方共分散（R×2, T/N×0.5） |
+## Phase 5 で追加したこと
 
-リスクレベルは Pc 優先: high ≥ 10⁻⁴、medium ≥ 10⁻⁶。
+### 5B — クラウドデプロイ
 
-## アーキテクチャ
+- フロント API **同一オリジン**（クラウド URL から `/app/` だけで動作）
+- **Live Demo（Phase 6C）:** https://conjunction-alert-simulator.onrender.com/app/
 
-```
-Frontend (CesiumJS)  ←→  FastAPI  ←→  Services
-                              ├── tle_fetcher / spacetrack_client
-                              ├── propagator (SGP4 / TEME)
-                              ├── conjunction + analysis (高度プレフィルタ)
-                              ├── pc_conjunction + tle_rtn_covariance
-                              ├── cdm_* (parse, compare, export, fetch)
-                              └── webhook_notifier
-```
+### 5C — 運用連携
 
-## デモ用 TLE
+- `ALERT_WEBHOOK_FORMAT=slack` で Slack 通知
+- `cdm_text` + `apply_cdm_covariance` で接近一覧に CDM encounter σ を opt-in 適用
 
-ISS サンプルは 5 km 閾値で接近 0 件になりがちです。`backend/cli/find_demo_pair.py` でカタログから最接近デブリを探索し `samples/demo-*.tle` を生成（例: ISS vs COSMOS 2251 DEB、約 30 km）。
+## Phase 6 — ポートフォリオ公開
 
-## 使ってみる
+- **6A:** GitHub Release v1.1.0、Zenn 投稿、公開チェックリスト
+- **6B:** GitHub Actions `deploy.yml` — pytest → Render Hook → `verify_deploy`
+- **6C:** Render Live Demo 稼働
+
+## Pc の段階的実装
+
+1. **Foster 2D** — TLE 経過日数から σ 推定
+2. **Encounter plane** — CDM RTN 共分散を encounter 2×2 に射影、Alfriend 積分
+3. **一覧 advanced Pc** — `use_advanced_pc=true`
+4. **CDM σ on 一覧** — 共分散付き CDM KVN を `/conjunctions` に渡して Pc 上書き
+
+![CDM vs CAS 比較](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/05-cdm-compare.png)
+
+## 2 分デモ
+
+### クラウド（推奨）
+
+→ **https://conjunction-alert-simulator.onrender.com/app/**
+
+1. cold start 後 **デモ TLE 読込** → **高精度 Pc** ON → 閾値 50 km → **接近解析**
 
 ### ローカル
 
@@ -62,34 +68,15 @@ venv\Scripts\pip install -r requirements.txt
 venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-`http://127.0.0.1:8000/app/` → **デモ TLE 読込** → **高精度 Pc** ON → **接近解析**（閾値 50 km）
-
-### Docker
-
-```powershell
-docker compose up --build -d
-```
-
-詳細: [docs/deploy.md](https://github.com/maouM-cmd/conjunction-alert-simulator/blob/main/docs/deploy.md)
-
-### Webhook（任意）
-
-`.env` に `ALERT_WEBHOOK_URL=https://...` を設定し、`POST /api/v1/alerts/webhook/test` で接続確認。
-
-## スクリーンショット
-
-| | |
-|--|--|
-| タイトル | ![01](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/01-initial.png) |
-| 接近一覧（Advanced Pc） | ![02](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/02-conjunctions.png) |
-| 軌道 | ![03](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/03-orbit-tca.png) |
-| 回避試算 | ![04](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/04-maneuver.png) |
-| CDM 比較 | ![05](https://raw.githubusercontent.com/maouM-cmd/conjunction-alert-simulator/main/docs/demo/05-cdm-compare.png) |
+→ http://127.0.0.1:8000/app/
 
 ## まとめ
 
-CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.0.0** で Phase 4 機能が一通り揃いました。
+CAS は Starlink 型の接近監視フローを学習・ポートフォリオ用に縮小したツールです。**v1.1.1** で Phase 6（公開・Live Demo・CI/CD）が揃いました。
 
-- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.0.0
+- リポ: https://github.com/maouM-cmd/conjunction-alert-simulator
+- Live Demo: https://conjunction-alert-simulator.onrender.com/app/
+- Zenn: https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5
+- Release: https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1
 
-**ライセンス:** MIT
+MIT License。フィードバックは [GitHub Issues](https://github.com/maouM-cmd/conjunction-alert-simulator/issues) へ。
