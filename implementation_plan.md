@@ -1,5 +1,5 @@
 # implementation_plan — CAS
 
-## v1.2.2 Ship — 完了
+## Phase 6G-ext — ポートフォリオ仕上げ（v1.2.2 同期）
 
-Phase 8B SMTP メール通知を CHANGELOG / Release Notes / README / Zenn 原稿に反映。`git tag v1.2.2` + GitHub Release 公開。次は Phase 9 新機能またはポートフォリオ仕上げ。
+[`blog-zenn.md`](docs/demo/blog-zenn.md) を正本に [`blog-draft.md`](docs/demo/blog-draft.md) を Phase 7/8/8B まで同期。Qiita API 更新（トークンあり時）、投稿手順更新。tag 新設なし。要件: [`docs/requirements-phase6g-ext.md`](docs/requirements-phase6g-ext.md)。

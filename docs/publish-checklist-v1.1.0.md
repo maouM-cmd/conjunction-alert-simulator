@@ -128,6 +128,20 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
+## 12. Phase 6G-ext — v1.2.2 ポートフォリオ同期
+
+手順: [`publish-qiita.md`](publish-qiita.md) / [`publish-zenn.md`](publish-zenn.md) | 要件: [`requirements-phase6g-ext.md`](requirements-phase6g-ext.md)
+
+- [ ] `blog-draft.md` を v1.2.2 相当に更新 commit / push
+- [ ] `pytest tests/` PASS
+- [ ] Qiita DryRun または `publish_qiita_item.ps1 -Update`
+- [ ] （任意）Zenn 本番記事を `blog-zenn.md` と同期 — Phase 7/8/8B 節
+- [ ] （任意）Qiita 本番プレビューで Phase 8 / SMTP 節確認
+
+**tag 新設なし**（6G 方針踏襲）
+
+---
+
 ## 関連リンク
 
 | 用途 | URL |

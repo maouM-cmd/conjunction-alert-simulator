@@ -74,6 +74,24 @@ $env:QIITA_ACCESS_TOKEN = "<write スコープ付き token>"
 - [ ] 記事プレビューで GIF / PNG / リンク確認
 
 ---
+
+## 既存記事更新（Phase 6G-ext — v1.2.2 同期）
+
+Phase 6G スキップ分の再開。[`blog-draft.md`](demo/blog-draft.md) が Phase 7/8/8B + v1.2.2 まとめに更新された後:
+
+```powershell
+cd C:\Users\admin\OneDrive\ドキュメント\conjunction-alert-simulator
+.\scripts\publish_qiita_item.ps1 -DryRun -Update   # 本文長・Item ID 確認
+$env:QIITA_ACCESS_TOKEN = "<write スコープ付き token>"
+.\scripts\publish_qiita_item.ps1 -Update
+```
+
+- [ ] `blog-draft.md` が v1.2.2 相当（Phase 7/8/8B 含む）
+- [ ] DryRun または API 更新成功
+- [ ] 記事プレビューで Phase 8 / SMTP 節を確認
+- [ ] Release リンクが v1.2.2
+
+---
 ## 画像 raw URL 一覧
 
 | ファイル | URL |
