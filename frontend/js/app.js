@@ -31,6 +31,7 @@ const els = {
   sigmaKm: document.getElementById("sigma-km"),
   useAdvancedPc: document.getElementById("use-advanced-pc"),
   useAnisotropicCov: document.getElementById("use-anisotropic-cov"),
+  useAltitudePrefilter: document.getElementById("use-altitude-prefilter"),
   notifyWebhook: document.getElementById("notify-webhook"),
   btnWebhookTest: document.getElementById("btn-webhook-test"),
   scanCdmInput: document.getElementById("scan-cdm-input"),
@@ -41,6 +42,7 @@ const els = {
   batchThresholdKm: document.getElementById("batch-threshold-km"),
   batchUseAdvancedPc: document.getElementById("batch-use-advanced-pc"),
   batchUseAnisotropicCov: document.getElementById("batch-use-anisotropic-cov"),
+  batchUseAltitudePrefilter: document.getElementById("batch-use-altitude-prefilter"),
   batchNotifyWebhook: document.getElementById("batch-notify-webhook"),
   btnLoadConstellationDemo: document.getElementById("btn-load-constellation-demo"),
   btnBatchScan: document.getElementById("btn-batch-scan"),
@@ -101,24 +103,56 @@ function setCdmStatus(msg, isError = false) {
   els.cdmStatusMsg.classList.toggle("error", isError);
 }
 
-async function apiPost(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = data.detail;
-    const msg =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((d) => d.msg).join(", ")
-          : `API エラー (${res.status})`;
-    throw new Error(msg);
+async function waitForBackend(maxSec = 60, intervalMs = 2000) {
+  const deadline = Date.now() + maxSec * 1000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // cold start 中は接続失敗を許容
+    }
+    setStatus("サーバー起動中（Render cold start で 30〜60 秒かかることがあります）...");
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  return data;
+  setStatus("サーバーに接続できません。しばらく待ってからページを再読み込みしてください。", true);
+  return false;
+}
+
+async function apiPost(path, body) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.detail;
+        const msg =
+          typeof detail === "string"
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((d) => d.msg).join(", ")
+              : `API エラー (${res.status})`;
+        throw new Error(msg);
+      }
+      return data;
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("API エラー")) {
+        throw err;
+      }
+      lastErr = err;
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("API 接続に失敗しました。");
 }
 
 function formatTime(iso) {
@@ -175,9 +209,17 @@ function formatWebhookStatus(webhook) {
   return ` / Webhook: ${webhook.message}`;
 }
 
+function formatAnalysisMeta(data) {
+  const filterNote = data.altitude_prefilter_applied ? "高度帯フィルタ ON / " : "";
+  return (
+    `${filterNote}${data.conjunctions.length} 件 / 候補 ${data.debris_candidates_count} / ` +
+    `カタログ ${data.debris_catalog_count} / ${data.computation_time_ms} ms / ` +
+    `TLE: ${data.tle_provider || "celestrak"}`
+  );
+}
+
 function renderConjunctions(data) {
-  els.scanMeta.textContent =
-    `${data.conjunctions.length} 件検出 / カタログ ${data.debris_catalog_count} 件 / ${data.computation_time_ms} ms / TLE: ${data.tle_provider || "celestrak"}`;
+  els.scanMeta.textContent = formatAnalysisMeta(data);
   els.conjunctionList.innerHTML = "";
 
   if (data.conjunctions.length === 0) {
@@ -365,6 +407,7 @@ async function runScan() {
       threshold_km: threshold,
       step_minutes: 1,
       use_advanced_pc: els.useAdvancedPc.checked,
+      use_altitude_prefilter: els.useAltitudePrefilter.checked,
       notify_webhook: els.notifyWebhook.checked,
     };
     const cdmText = els.scanCdmInput.value.trim();
@@ -420,6 +463,7 @@ async function runBatchScan() {
       threshold_km: threshold,
       step_minutes: 1,
       use_advanced_pc: els.batchUseAdvancedPc.checked,
+      use_altitude_prefilter: els.batchUseAltitudePrefilter.checked,
       notify_webhook: els.batchNotifyWebhook.checked,
     };
     if (els.batchUseAdvancedPc.checked) {
@@ -447,7 +491,8 @@ async function runBatchScan() {
     batchResults.forEach((r, i) => {
       const opt = document.createElement("option");
       opt.value = String(i);
-      opt.textContent = `${r.satellite.name} (${r.conjunctions.length} 件)`;
+      opt.textContent =
+        `${r.satellite.name} (${r.conjunctions.length} 件, 候補 ${r.debris_candidates_count}, ${r.computation_time_ms} ms)`;
       els.satelliteSelect.appendChild(opt);
     });
     els.satelliteSelectWrap.classList.remove("hidden");
@@ -703,10 +748,7 @@ async function loadCdmDemo() {
   }
 }
 
-function init() {
-  initViewer();
-  els.tleInput.value = ISS_SAMPLE;
-
+function initEventListeners() {
   els.tabSingle.addEventListener("click", () => switchMode("single"));
   els.tabConstellation.addEventListener("click", () => switchMode("constellation"));
   els.tabCdm.addEventListener("click", () => switchMode("cdm"));
@@ -742,6 +784,16 @@ function init() {
   });
   els.btnFetchAlerts.addEventListener("click", fetchCdmAlerts);
   els.btnManeuver.addEventListener("click", runManeuver);
+}
+
+async function init() {
+  initViewer();
+  els.tleInput.value = ISS_SAMPLE;
+  initEventListeners();
+  const ready = await waitForBackend();
+  if (ready) {
+    setStatus("準備完了。デモ TLE 読込 → 接近解析を実行してください。");
+  }
 }
 
 init();

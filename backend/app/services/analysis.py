@@ -30,6 +30,8 @@ class ConjunctionAnalysisResult:
     threshold_km: float
     events: list[ConjunctionEvent]
     debris_catalog_count: int
+    debris_candidates_count: int
+    altitude_prefilter_applied: bool
     computation_time_ms: int
     tle_cache_stale: bool
     tle_provider: str
@@ -205,8 +207,12 @@ def run_conjunction_analysis(
     sat_mean_alt = _mean_altitude_km(sat_points)
 
     candidates = debris_catalog
+    prefilter_applied = False
     if use_altitude_prefilter and len(debris_catalog) > 500:
         candidates = _filter_debris_by_altitude(debris_catalog, sat_mean_alt, start)
+        prefilter_applied = True
+
+    candidates_count = len(candidates)
 
     debris_propagated: list[tuple[int, str, str, list[OrbitPoint]]] = []
     for deb in candidates:
@@ -248,6 +254,8 @@ def run_conjunction_analysis(
         threshold_km=threshold_km,
         events=events,
         debris_catalog_count=catalog_count,
+        debris_candidates_count=candidates_count,
+        altitude_prefilter_applied=prefilter_applied,
         computation_time_ms=elapsed_ms,
         tle_cache_stale=is_cache_stale() or catalog_meta.degraded,
         tle_provider=catalog_meta.provider,

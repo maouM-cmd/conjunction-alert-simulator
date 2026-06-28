@@ -70,6 +70,10 @@ class ConjunctionsRequest(BaseModel):
         default=False,
         description="cdm_text 指定時、該当デブリの Pc に CDM encounter 共分散を適用",
     )
+    use_altitude_prefilter: bool = Field(
+        default=True,
+        description="高度帯±200kmプリフィルタ（500件超カタログ時）",
+    )
 
 
 class ConjunctionsResponse(BaseModel):
@@ -78,6 +82,8 @@ class ConjunctionsResponse(BaseModel):
     threshold_km: float
     conjunctions: list[ConjunctionOut]
     debris_catalog_count: int
+    debris_candidates_count: int
+    altitude_prefilter_applied: bool
     computation_time_ms: int
     tle_cache_stale: bool
     tle_provider: str
@@ -193,6 +199,10 @@ class BatchConjunctionsRequest(BaseModel):
         description="TLE RTN 非等方共分散（use_advanced_pc=true 時のみ有効）",
     )
     notify_webhook: bool = Field(default=False, description="高リスクイベントを Webhook に一括通知")
+    use_altitude_prefilter: bool = Field(
+        default=True,
+        description="高度帯±200kmプリフィルタ（500件超カタログ時）",
+    )
 
 
 class BatchSummaryOut(BaseModel):

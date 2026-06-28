@@ -10,9 +10,14 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $draft = Join-Path $root "docs\demo\blog-draft.md"
 $urlFile = Join-Path $root "docs\QIITA_PUBLISHED_URL.txt"
+$tokenFile = Join-Path $root ".qiita-token.local"
+
+if (-not $env:QIITA_ACCESS_TOKEN -and (Test-Path $tokenFile)) {
+    $env:QIITA_ACCESS_TOKEN = (Get-Content $tokenFile -Raw).Trim()
+}
 
 if (-not $env:QIITA_ACCESS_TOKEN) {
-    Write-Error "QIITA_ACCESS_TOKEN が未設定です。Qiita Settings → Applications でトークンを発行してください。"
+    Write-Error "QIITA_ACCESS_TOKEN が未設定です。環境変数、または .qiita-token.local（write スコープ）を設定してください。"
 }
 
 $bodyText = Get-Content $draft -Raw -Encoding UTF8

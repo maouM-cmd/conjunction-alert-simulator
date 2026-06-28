@@ -33,7 +33,7 @@ Docker 代替: `docker compose up --build -d` → http://localhost:8000/app/
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Render-46E3B7)](https://conjunction-alert-simulator.onrender.com/app/)
 
-**https://conjunction-alert-simulator.onrender.com/app/** — Render Free tier（API 同一オリジン）。cold start 後 **デモ TLE 読込 → 高精度 Pc ON → 接近解析**（閾値 50 km）。
+**https://conjunction-alert-simulator.onrender.com/app/** — Render Free tier（API 同一オリジン）。**初回は cold start で 30〜60 秒**かかることがあります（UI が `/health` 待機を表示）。起動後 **デモ TLE 読込 → 高精度 Pc ON → 接近解析**（閾値 50 km）。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maouM-cmd/conjunction-alert-simulator)
 
@@ -158,6 +158,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 - [要件定義書 Phase 6E](docs/requirements-phase6e.md)
 - [要件定義書 Phase 6F](docs/requirements-phase6f.md)
 - [要件定義書 Phase 6G](docs/requirements-phase6g.md)
+- [要件定義書 Phase 7](docs/requirements-phase7.md)
 - [Qiita 投稿手順](docs/publish-qiita.md)
 - [GitHub Social Preview](docs/publish-github-social-preview.md)
 - [要件定義書 Phase 1](docs/requirements.md)
@@ -194,8 +195,8 @@ MIT License — 詳細は [LICENSE](LICENSE)
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
 | Release | [v1.1.1 — Phase 6 portfolio](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1) |
-| Qiita | [Conjunction Alert Simulator を作った](https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4) |
 | Social Preview | 設定済み — [手順](docs/publish-github-social-preview.md) |
+| Phase 7 要件 | [`docs/requirements-phase7.md`](docs/requirements-phase7.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |
 | GitHub About | [`docs/publish-github-about.md`](docs/publish-github-about.md) |
 

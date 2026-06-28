@@ -78,10 +78,14 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 
 ---
 
-## 8. Phase 6G — 公開仕上げ
+## 8. Phase 6G — 公開仕上げ（スキップ — 2026-06-28）
 
-- [ ] Qiita 本文・タグを [`blog-draft.md`](demo/blog-draft.md) 相当に更新 — [手順](publish-qiita.md#既存記事更新phase-6g)
-- [ ] Zenn 本番まとめに Qiita リンク — [`blog-zenn.md`](demo/blog-zenn.md) L109–117 を Web エディタに同期
+ポートフォリオ完成度 98% のため任意タスクとして **見送り**。Phase 7 機能拡張へ移行。
+
+- [x] ~~Qiita 本文・タグを [`blog-draft.md`](demo/blog-draft.md) 相当に更新~~ — **N/A（スキップ）**
+- [x] ~~Zenn 本番まとめに Qiita リンク~~ — **N/A（スキップ）**
+
+原稿・手順は [`publish-qiita.md`](publish-qiita.md) / [`blog-draft.md`](demo/blog-draft.md) に残置。
 
 ---
 
@@ -92,6 +96,6 @@ Settings → General → **About**（またはリポ右上 ⚙️ About）
 | リポ | https://github.com/maouM-cmd/conjunction-alert-simulator |
 | Live Demo | https://conjunction-alert-simulator.onrender.com/app/ |
 | Zenn | https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5 |
-| Qiita | https://qiita.com/maouM-cmd/items/986e533b16b348f7d5e4 |
 | Release v1.1.1 | https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.1.1 |
+| Phase 7 | [`requirements-phase7.md`](requirements-phase7.md) |
 | Issues | https://github.com/maouM-cmd/conjunction-alert-simulator/issues |

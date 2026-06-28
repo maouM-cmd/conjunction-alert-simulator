@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 venv/
 .env
+.qiita-token.local
 
 # TLE cache
 data/cache/*.tle

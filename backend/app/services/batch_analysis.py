@@ -45,12 +45,14 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
         catalog_meta,
         use_advanced_pc,
         use_anisotropic_cov,
+        use_altitude_prefilter,
     ) = args
     return run_conjunction_analysis(
         tle_text,
         duration_days=duration_days,
         threshold_km=threshold_km,
         step_minutes=step_minutes,
+        use_altitude_prefilter=use_altitude_prefilter,
         sigma_km=sigma_km,
         use_advanced_pc=use_advanced_pc,
         use_anisotropic_cov=use_anisotropic_cov,
@@ -103,6 +105,7 @@ def run_batch_conjunction_analysis(
     max_workers: int | None = None,
     use_advanced_pc: bool = False,
     use_anisotropic_cov: bool = False,
+    use_altitude_prefilter: bool = True,
 ) -> BatchAnalysisResult:
     if not satellite_tles:
         raise ValueError("衛星 TLE が1件以上必要です。")
@@ -128,6 +131,7 @@ def run_batch_conjunction_analysis(
                 catalog_meta,
                 use_advanced_pc,
                 use_anisotropic_cov,
+                use_altitude_prefilter,
             )
             for tle_text in satellite_tles
         ]
@@ -141,6 +145,7 @@ def run_batch_conjunction_analysis(
                 duration_days=duration_days,
                 threshold_km=threshold_km,
                 step_minutes=step_minutes,
+                use_altitude_prefilter=use_altitude_prefilter,
                 sigma_km=sigma_km,
                 use_advanced_pc=use_advanced_pc,
                 use_anisotropic_cov=use_anisotropic_cov,

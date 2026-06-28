@@ -58,6 +58,7 @@
 | notify_webhook | bool | no | false | high/medium イベントを `ALERT_WEBHOOK_URL` に POST |
 | cdm_text | string | no | null | 共分散付き CDM KVN（任意） |
 | apply_cdm_covariance | bool | no | false | `cdm_text` 指定時、該当デブリの Pc に CDM encounter 共分散を適用 |
+| use_altitude_prefilter | bool | no | true | 高度帯±200 km プリフィルタ（カタログ 500 件超時） |
 
 ### レスポンス 200
 
@@ -91,6 +92,8 @@
     }
   ],
   "debris_catalog_count": 4200,
+  "debris_candidates_count": 1180,
+  "altitude_prefilter_applied": true,
   "computation_time_ms": 8420,
   "tle_cache_stale": false,
   "tle_provider": "celestrak",
@@ -398,6 +401,7 @@ CAS 接近イベントから CDM KVN テキストを生成。
 | sigma_km | float | no | null | 位置不確かさ σ (km) |
 | use_advanced_pc | bool | no | false | encounter plane Alfriend Pc（opt-in） |
 | use_anisotropic_cov | bool | no | false | TLE RTN 非等方共分散（`use_advanced_pc=true` 時のみ） |
+| use_altitude_prefilter | bool | no | true | 高度帯±200 km プリフィルタ（カタログ 500 件超時） |
 
 ---
 
