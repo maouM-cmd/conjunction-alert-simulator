@@ -532,6 +532,20 @@ label.checkbox-row input[type="checkbox"] {
   margin-right: 0.25rem;
 }
 
+.ops-breach-clear-sticky {
+  color: #f0c674;
+}
+
+.ops-breach-sticky-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  background: #4a3a1a;
+  color: #f0c674;
+}
+
 .ops-breach-states-all-section {
   margin: 0.75rem 0;
   padding: 0.6rem;

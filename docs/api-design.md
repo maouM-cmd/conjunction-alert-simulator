@@ -1080,7 +1080,7 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 }
 ```
 
-### PUT /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10AA）
+### PUT /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10AA / 10AB）
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED=true`。
 
@@ -1088,13 +1088,25 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 {
   "fleet_id": "uuid",
   "alertname": "CASFleetOpenAlertsHigh",
-  "is_breaching": true
+  "is_breaching": true,
+  "sticky": true
 }
 ```
 
-監査: `alert.breach_state_manual_override`（detail: `alertname`, `is_breaching`, `backend`）
+| env | 挙動 |
+|-----|------|
+| `ALERTMANAGER_BREACH_STATE_STICKY_OVERRIDE_ENABLED=true` | `sticky=true`（default）で `sync_breaches` から保護 |
+| sticky OFF | 従来どおり次回 `sync_breaches` で上書き |
 
-**注意:** 次回 `sync_breaches` で実メトリクスに基づき上書きされる。
+監査: `alert.breach_state_manual_override`（detail: `alertname`, `is_breaching`, `is_sticky`, `backend`）
+
+### DELETE /api/v1/ops/prometheus/alertmanager/breach-states/sticky（Phase 10AB）
+
+クエリ: `fleet_id`, `alertname`（必須）。sticky 解除して自動同期に復帰。
+
+監査: `alert.breach_state_sticky_cleared`
+
+応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

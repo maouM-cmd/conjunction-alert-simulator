@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AB — 次着手
+## Phase 10AC — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（10AA スコープ外: sticky override、breach 履歴等）。
+商用運用ロードマップ Phase 10+（breach 履歴テーブル、breaching-only フィルタ等）。
+
+## Phase 10AB — 完了
+
+breach sticky 上書き + 自動同期解除。v1.35.0 ship 済み。
 
 ## Phase 10AA — 完了
 

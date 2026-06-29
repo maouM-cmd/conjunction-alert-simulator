@@ -390,3 +390,90 @@ def test_breach_state_manual_override_disabled_returns_503(ops_client, monkeypat
         },
     )
     assert response.status_code == 503
+
+
+def test_breach_sticky_override_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_BREACH_STATE_STICKY_OVERRIDE_ENABLED", raising=False)
+    assert breach_state_store.breach_sticky_override_enabled() is False
+
+
+@patch("backend.app.services.alertmanager_push_service.push_alerts")
+def test_sticky_override_blocks_sync_breaches(mock_push, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_STATE_STICKY_OVERRIDE_ENABLED", "true")
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.delenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", raising=False)
+
+    fleet_id = uuid.uuid4()
+    breach_state_store.set_breach_state(str(fleet_id), "CASFleetOpenAlertsHigh", False)
+    breach_state_store.set_sticky_override(str(fleet_id), "CASFleetOpenAlertsHigh", True)
+
+    counts = {
+        fleet_id: {
+            "open": 99,
+            "escalated": 0,
+            "acknowledged": 0,
+            "mitigation_planned": 0,
+            "closed": 0,
+            "false_positive": 0,
+        }
+    }
+    risk_counts = {fleet_id: {"high": {"open": 0}, "medium": {"open": 0}, "low": {"open": 0}}}
+    fleet_names = {fleet_id: "Sticky Fleet"}
+
+    alertmanager_push_service.sync_breaches(counts, risk_counts, fleet_names)
+    mock_push.assert_not_called()
+    assert breach_state_store.get_breach_state(str(fleet_id), "CASFleetOpenAlertsHigh") is False
+
+
+@patch("backend.app.services.alertmanager_push_service.push_alerts")
+def test_breach_state_sticky_put_and_clear(mock_push, ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_STATE_STICKY_OVERRIDE_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    from backend.app.db.models import AuditLog
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Sticky Override Fleet")
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    response = ops_client.put(
+        "/api/v1/ops/prometheus/alertmanager/breach-states",
+        json={
+            "fleet_id": fleet_id,
+            "alertname": "CASFleetOpenAlertsHigh",
+            "is_breaching": True,
+            "sticky": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sticky_override_enabled"] is True
+    assert data["items"][0]["is_sticky"] is True
+    assert breach_state_store.is_sticky_override(fleet_id, "CASFleetOpenAlertsHigh") is True
+
+    response = ops_client.delete(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/sticky"
+        f"?fleet_id={fleet_id}&alertname=CASFleetOpenAlertsHigh"
+    )
+    assert response.status_code == 200
+    assert breach_state_store.is_sticky_override(fleet_id, "CASFleetOpenAlertsHigh") is False
+
+    db = factory()
+    try:
+        cleared = db.query(AuditLog).filter(AuditLog.action == "alert.breach_state_sticky_cleared").all()
+        assert len(cleared) == 1
+    finally:
+        db.close()

@@ -451,15 +451,16 @@ function formatBreachStateBackend(backend) {
   return labels[backend] || backend;
 }
 
-async function setOpsBreachState(fleetId, alertname, isBreaching) {
+async function setOpsBreachState(fleetId, alertname, isBreaching, sticky = true) {
   const label = isBreaching ? "breaching" : "ok";
-  if (!confirm(`${alertname} を ${label} に上書きしますか？`)) {
+  const stickyNote = sticky ? "（sticky）" : "";
+  if (!confirm(`${alertname} を ${label} に上書きしますか？${stickyNote}`)) {
     return;
   }
   try {
     await apiPut(
       "/api/v1/ops/prometheus/alertmanager/breach-states",
-      { fleet_id: fleetId, alertname, is_breaching: isBreaching },
+      { fleet_id: fleetId, alertname, is_breaching: isBreaching, sticky },
       { ops: true }
     );
     await refreshOpsBreachStates();
@@ -472,7 +473,7 @@ async function setOpsBreachState(fleetId, alertname, isBreaching) {
   }
 }
 
-function appendOpsBreachStateActions(tr, fleetId, item, manualOverrideEnabled) {
+function appendOpsBreachStateActions(tr, fleetId, item, manualOverrideEnabled, stickyOverrideEnabled) {
   if (!manualOverrideEnabled) {
     return;
   }
@@ -482,15 +483,46 @@ function appendOpsBreachStateActions(tr, fleetId, item, manualOverrideEnabled) {
   breachBtn.type = "button";
   breachBtn.textContent = "breaching";
   breachBtn.disabled = item.is_breaching;
-  breachBtn.addEventListener("click", () => setOpsBreachState(fleetId, item.alertname, true));
+  breachBtn.addEventListener("click", () =>
+    setOpsBreachState(fleetId, item.alertname, true, stickyOverrideEnabled)
+  );
   const okBtn = document.createElement("button");
   okBtn.type = "button";
   okBtn.textContent = "ok";
   okBtn.disabled = !item.is_breaching;
-  okBtn.addEventListener("click", () => setOpsBreachState(fleetId, item.alertname, false));
+  okBtn.addEventListener("click", () =>
+    setOpsBreachState(fleetId, item.alertname, false, stickyOverrideEnabled)
+  );
   actionsTd.appendChild(breachBtn);
   actionsTd.appendChild(okBtn);
+  if (stickyOverrideEnabled && item.is_sticky) {
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.textContent = "自動同期";
+    clearBtn.className = "ops-breach-clear-sticky";
+    clearBtn.addEventListener("click", () => clearOpsBreachSticky(fleetId, item.alertname));
+    actionsTd.appendChild(clearBtn);
+  }
   tr.appendChild(actionsTd);
+}
+
+async function clearOpsBreachSticky(fleetId, alertname) {
+  if (!confirm(`${alertname} の sticky 上書きを解除しますか？`)) {
+    return;
+  }
+  try {
+    await apiDelete(
+      `/api/v1/ops/prometheus/alertmanager/breach-states/sticky?fleet_id=${fleetId}&alertname=${encodeURIComponent(alertname)}`,
+      { ops: true }
+    );
+    await refreshOpsBreachStates();
+    if (opsAuthMe.is_admin) {
+      await refreshOpsBreachStatesAll();
+    }
+    setOpsStatus("sticky 上書きを解除しました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
 }
 
 async function refreshOpsBreachStates() {
@@ -507,17 +539,19 @@ async function refreshOpsBreachStates() {
       { ops: true }
     );
     const overrideOn = listing.manual_override_enabled === true;
+    const stickyOn = listing.sticky_override_enabled === true;
     els.opsBreachStatesActionsHeader?.classList.toggle("hidden", !overrideOn);
-    els.opsBreachStatesStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)}`;
+    els.opsBreachStatesStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)}${stickyOn ? " / sticky ON" : ""}`;
     els.opsBreachStatesTableBody.innerHTML = "";
     for (const item of listing.items) {
       const tr = document.createElement("tr");
       const stateClass = item.is_breaching ? "ops-breach-active" : "ops-breach-ok";
+      const stickyLabel = item.is_sticky ? ' <span class="ops-breach-sticky-badge">sticky</span>' : "";
       tr.innerHTML = `
         <td>${item.alertname}</td>
-        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
+        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}${stickyLabel}</td>
       `;
-      appendOpsBreachStateActions(tr, fleetId, item, overrideOn);
+      appendOpsBreachStateActions(tr, fleetId, item, overrideOn, stickyOn);
       els.opsBreachStatesTableBody.appendChild(tr);
     }
   } catch (err) {
@@ -547,10 +581,11 @@ async function refreshOpsBreachStatesAll() {
     for (const item of listing.items) {
       const tr = document.createElement("tr");
       const stateClass = item.is_breaching ? "ops-breach-active" : "ops-breach-ok";
+      const stickyLabel = item.is_sticky ? ' <span class="ops-breach-sticky-badge">sticky</span>' : "";
       tr.innerHTML = `
         <td>${item.fleet_name || item.fleet_id}</td>
         <td>${item.alertname}</td>
-        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
+        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}${stickyLabel}</td>
       `;
       els.opsBreachStatesAllTableBody.appendChild(tr);
     }

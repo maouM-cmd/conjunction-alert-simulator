@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.35.0] - 2026-06-28
+
+Phase 10AB — breach sticky 上書き。
+
+### Added
+
+- **Phase 10AB:** `is_manual_sticky` — 手動 breach 状態を `sync_breaches` から保護
+- `ALERTMANAGER_BREACH_STATE_STICKY_OVERRIDE_ENABLED` — opt-in sticky モード
+- `DELETE /ops/prometheus/alertmanager/breach-states/sticky` — sticky 解除 + 監査
+- `PUT` breach-states に `sticky` フラグ（default true）
+- Alembic `012_fleet_alert_breach_states`
+- Ops UI — sticky バッジ、「自動同期」ボタン
+
 ## [1.34.0] - 2026-06-28
 
 Phase 10AA — breach 横断一覧 + 手動上書き。

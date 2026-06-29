@@ -35,6 +35,7 @@ from backend.app.models.schemas import (
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
     FleetBreachStateOut,
+    FleetBreachStateStickyClearedOut,
     FleetBreachStateUpdate,
     FleetSlaOut,
     MitigationPreviewListOut,
@@ -709,8 +710,13 @@ def _fleet_breach_state_list_out(fleet_id: uuid.UUID) -> FleetBreachStateListOut
         fleet_id=str(fleet_id),
         backend=breach_state_store.breach_state_backend(),
         manual_override_enabled=breach_state_store.breach_manual_override_enabled(),
+        sticky_override_enabled=breach_state_store.breach_sticky_override_enabled(),
         items=[
-            FleetBreachStateOut(alertname=item.alertname, is_breaching=item.is_breaching)
+            FleetBreachStateOut(
+                alertname=item.alertname,
+                is_breaching=item.is_breaching,
+                is_sticky=item.is_sticky,
+            )
             for item in items
         ],
         total=len(items),
@@ -761,12 +767,14 @@ def list_fleet_breach_states(
         return FleetBreachStateMultiListOut(
             backend=breach_state_store.breach_state_backend(),
             manual_override_enabled=breach_state_store.breach_manual_override_enabled(),
+            sticky_override_enabled=breach_state_store.breach_sticky_override_enabled(),
             items=[
                 FleetBreachStateEntryOut(
                     fleet_id=row.fleet_id,
                     fleet_name=row.fleet_name,
                     alertname=row.alertname,
                     is_breaching=row.is_breaching,
+                    is_sticky=row.is_sticky,
                 )
                 for row in rows
             ],
@@ -795,6 +803,8 @@ def update_fleet_breach_state(
 
     fid = _resolve_fleet_for_am_silence(principal, body.fleet_id)
     breach_state_store.set_breach_state(str(fid), body.alertname, body.is_breaching)
+    if breach_state_store.breach_sticky_override_enabled():
+        breach_state_store.set_sticky_override(str(fid), body.alertname, body.sticky)
     audit_service.log_audit(
         db,
         fleet_id=fid,
@@ -805,11 +815,53 @@ def update_fleet_breach_state(
         detail={
             "alertname": body.alertname,
             "is_breaching": body.is_breaching,
+            "is_sticky": body.sticky if breach_state_store.breach_sticky_override_enabled() else False,
             "backend": breach_state_store.breach_state_backend(),
         },
     )
     db.commit()
     return _fleet_breach_state_list_out(fid)
+
+
+@router.delete(
+    "/prometheus/alertmanager/breach-states/sticky",
+    response_model=FleetBreachStateStickyClearedOut,
+)
+def clear_fleet_breach_sticky(
+    fleet_id: str = Query(...),
+    alertname: str = Query(...),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachStateStickyClearedOut:
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+    if not breach_state_store.breach_manual_override_enabled():
+        raise HTTPException(status_code=503, detail="breach 状態の手動上書きは無効です。")
+    if not breach_state_store.breach_sticky_override_enabled():
+        raise HTTPException(status_code=503, detail="breach sticky 上書きは無効です。")
+    if not breach_state_store.is_valid_fleet_alertname(alertname):
+        raise HTTPException(status_code=422, detail="alertname が不正です。")
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    breach_state_store.clear_sticky_override(str(fid), alertname)
+    audit_service.log_audit(
+        db,
+        fleet_id=fid,
+        action="alert.breach_state_sticky_cleared",
+        resource_type="fleet",
+        resource_id=fid,
+        api_key_id=principal.api_key.id if principal.api_key else None,
+        detail={
+            "alertname": alertname,
+            "backend": breach_state_store.breach_state_backend(),
+        },
+    )
+    db.commit()
+    return FleetBreachStateStickyClearedOut(
+        fleet_id=str(fid),
+        alertname=alertname,
+        message="sticky 上書きを解除しました。",
+    )
 
 
 @router.post(

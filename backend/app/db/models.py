@@ -301,6 +301,7 @@ class FleetAlertBreachState(Base):
     )
     alertname: Mapped[str] = mapped_column(String(128), primary_key=True)
     is_breaching: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_manual_sticky: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )

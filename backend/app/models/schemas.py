@@ -588,12 +588,14 @@ class AlertmanagerSilenceBulkDelete(BaseModel):
 class FleetBreachStateOut(BaseModel):
     alertname: str
     is_breaching: bool
+    is_sticky: bool = False
 
 
 class FleetBreachStateListOut(BaseModel):
     fleet_id: str
     backend: str
     manual_override_enabled: bool = False
+    sticky_override_enabled: bool = False
     items: list[FleetBreachStateOut]
     total: int
 
@@ -603,11 +605,13 @@ class FleetBreachStateEntryOut(BaseModel):
     fleet_name: str | None = None
     alertname: str
     is_breaching: bool
+    is_sticky: bool = False
 
 
 class FleetBreachStateMultiListOut(BaseModel):
     backend: str
     manual_override_enabled: bool = False
+    sticky_override_enabled: bool = False
     items: list[FleetBreachStateEntryOut]
     total: int
 
@@ -616,6 +620,13 @@ class FleetBreachStateUpdate(BaseModel):
     fleet_id: str
     alertname: str
     is_breaching: bool
+    sticky: bool = True
+
+
+class FleetBreachStateStickyClearedOut(BaseModel):
+    fleet_id: str
+    alertname: str
+    message: str
 
 
 class ConjunctionAlertListOut(BaseModel):

@@ -199,6 +199,8 @@ def sync_breaches(
 
         for alertname, is_breaching, severity, summary in breach_specs:
             fleet_id_str = str(fleet_id)
+            if breach_state_store.is_sticky_override(fleet_id_str, alertname):
+                continue
             previous = breach_state_store.get_breach_state(fleet_id_str, alertname)
             if is_breaching == previous:
                 continue
