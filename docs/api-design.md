@@ -35,6 +35,30 @@
 
 ---
 
+## GET /metrics（Phase 9D）
+
+Prometheus テキスト形式（`text/plain; version=0.0.4`）。
+
+**レスポンス 200 例（抜粋）:**
+
+```
+cas_open_alerts_total 3.0
+cas_screening_runs_total{status="completed"} 12.0
+cas_celery_queue_depth 0.0
+cas_info{version="1.6.0"} 1.0
+```
+
+| メトリクス | 説明 |
+|-----------|------|
+| `cas_open_alerts_total` | status=open のアラート件数（DB） |
+| `cas_screening_runs_total{status}` | screening run 件数（DB、status ラベル） |
+| `cas_celery_queue_depth` | Celery デフォルトキュー深度（Redis LLEN、未設定時 omit） |
+| `cas_info{version}` | アプリバージョン |
+
+`DATABASE_URL` 未設定時は DB 由来メトリクスを省略。認証なし（9E で API Key 検討）。
+
+---
+
 ## POST /api/v1/conjunctions
 
 接近イベントを検出する。
@@ -593,6 +617,8 @@ CAS 接近イベントから CDM KVN テキストを生成。
 Run 履歴。`fleet_id` / `status` フィルタ、`limit` / `offset` ページネーション。
 
 **Run status:** `pending` | `running` | `completed` | `failed` | `dead_letter`
+
+**Phase 9D:** 艦隊が `SCREENING_CHUNK_SIZE`（default 50）を超える場合、親 run が N 個の子 run（chunk）を enqueue。全 chunk 完了後に親 run を集計完了。子 run は `parent_run_id` / `chunk_index` を持つ。
 
 ---
 

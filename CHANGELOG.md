@@ -4,6 +4,24 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] - 2026-06-28
+
+Phase 9D — Scale-Out（1,000+ 衛星）。
+
+### Added
+
+- **Phase 9D:** スクリーニング チャンク orchestration（50 sat/job、`parent_run_id` / Alembic 004）
+- 艦隊上限 `FLEET_MAX_SATELLITES=10000`、超過時 409
+- Celery `run_screening_chunk` タスク、worker `--concurrency` / `docker compose --scale worker=N`
+- Space-Track CDM Redis 共有レートリミット（`spacetrack_rate_limiter`）
+- **`GET /metrics`** — Prometheus（`cas_open_alerts_total`、`cas_screening_runs_total`、`cas_celery_queue_depth`、`cas_info`）
+- env: `SCREENING_CHUNK_SIZE`、`SCREENING_MAX_WORKERS`、`CELERY_WORKER_CONCURRENCY`
+
+### Changed
+
+- 定期スクリーニング: 25 件 truncate + `degraded=true` を廃止しチャンク分割に置換
+- ad-hoc `/api/v1/conjunctions/batch` の 25 上限は互換維持
+
 ## [1.5.0] - 2026-06-28
 
 Phase 9C — Alert Lifecycle & Ops Dashboard。

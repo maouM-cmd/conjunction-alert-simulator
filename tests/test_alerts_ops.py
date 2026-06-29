@@ -235,8 +235,8 @@ def test_ops_api_list_and_transition(ops_client):
     assert patch.json()["status"] == "acknowledged"
 
 
-@patch("backend.app.services.screening_runner.run_batch_conjunction_analysis")
-@patch("backend.app.services.screening_runner.notify_new_alerts")
+@patch("backend.app.services.screening_orchestrator.run_batch_conjunction_analysis")
+@patch("backend.app.services.screening_orchestrator.notify_new_alerts")
 def test_screening_runner_notifies_new_opens_only(mock_notify, mock_batch, db_session):
     from backend.app.services import fleet_service, screening_runner, screening_service
 

@@ -5,13 +5,13 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
 [![deploy](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml)
-[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.5.0)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.6.0)
 
 ![Demo](docs/demo/demo.gif)
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
-**v1.5.0（Phase 9C）** — アラート triage（`conjunction_alerts` 永続化、Ops UI タブ、新規 open のみ webhook）。Phase 9B 定期スクリーニング、Phase 9A 艦隊レジストリ、Phase 8 Space-Track CDM、Phase 6 Live Demo も含む OSS 作品です。
+**v1.6.0（Phase 9D）** — 10,000 衛星艦隊、50 sat/chunk スクリーニング、worker 水平スケール、Prometheus `/metrics`。Phase 9C アラート triage、Phase 9B 定期スクリーニング、Phase 9A 艦隊レジストリ、Phase 8 Space-Track CDM、Phase 6 Live Demo も含む OSS 作品です。
 
 ## 2 分デモ（ローカル）
 
@@ -100,18 +100,30 @@ python -m http.server 8080
 
 FastAPI 経由でフロントも配信する場合は `http://127.0.0.1:8000/app/` を開いてください。
 
-## Docker で起動（Phase 4C / 9A）
+## Docker で起動（Phase 4C / 9A / 9D）
 
 ```powershell
 copy .env.example .env   # 任意（Space-Track 利用時は編集）
 docker compose up --build -d
+# worker 水平スケール（Phase 9D）:
+docker compose up --build -d --scale worker=3
 ```
 
 - UI: **http://localhost:8000/app/**
 - ヘルス: `curl http://localhost:8000/health`
-- **Fleet API（Phase 9A）:** compose 起動時 `postgres` + `DATABASE_URL` が自動設定。`GET /api/v1/fleets` で艦隊一覧。
-- **Screening（Phase 9B）:** `redis` + `worker` + `beat` サービス。`POST /api/v1/screening/schedules` で cron 定期スクリーニング。
+- メトリクス: `curl http://localhost:8000/metrics`
+- **Fleet API（Phase 9A）:** compose 起動時 `postgres` + `DATABASE_URL` が自動設定。`GET /api/v1/fleets` で艦隊一覧（最大 10,000 衛星）。
+- **Screening（Phase 9B / 9D）:** `redis` + `worker` + `beat`。51+ 衛星は 50 sat/chunk に自動分割。
 - **Ops（Phase 9C）:** UI **運用 Ops** タブ — 艦隊アラート triage（open → ack → 対策計画 → closed）。`GET /api/v1/ops/alerts`
+
+### Scale-out 環境変数（Phase 9D）
+
+| env | デフォルト | 用途 |
+|-----|-----------|------|
+| `FLEET_MAX_SATELLITES` | 10000 | 艦隊 active 衛星上限 |
+| `SCREENING_CHUNK_SIZE` | 50 | 1 Celery ジョブあたり衛星数 |
+| `SCREENING_MAX_WORKERS` | 2 | chunk 内 ProcessPool 数 |
+| `CELERY_WORKER_CONCURRENCY` | 2 | worker プロセス数 |
 
 詳細は [docs/deploy.md](docs/deploy.md)、商用運用ロードマップは [docs/requirements-commercial-ops.md](docs/requirements-commercial-ops.md) を参照。
 
@@ -163,6 +175,7 @@ venv\Scripts\python -m backend.cli.propagate --tle1 samples/iss.tle --tle2 sampl
 | エンドポイント | メソッド | 概要 |
 |---------------|---------|------|
 | `/health` | GET | 死活監視 |
+| `/metrics` | GET | Prometheus メトリクス（Phase 9D） |
 | `/api/v1/conjunctions` | POST | 接近イベント検出 |
 | `/api/v1/conjunctions/batch` | POST | 複数衛星一括接近解析 |
 | `/api/v1/alerts/webhook/test` | POST | Webhook 接続テスト |
@@ -224,7 +237,7 @@ MIT License — 詳細は [LICENSE](LICENSE)
 |--|--|
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
-| Release | [v1.5.0 — Phase 9C](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.5.0) |
+| Release | [v1.6.0 — Phase 9D](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.6.0) |
 | Social Preview | 設定済み — [手順](docs/publish-github-social-preview.md) |
 | Phase 7 要件 | [`docs/requirements-phase7.md`](docs/requirements-phase7.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |

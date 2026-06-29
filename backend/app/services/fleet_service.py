@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import Fleet, Satellite, TleRevision
+from backend.app.services.scale_config import fleet_max_satellites
 from backend.app.services.tle_parser import parse_tle
 
 MAX_TLE_REVISIONS = 2
@@ -132,6 +133,11 @@ def add_satellite(
     tle: str,
 ) -> Satellite:
     fleet = get_fleet(db, fleet_id)
+    active_count = count_active_satellites(db, fleet_id)
+    if active_count >= fleet_max_satellites():
+        raise ConflictError(
+            f"艦隊の衛星数は最大 {fleet_max_satellites()} 件です。"
+        )
     normalized = _normalize_tle(tle)
     parsed = parse_tle(normalized)
     sat_name = name or parsed.name
@@ -152,6 +158,29 @@ def add_satellite(
         raise ConflictError("同一艦隊内に同じ NORAD ID の衛星が既に存在します。") from exc
     db.refresh(satellite)
     return satellite
+
+
+def list_all_active_satellites(
+    db: Session,
+    fleet_id: uuid.UUID,
+    *,
+    max_count: int | None = None,
+) -> list[Satellite]:
+    """List all active satellites up to max_count (paginated internally)."""
+    get_fleet(db, fleet_id)
+    cap = max_count if max_count is not None else fleet_max_satellites()
+    items: list[Satellite] = []
+    offset = 0
+    page_size = 500
+    while len(items) < cap:
+        batch, total = list_satellites(db, fleet_id, limit=page_size, offset=offset)
+        if not batch:
+            break
+        items.extend(batch)
+        offset += len(batch)
+        if offset >= total:
+            break
+    return items[:cap]
 
 
 def list_satellites(

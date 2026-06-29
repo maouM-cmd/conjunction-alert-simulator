@@ -11,7 +11,7 @@ from backend.app.services.analysis import ConjunctionAnalysisResult, run_conjunc
 from backend.app.services.tle_fetcher import CatalogMeta, fetch_debris_catalog, set_last_provider_label
 from backend.app.services.tle_parser import parse_tle
 
-MAX_SATELLITES = 25
+MAX_SATELLITES = 25  # ad-hoc batch API limit (Phase 9D: screening uses SCREENING_CHUNK_SIZE)
 
 
 @dataclass(frozen=True)
@@ -67,9 +67,20 @@ def _batch_worker(args: tuple) -> ConjunctionAnalysisResult:
     )
 
 
-def _resolve_worker_count(satellite_count: int, max_workers: int | None) -> int:
+def _resolve_worker_count(
+    satellite_count: int,
+    max_workers: int | None,
+    *,
+    prefer_screening_env: bool = False,
+) -> int:
     if max_workers is not None:
         return max(1, min(max_workers, satellite_count))
+    if prefer_screening_env:
+        from backend.app.services.scale_config import screening_max_workers
+
+        screening_workers = screening_max_workers()
+        if screening_workers is not None:
+            return max(1, min(screening_workers, satellite_count))
     env_val = os.environ.get("BATCH_MAX_WORKERS")
     if env_val:
         try:
@@ -121,17 +132,24 @@ def run_batch_conjunction_analysis(
     use_altitude_prefilter: bool = True,
     auto_spacetrack_cdm: bool = False,
     spacetrack_cdm_pc_min: float | None = None,
+    max_satellites: int | None = None,
+    prefer_screening_workers: bool = False,
 ) -> BatchAnalysisResult:
+    limit = max_satellites if max_satellites is not None else MAX_SATELLITES
     if not satellite_tles:
         raise ValueError("衛星 TLE が1件以上必要です。")
-    if len(satellite_tles) > MAX_SATELLITES:
-        raise ValueError(f"衛星数は最大 {MAX_SATELLITES} 件です。")
+    if len(satellite_tles) > limit:
+        raise ValueError(f"衛星数は最大 {limit} 件です。")
 
     t0 = time.perf_counter()
     debris_catalog, catalog_meta = fetch_debris_catalog()
     set_last_provider_label(catalog_meta.provider)
 
-    worker_count = _resolve_worker_count(len(satellite_tles), max_workers)
+    worker_count = _resolve_worker_count(
+        len(satellite_tles),
+        max_workers,
+        prefer_screening_env=prefer_screening_workers,
+    )
     use_parallel = parallel and len(satellite_tles) > 1 and worker_count > 1
 
     if use_parallel:

@@ -90,3 +90,38 @@ def poll_due_schedules() -> dict:
 
 
 run_screening_job.on_failure = mark_dead_letter_on_final_failure
+
+
+@celery_app.task(
+    bind=True,
+    name="backend.app.tasks.screening_tasks.run_screening_chunk",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=MAX_RETRIES,
+)
+def run_screening_chunk(self, run_id: str) -> dict:
+    db = _session()
+    try:
+        run_uuid = uuid.UUID(run_id)
+        run = screening_service.get_run(db, run_uuid)
+        run.retry_count = self.request.retries
+        db.commit()
+        screening_runner.execute_screening_run(db, run_uuid)
+        run = screening_service.get_run(db, run_uuid)
+        return {
+            "run_id": run_id,
+            "status": run.status,
+            "event_count": run.event_count,
+            "parent_run_id": str(run.parent_run_id) if run.parent_run_id else None,
+        }
+    except screening_runner.ScreeningRunnerError:
+        raise
+    except Exception as exc:
+        logger.exception("Screening chunk failed: %s", run_id)
+        raise exc
+    finally:
+        db.close()
+
+
+run_screening_chunk.on_failure = mark_dead_letter_on_final_failure

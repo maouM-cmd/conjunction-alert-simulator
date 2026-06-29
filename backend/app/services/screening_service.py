@@ -174,6 +174,46 @@ def create_run(
     return run
 
 
+def create_chunk_run(
+    db: Session,
+    *,
+    fleet_id: uuid.UUID,
+    schedule_id: uuid.UUID | None,
+    parent_run_id: uuid.UUID,
+    chunk_index: int,
+) -> ScreeningRun:
+    run = ScreeningRun(
+        schedule_id=schedule_id,
+        fleet_id=fleet_id,
+        parent_run_id=parent_run_id,
+        chunk_index=chunk_index,
+        status="pending",
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def list_child_runs(db: Session, parent_run_id: uuid.UUID) -> list[ScreeningRun]:
+    return list(
+        db.execute(
+            select(ScreeningRun)
+            .where(ScreeningRun.parent_run_id == parent_run_id)
+            .order_by(ScreeningRun.chunk_index)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def increment_parent_chunk_completion(db: Session, parent: ScreeningRun) -> ScreeningRun:
+    parent.completed_chunks += 1
+    db.commit()
+    db.refresh(parent)
+    return parent
+
+
 def get_run(db: Session, run_id: uuid.UUID) -> ScreeningRun:
     run = db.get(ScreeningRun, run_id)
     if run is None:

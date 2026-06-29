@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 9D — Scale-Out（1,000+ 衛星）（次着手）
+## Phase 9E — Production Hardening（次着手）
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) の第四フェーズ。艦隊チャンク分割、worker 水平スケール、Prometheus `/metrics`。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) の第五フェーズ。API Key 認証、`/health` DB/Redis チェック拡張。
+
+## Phase 9D — 完了
+
+艦隊 10k + チャンク Celery、worker 水平スケール、Space-Track Redis レートリミット、Prometheus `/metrics`。v1.6.0 ship 済み。
 
 ## Phase 9C — 完了
 

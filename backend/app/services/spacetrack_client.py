@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import os
-import time
 
 import httpx
 
+from backend.app.services.spacetrack_rate_limiter import acquire_spacetrack_slot
+
 LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 BASE_URL = "https://www.space-track.org"
-MIN_REQUEST_INTERVAL_SEC = 1.0
-
-_last_request_at = 0.0
 
 
 def has_spacetrack_credentials() -> bool:
@@ -19,11 +17,7 @@ def has_spacetrack_credentials() -> bool:
 
 
 def _throttle() -> None:
-    global _last_request_at
-    elapsed = time.monotonic() - _last_request_at
-    if elapsed < MIN_REQUEST_INTERVAL_SEC:
-        time.sleep(MIN_REQUEST_INTERVAL_SEC - elapsed)
-    _last_request_at = time.monotonic()
+    acquire_spacetrack_slot()
 
 
 def login(client: httpx.Client) -> None:

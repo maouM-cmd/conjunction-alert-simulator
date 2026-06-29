@@ -22,7 +22,7 @@ SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 DEMO_SAT = (SAMPLES / "demo-satellite.tle").read_text(encoding="utf-8").strip()
 
 
-def _fake_batch_result(count: int = 1) -> BatchAnalysisResult:
+def _fake_batch_result(count: int = 1, total_events: int = 2) -> BatchAnalysisResult:
     from backend.app.services.analysis import ConjunctionAnalysisResult
 
     results = []
@@ -48,7 +48,7 @@ def _fake_batch_result(count: int = 1) -> BatchAnalysisResult:
         results=results,
         summary=BatchSummary(
             satellite_count=count,
-            total_events=2,
+            total_events=total_events,
             highest_pc=0.0,
             highest_pc_satellite="ISS",
             highest_pc_debris=None,
@@ -170,7 +170,7 @@ def test_list_and_delete_schedule(screening_client):
 
 
 @patch(
-    "backend.app.services.screening_runner.run_batch_conjunction_analysis",
+    "backend.app.services.screening_orchestrator.run_batch_conjunction_analysis",
     return_value=_fake_batch_result(1),
 )
 def test_manual_run_completes(mock_batch, screening_client):
@@ -197,39 +197,6 @@ def test_manual_run_completes(mock_batch, screening_client):
     mock_batch.assert_called_once()
 
 
-@patch(
-    "backend.app.services.screening_runner.run_batch_conjunction_analysis",
-    return_value=_fake_batch_result(1),
-)
-@patch("backend.app.services.screening_runner.fleet_service.list_satellites")
-def test_run_marks_degraded_when_fleet_truncated(mock_list, mock_batch, screening_client):
-    from backend.app.services.tle_parser import parse_tle
-
-    parsed = parse_tle(DEMO_SAT)
-
-    class FakeSat:
-        tle = DEMO_SAT
-        norad_id = parsed.norad_id
-        id = __import__("uuid").uuid4()
-
-    mock_list.return_value = ([FakeSat()] * 25, 30)
-
-    fleet = screening_client.post("/api/v1/fleets", json={"name": "Big Fleet"}).json()
-    schedule = screening_client.post(
-        "/api/v1/screening/schedules",
-        json={
-            "fleet_id": fleet["id"],
-            "name": "Big",
-            "cron_expression": "0 0 * * *",
-        },
-    ).json()
-    run_id = screening_client.post(
-        f"/api/v1/screening/schedules/{schedule['id']}/run"
-    ).json()["id"]
-    run = screening_client.get(f"/api/v1/screening/runs/{run_id}").json()
-    assert run["degraded"] is True
-    assert run["satellite_count"] == 25
-
 
 def test_mark_run_dead_letter(db_session):
     from backend.app.services import fleet_service, screening_service
@@ -252,7 +219,37 @@ def test_mark_run_dead_letter(db_session):
 
 
 @patch(
-    "backend.app.services.screening_runner.run_batch_conjunction_analysis",
+    "backend.app.services.screening_orchestrator.run_batch_conjunction_analysis",
+    return_value=_fake_batch_result(50, total_events=1),
+)
+def test_run_chunks_large_fleet(mock_batch, screening_client, monkeypatch):
+    monkeypatch.setenv("SCREENING_CHUNK_SIZE", "50")
+    fleet = screening_client.post("/api/v1/fleets", json={"name": "Big Fleet"}).json()
+    for i in range(51):
+        screening_client.post(
+            f"/api/v1/fleets/{fleet['id']}/satellites",
+            json={"tle": DEMO_SAT, "norad_id": 91000 + i},
+        )
+    schedule = screening_client.post(
+        "/api/v1/screening/schedules",
+        json={
+            "fleet_id": fleet["id"],
+            "name": "Big",
+            "cron_expression": "0 0 * * *",
+        },
+    ).json()
+    run_id = screening_client.post(
+        f"/api/v1/screening/schedules/{schedule['id']}/run"
+    ).json()["id"]
+    run = screening_client.get(f"/api/v1/screening/runs/{run_id}").json()
+    assert run["degraded"] is False
+    assert run["satellite_count"] == 51
+    assert run["status"] == "completed"
+    assert mock_batch.call_count == 2
+
+
+@patch(
+    "backend.app.services.screening_orchestrator.run_batch_conjunction_analysis",
     side_effect=RuntimeError("catalog unavailable"),
 )
 def test_run_failed_status_on_error(mock_batch, db_session):
