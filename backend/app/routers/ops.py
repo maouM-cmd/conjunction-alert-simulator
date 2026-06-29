@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal
-from backend.app.db.models import AuditLog, ConjunctionAlert
+from backend.app.db.models import AlertMitigationPreview, AuditLog, ConjunctionAlert
 from backend.app.db.session import require_db
 from backend.app.models.schemas import (
     AlertStatus,
@@ -18,8 +18,11 @@ from backend.app.models.schemas import (
     ConjunctionAlertListOut,
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
+    MitigationPreviewListOut,
+    MitigationPreviewOut,
+    MitigationPreviewRequest,
 )
-from backend.app.services import alert_service, audit_service
+from backend.app.services import alert_service, audit_service, mitigation_service
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
 
@@ -37,6 +40,34 @@ def _handle_service_error(exc: alert_service.AlertServiceError) -> HTTPException
     if isinstance(exc, alert_service.ValidationError):
         return HTTPException(status_code=400, detail=str(exc))
     return HTTPException(status_code=400, detail=str(exc))
+
+
+def _handle_mitigation_error(exc: mitigation_service.MitigationServiceError) -> HTTPException:
+    if isinstance(exc, mitigation_service.NotFoundError):
+        return HTTPException(status_code=404, detail=str(exc))
+    return HTTPException(status_code=400, detail=str(exc))
+
+
+def _preview_out(preview: AlertMitigationPreview) -> MitigationPreviewOut:
+    return MitigationPreviewOut(
+        id=str(preview.id),
+        alert_id=str(preview.alert_id),
+        direction=preview.direction,
+        delta_v_ms=preview.delta_v_ms,
+        before_tca=preview.before_tca,
+        before_miss_distance_km=preview.before_miss_distance_km,
+        after_tca=preview.after_tca,
+        after_miss_distance_km=preview.after_miss_distance_km,
+        relative_velocity_kms=preview.relative_velocity_kms,
+        api_key_id=str(preview.api_key_id) if preview.api_key_id else None,
+        created_at=preview.created_at,
+    )
+
+
+def _latest_preview_out(alert: ConjunctionAlert) -> MitigationPreviewOut | None:
+    if not alert.mitigation_previews:
+        return None
+    return _preview_out(alert.mitigation_previews[0])
 
 
 def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
@@ -58,6 +89,7 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
         comment=alert.comment,
         created_at=alert.created_at,
         updated_at=alert.updated_at,
+        latest_mitigation_preview=_latest_preview_out(alert),
     )
 
 
@@ -160,6 +192,61 @@ def transition_alert(
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
     return _alert_out(alert)
+
+
+@router.post(
+    "/alerts/{alert_id}/mitigation-preview",
+    response_model=MitigationPreviewOut,
+    status_code=201,
+)
+def create_mitigation_preview(
+    alert_id: str,
+    body: MitigationPreviewRequest,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> MitigationPreviewOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        preview = mitigation_service.run_alert_mitigation_preview(
+            db,
+            aid,
+            direction=body.direction,
+            delta_v_ms=body.delta_v_ms,
+            duration_days=body.duration_days,
+            step_minutes=body.step_minutes,
+            api_key_id=principal.api_key.id if principal.api_key else None,
+        )
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except mitigation_service.MitigationServiceError as exc:
+        raise _handle_mitigation_error(exc) from exc
+    return _preview_out(preview)
+
+
+@router.get(
+    "/alerts/{alert_id}/mitigation-previews",
+    response_model=MitigationPreviewListOut,
+)
+def list_mitigation_previews(
+    alert_id: str,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> MitigationPreviewListOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        items = mitigation_service.list_mitigation_previews(db, aid)
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except mitigation_service.MitigationServiceError as exc:
+        raise _handle_mitigation_error(exc) from exc
+    return MitigationPreviewListOut(
+        items=[_preview_out(p) for p in items],
+        total=len(items),
+    )
 
 
 @router.get("/audit", response_model=AuditLogListOut)

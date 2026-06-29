@@ -348,3 +348,14 @@ label.checkbox-row input[type="checkbox"] {
   margin-top: 0.2rem;
   font-size: 0.68rem;
 }
+
+.ops-mitigation-btn {
+  margin-top: 0.15rem;
+}
+
+.ops-mitigation-result {
+  font-size: 0.68rem;
+  color: #a8d4ff;
+  padding: 0.15rem 0;
+  line-height: 1.35;
+}

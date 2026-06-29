@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10 — 次着手
+## Phase 10B — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（COLA、SSO、99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SLA metrics、SSO、99.9% SLA 等）。
+
+## Phase 10A — 完了
+
+アラート連動 COLA preview（`alert_mitigation_previews`、Ops 回避試算 UI）。v1.8.0 ship 済み。
 
 ## Phase 9E — 完了
 

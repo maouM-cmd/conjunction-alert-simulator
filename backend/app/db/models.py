@@ -165,6 +165,38 @@ class ConjunctionAlert(Base):
     fleet: Mapped[Fleet] = relationship("Fleet")
     satellite: Mapped[Satellite] = relationship("Satellite")
     screening_run: Mapped[ScreeningRun | None] = relationship("ScreeningRun", back_populates="alerts")
+    mitigation_previews: Mapped[list[AlertMitigationPreview]] = relationship(
+        "AlertMitigationPreview",
+        back_populates="alert",
+        order_by="AlertMitigationPreview.created_at.desc()",
+        cascade="all, delete-orphan",
+    )
+
+
+class AlertMitigationPreview(Base):
+    __tablename__ = "alert_mitigation_previews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alert_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conjunction_alerts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    direction: Mapped[str] = mapped_column(String(16), nullable=False)
+    delta_v_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    before_tca: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    before_miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    after_tca: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    after_miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    relative_velocity_kms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    alert: Mapped[ConjunctionAlert] = relationship("ConjunctionAlert", back_populates="mitigation_previews")
+    api_key: Mapped[ApiKey | None] = relationship("ApiKey")
 
 
 class ApiKey(Base):

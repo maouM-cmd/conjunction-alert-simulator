@@ -5,13 +5,13 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![tests](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/test.yml)
 [![deploy](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/maouM-cmd/conjunction-alert-simulator/actions/workflows/deploy.yml)
-[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.7.0)
+[![Release](https://img.shields.io/github/v/release/maouM-cmd/conjunction-alert-simulator)](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.8.0)
 
 ![Demo](docs/demo/demo.gif)
 
 衛星の TLE を入力すると、今後7日間に接近する宇宙デブリを検出し、3D で軌道と最接近点（TCA）を表示し、回避マニューバの効果を試算する Web アプリです。
 
-**v1.7.0（Phase 9E）** — API Key 認証（fleet スコープ・デフォルト OFF）、監査ログ、`/health` PostgreSQL/Redis/worker チェック。Phase 9D スケールアウト、Phase 9C アラート triage、Phase 9B 定期スクリーニング、Phase 9A 艦隊レジストリ、Phase 8 Space-Track CDM、Phase 6 Live Demo も含む OSS 作品です。
+**v1.8.0（Phase 10A）** — アラート連動 COLA 回避試算（Ops UI + API 永続化）。Phase 9E API Key 認証、Phase 9D スケールアウト、Phase 9C アラート triage、Phase 9B 定期スクリーニング、Phase 9A 艦隊レジストリ、Phase 8 Space-Track CDM、Phase 6 Live Demo も含む OSS 作品です。
 
 ## 2 分デモ（ローカル）
 
@@ -114,7 +114,7 @@ docker compose up --build -d --scale worker=3
 - メトリクス: `curl http://localhost:8000/metrics`
 - **Fleet API（Phase 9A）:** compose 起動時 `postgres` + `DATABASE_URL` が自動設定。`GET /api/v1/fleets` で艦隊一覧（最大 10,000 衛星）。
 - **Screening（Phase 9B / 9D）:** `redis` + `worker` + `beat`。51+ 衛星は 50 sat/chunk に自動分割。
-- **Ops（Phase 9C）:** UI **運用 Ops** タブ — 艦隊アラート triage（open → ack → 対策計画 → closed）。`GET /api/v1/ops/alerts`
+- **Ops（Phase 9C / 10A）:** UI **運用 Ops** タブ — 艦隊アラート triage + **回避試算**（COLA preview）。`GET /api/v1/ops/alerts`、`POST .../mitigation-preview`
 
 ### Scale-out 環境変数（Phase 9D）
 
@@ -245,7 +245,7 @@ MIT License — 詳細は [LICENSE](LICENSE)
 |--|--|
 | Live Demo | [conjunction-alert-simulator.onrender.com/app/](https://conjunction-alert-simulator.onrender.com/app/) |
 | Zenn | [Conjunction Alert Simulator を作った](https://zenn.dev/hukuhukuchan/articles/6bd364012c6bf5) |
-| Release | [v1.7.0 — Phase 9E](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.7.0) |
+| Release | [v1.8.0 — Phase 10A](https://github.com/maouM-cmd/conjunction-alert-simulator/releases/tag/v1.8.0) |
 | Social Preview | 設定済み — [手順](docs/publish-github-social-preview.md) |
 | Phase 7 要件 | [`docs/requirements-phase7.md`](docs/requirements-phase7.md) |
 | 公開チェックリスト | [`docs/publish-checklist-v1.1.0.md`](docs/publish-checklist-v1.1.0.md) |

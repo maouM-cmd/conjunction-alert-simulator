@@ -295,6 +295,42 @@ async function refreshOpsDashboard() {
         });
         actions.appendChild(btn);
       }
+      if (a.latest_mitigation_preview) {
+        const p = a.latest_mitigation_preview;
+        const latestDiv = document.createElement("div");
+        latestDiv.className = "ops-mitigation-result";
+        latestDiv.textContent = `最新: Δv ${p.delta_v_ms} m/s (${p.direction}): miss ${p.before_miss_distance_km.toFixed(3)} → ${p.after_miss_distance_km.toFixed(3)} km`;
+        actions.appendChild(latestDiv);
+      }
+      const mitBtn = document.createElement("button");
+      mitBtn.type = "button";
+      mitBtn.className = "ops-mitigation-btn";
+      mitBtn.textContent = "回避試算";
+      mitBtn.addEventListener("click", async () => {
+        try {
+          mitBtn.disabled = true;
+          const result = await apiPost(
+            `/api/v1/ops/alerts/${a.id}/mitigation-preview`,
+            {},
+            { ops: true }
+          );
+          let resultDiv = actions.querySelector(".ops-mitigation-result-live");
+          if (!resultDiv) {
+            resultDiv = document.createElement("div");
+            resultDiv.className = "ops-mitigation-result ops-mitigation-result-live";
+            actions.appendChild(resultDiv);
+          }
+          resultDiv.textContent = `試算: Δv ${result.delta_v_ms} m/s (${result.direction}): miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km`;
+          setOpsStatus(
+            `回避試算完了 — miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km（Δv ${result.delta_v_ms} m/s ${result.direction}）`
+          );
+        } catch (err) {
+          setOpsStatus(err.message, true);
+        } finally {
+          mitBtn.disabled = false;
+        }
+      });
+      actions.appendChild(mitBtn);
       els.opsAlertTableBody.appendChild(tr);
     }
     els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
@@ -304,13 +340,16 @@ async function refreshOpsDashboard() {
   }
 }
 
-async function apiPost(path, body) {
+async function apiPost(path, body, { ops = false } = {}) {
   let lastErr = null;
+  const headers = ops
+    ? getOpsApiHeaders({ "Content-Type": "application/json" })
+    : { "Content-Type": "application/json" };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(`${API_BASE}${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));

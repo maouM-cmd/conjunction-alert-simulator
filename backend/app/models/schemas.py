@@ -439,6 +439,35 @@ AlertStatus = Literal[
 ]
 
 
+ManeuverDirection = Literal["prograde", "retrograde", "normal"]
+
+
+class MitigationPreviewRequest(BaseModel):
+    direction: ManeuverDirection = "prograde"
+    delta_v_ms: float = 0.01
+    duration_days: float = 7.0
+    step_minutes: int = 1
+
+
+class MitigationPreviewOut(BaseModel):
+    id: str
+    alert_id: str
+    direction: str
+    delta_v_ms: float
+    before_tca: datetime
+    before_miss_distance_km: float
+    after_tca: datetime
+    after_miss_distance_km: float
+    relative_velocity_kms: float | None
+    api_key_id: str | None
+    created_at: datetime
+
+
+class MitigationPreviewListOut(BaseModel):
+    items: list[MitigationPreviewOut]
+    total: int
+
+
 class ConjunctionAlertOut(BaseModel):
     id: str
     fleet_id: str
@@ -456,6 +485,7 @@ class ConjunctionAlertOut(BaseModel):
     comment: str | None
     created_at: datetime
     updated_at: datetime
+    latest_mitigation_preview: MitigationPreviewOut | None = None
 
 
 class ConjunctionAlertListOut(BaseModel):

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.db.models import ConjunctionAlert, Fleet, Satellite, ScreeningRun
 from backend.app.services.analysis import ConjunctionAnalysisResult
@@ -126,7 +126,10 @@ def ingest_screening_results(
 def get_alert(db: Session, alert_id: uuid.UUID) -> ConjunctionAlert:
     alert = db.execute(
         select(ConjunctionAlert)
-        .options(joinedload(ConjunctionAlert.satellite))
+        .options(
+            joinedload(ConjunctionAlert.satellite),
+            selectinload(ConjunctionAlert.mitigation_previews),
+        )
         .where(ConjunctionAlert.id == alert_id)
     ).scalar_one_or_none()
     if alert is None:
@@ -148,7 +151,10 @@ def list_alerts(
     if status is not None:
         filters.append(ConjunctionAlert.status == status)
     count_stmt = select(func.count()).select_from(ConjunctionAlert)
-    list_stmt = select(ConjunctionAlert).options(joinedload(ConjunctionAlert.satellite))
+    list_stmt = select(ConjunctionAlert).options(
+        joinedload(ConjunctionAlert.satellite),
+        selectinload(ConjunctionAlert.mitigation_previews),
+    )
     if filters:
         count_stmt = count_stmt.where(*filters)
         list_stmt = list_stmt.where(*filters)

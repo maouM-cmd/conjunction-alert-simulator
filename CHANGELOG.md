@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.8.0] - 2026-06-28
+
+Phase 10A — Alert-Linked COLA Preview（回避試算連携）。
+
+### Added
+
+- **Phase 10A:** 永続化アラートから maneuver preview を実行・DB 保存
+- `alert_mitigation_previews` テーブル（Alembic 006）
+- `POST /api/v1/ops/alerts/{id}/mitigation-preview` — 201
+- `GET /api/v1/ops/alerts/{id}/mitigation-previews` — 履歴
+- `ConjunctionAlertOut.latest_mitigation_preview` — 最新試算
+- 監査: `alert.mitigation_preview`
+- Ops UI: アラート行「回避試算」ボタン + 結果表示
+
 ## [1.7.0] - 2026-06-28
 
 Phase 9E — Platform Baseline（認証・監査・readiness）。
