@@ -631,6 +631,7 @@ def list_pc_refinements(
 @router.get("/prometheus/fleet-alert-rules", response_model=FleetAlertRulesOut)
 def fleet_alert_rules(
     fleet_id: str | None = None,
+    breaching_only: bool = False,
     format: str = Query("yaml", pattern="^(yaml|json)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
@@ -665,7 +666,13 @@ def fleet_alert_rules(
 
     rules: list = []
     for fleet in fleets:
-        rules.extend(fleet_alert_metrics_service.render_fleet_alert_rules(fleet.id, fleet.name))
+        rules.extend(
+            fleet_alert_metrics_service.render_fleet_alert_rules(
+                fleet.id,
+                fleet.name,
+                breaching_only=breaching_only,
+            )
+        )
 
     fmt = format.lower()
     if fmt == "json":
@@ -816,6 +823,8 @@ def list_fleet_breach_states(
 def list_fleet_breach_history(
     fleet_id: str | None = None,
     alertname: str | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     format: str = Query("json", pattern="^(json|csv)$"),
@@ -829,6 +838,8 @@ def list_fleet_breach_history(
 
     if alertname is not None and not breach_state_store.is_valid_fleet_alertname(alertname):
         raise HTTPException(status_code=422, detail="alertname が不正です。")
+    if source is not None and source not in breach_history_service.VALID_SOURCES:
+        raise HTTPException(status_code=422, detail="source が不正です。")
 
     if fleet_id is None:
         if is_api_key_required() and not principal.is_admin:
@@ -839,6 +850,8 @@ def list_fleet_breach_history(
         rows, total = breach_history_service.list_all_history(
             db,
             alertname=alertname,
+            source=source,
+            breaching_only=breaching_only,
             limit=limit,
             offset=offset,
         )
@@ -886,6 +899,8 @@ def list_fleet_breach_history(
         db,
         fid,
         alertname=alertname,
+        source=source,
+        breaching_only=breaching_only,
         limit=limit,
         offset=offset,
     )

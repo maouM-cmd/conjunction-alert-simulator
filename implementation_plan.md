@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AE — 次着手
+## Phase 10AF — 次着手
 
-商用運用ロードマップ Phase 10+（breaching-only Prometheus 連携、履歴フィルタ等）。
+商用運用ロードマップ Phase 10+（per-fleet breach 履歴 retention、breaching 艦隊 rule 出力等）。
+
+## Phase 10AE — 完了
+
+breach gauge ルール雛形 + breach 履歴 source/breaching フィルタ。v1.38.0 ship 済み。
 
 ## Phase 10AD — 完了
 

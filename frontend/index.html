@@ -240,6 +240,21 @@
         <section id="ops-breach-history-section" class="ops-breach-history-section hidden">
           <h3>Breach 履歴</h3>
           <p id="ops-breach-history-status" class="meta"></p>
+          <div class="ops-breach-history-filters">
+            <label class="ops-breach-filter">
+              source
+              <select id="ops-breach-history-source">
+                <option value="">すべて</option>
+                <option value="sync">sync</option>
+                <option value="manual">manual</option>
+                <option value="sticky_clear">sticky_clear</option>
+              </select>
+            </label>
+            <label class="ops-breach-filter">
+              <input id="ops-breach-history-breaching-only" type="checkbox" />
+              breaching のみ
+            </label>
+          </div>
           <div class="button-row">
             <button id="btn-ops-breach-history-csv" type="button">CSV ダウンロード</button>
           </div>
@@ -259,6 +274,21 @@
         <section id="ops-breach-history-all-section" class="ops-breach-history-all-section hidden">
           <h3>全艦隊 Breach 履歴（管理者）</h3>
           <p id="ops-breach-history-all-status" class="meta"></p>
+          <div class="ops-breach-history-filters">
+            <label class="ops-breach-filter">
+              source
+              <select id="ops-breach-history-all-source">
+                <option value="">すべて</option>
+                <option value="sync">sync</option>
+                <option value="manual">manual</option>
+                <option value="sticky_clear">sticky_clear</option>
+              </select>
+            </label>
+            <label class="ops-breach-filter">
+              <input id="ops-breach-history-all-breaching-only" type="checkbox" />
+              breaching のみ
+            </label>
+          </div>
           <div class="button-row">
             <button id="btn-ops-breach-history-all-csv" type="button">CSV ダウンロード</button>
           </div>

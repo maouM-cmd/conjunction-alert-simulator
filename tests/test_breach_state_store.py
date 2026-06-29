@@ -860,3 +860,101 @@ def test_purge_old_breach_history_celery_task(ops_client, monkeypatch):
     result = purge_task()
     assert result["status"] == "ok"
     assert "deleted" in result
+
+
+def test_breach_history_source_filter(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = uuid.uuid4()
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetOpenAlertsHigh", True, "manual", is_sticky=False
+    )
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetHighRiskOpenAlerts", False, "sync", is_sticky=False
+    )
+
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states/history"
+        f"?fleet_id={fleet_id}&source=manual"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["source"] == "manual"
+
+
+def test_breach_history_breaching_only_filter(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = uuid.uuid4()
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetOpenAlertsHigh", True, "manual", is_sticky=False
+    )
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetHighRiskOpenAlerts", False, "sync", is_sticky=False
+    )
+
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states/history"
+        f"?fleet_id={fleet_id}&breaching_only=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["is_breaching"] is True
+
+
+def test_breach_history_admin_breaching_only_filter(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Filter History Fleet")
+        db.commit()
+        fleet_id = fleet.id
+    finally:
+        db.close()
+
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetOpenAlertsHigh", True, "manual", is_sticky=False
+    )
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetHighRiskOpenAlerts", False, "sync", is_sticky=False
+    )
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history?breaching_only=true",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
+    assert all(item["is_breaching"] is True for item in data["items"])
+
+
+def test_breach_history_invalid_source_returns_422(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = str(uuid.uuid4())
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states/history"
+        f"?fleet_id={fleet_id}&source=invalid"
+    )
+    assert response.status_code == 422

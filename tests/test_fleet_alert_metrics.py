@@ -170,6 +170,34 @@ def test_render_fleet_alert_rules_json():
     assert "cas-fleet-alerts" in content
     assert "CASFleetOpenAlertsHigh" in content
     assert "CASFleetHighRiskOpenAlerts" in content
+    assert "cas_fleet_alerts_total" in content
+
+
+def test_render_fleet_alert_rules_breaching_only():
+    fleet_id = uuid.uuid4()
+    rules = fleet_alert_metrics_service.render_fleet_alert_rules(
+        fleet_id,
+        "Gauge Fleet",
+        breaching_only=True,
+    )
+    assert "cas_fleet_open_alerts_breach" in rules[0]["expr"]
+    assert "cas_fleet_high_risk_open_breach" in rules[1]["expr"]
+    assert "cas_fleet_alerts_total" not in rules[0]["expr"]
+
+
+def test_fleet_alert_rules_breaching_only_api(ops_client, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    fleet_id, _ = _create_fleet_with_key(ops_client, monkeypatch, "Gauge Rules Fleet")
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/fleet-alert-rules?fleet_id={fleet_id}&breaching_only=true",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert "cas_fleet_open_alerts_breach" in response.json()["content"]
+    assert "cas_fleet_high_risk_open_breach" in response.json()["content"]
 
 
 def test_collect_fleet_risk_counts_high_open(db_session):

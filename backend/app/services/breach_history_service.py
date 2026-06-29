@@ -68,11 +68,23 @@ def record_transition(
         db.close()
 
 
+def _apply_history_filters(base, *, source: str | None = None, breaching_only: bool = False):
+    from backend.app.db.models import FleetAlertBreachHistory
+
+    if source is not None:
+        base = base.where(FleetAlertBreachHistory.source == source)
+    if breaching_only:
+        base = base.where(FleetAlertBreachHistory.is_breaching.is_(True))
+    return base
+
+
 def list_history(
     db: Session,
     fleet_id: uuid.UUID,
     *,
     alertname: str | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list, int]:
@@ -81,6 +93,7 @@ def list_history(
     base = select(FleetAlertBreachHistory).where(FleetAlertBreachHistory.fleet_id == fleet_id)
     if alertname is not None:
         base = base.where(FleetAlertBreachHistory.alertname == alertname)
+    base = _apply_history_filters(base, source=source, breaching_only=breaching_only)
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = db.execute(count_stmt).scalar_one()
@@ -95,6 +108,8 @@ def list_all_history(
     db: Session,
     *,
     alertname: str | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list, int]:
@@ -103,6 +118,7 @@ def list_all_history(
     base = select(FleetAlertBreachHistory).options(joinedload(FleetAlertBreachHistory.fleet))
     if alertname is not None:
         base = base.where(FleetAlertBreachHistory.alertname == alertname)
+    base = _apply_history_filters(base, source=source, breaching_only=breaching_only)
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = db.execute(count_stmt).scalar_one()

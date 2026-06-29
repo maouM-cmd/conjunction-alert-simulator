@@ -127,14 +127,28 @@ def collect_open_risk_counts(db: Session, fleet_id: uuid.UUID) -> dict[str, int]
     return counts
 
 
-def render_fleet_alert_rules(fleet_id: uuid.UUID, fleet_name: str) -> list[dict[str, Any]]:
+def render_fleet_alert_rules(
+    fleet_id: uuid.UUID,
+    fleet_name: str,
+    *,
+    breaching_only: bool = False,
+) -> list[dict[str, Any]]:
     open_threshold = fleet_open_alert_threshold()
     high_risk_threshold = fleet_high_risk_open_threshold()
     fid = str(fleet_id)
+    if breaching_only:
+        open_expr = f'cas_fleet_open_alerts_breach{{fleet_id="{fid}"}} == 1'
+        high_risk_expr = f'cas_fleet_high_risk_open_breach{{fleet_id="{fid}"}} == 1'
+    else:
+        open_expr = f'cas_fleet_alerts_total{{fleet_id="{fid}",status="open"}} > {open_threshold}'
+        high_risk_expr = (
+            f'cas_fleet_alerts_by_risk_total{{fleet_id="{fid}",risk_level="high",status="open"}}'
+            f" >= {high_risk_threshold}"
+        )
     return [
         {
             "alert": "CASFleetOpenAlertsHigh",
-            "expr": f'cas_fleet_alerts_total{{fleet_id="{fid}",status="open"}} > {open_threshold}',
+            "expr": open_expr,
             "for": "5m",
             "labels": {"fleet_id": fid},
             "annotations": {
@@ -143,10 +157,7 @@ def render_fleet_alert_rules(fleet_id: uuid.UUID, fleet_name: str) -> list[dict[
         },
         {
             "alert": "CASFleetHighRiskOpenAlerts",
-            "expr": (
-                f'cas_fleet_alerts_by_risk_total{{fleet_id="{fid}",risk_level="high",status="open"}}'
-                f" >= {high_risk_threshold}"
-            ),
+            "expr": high_risk_expr,
             "for": "5m",
             "labels": {"fleet_id": fid, "severity": "critical"},
             "annotations": {

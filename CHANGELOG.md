@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.38.0] - 2026-06-28
+
+Phase 10AE — breach gauge ルール + 履歴フィルタ。
+
+### Added
+
+- **Phase 10AE:** `GET fleet-alert-rules?breaching_only=true` — breach Gauge ベース expr
+- `render_fleet_alert_rules(breaching_only)` — `cas_fleet_*_breach == 1` ルール
+- `GET history` — `source` / `breaching_only` クエリ（単艦隊 + 管理者横断）
+- Ops UI — 履歴 source セレクト + breaching のみチェックボックス
+
 ## [1.37.0] - 2026-06-28
 
 Phase 10AD — 管理者横断 breach 履歴 + retention purge。

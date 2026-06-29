@@ -894,11 +894,16 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 
 **env（Phase 10S）:** `FLEET_ALERT_HIGH_RISK_THRESHOLD`（default 1）, `ALERTMANAGER_PUSH_ENABLED`（default false）, `ALERTMANAGER_URL`, `ALERTMANAGER_BASIC_AUTH_USER`, `ALERTMANAGER_BASIC_AUTH_PASSWORD`
 
-### GET /api/v1/ops/prometheus/fleet-alert-rules（Phase 10Q / 10S）
+### GET /api/v1/ops/prometheus/fleet-alert-rules（Phase 10Q / 10S / 10AE）
 
-クエリ: `fleet_id`（optional）、`format`（`yaml` | `json`、default `yaml`）。
+クエリ: `fleet_id`（optional）、`breaching_only`（optional、default false、Phase 10AE）、`format`（`yaml` | `json`、default `yaml`）。
 
 `FLEET_ALERT_METRICS_ENABLED=true` 時、Prometheus alerting rule 雛形を返す。`fleet_id` 省略時は admin は全 active 艦隊、fleet スコープ key は自艦隊のみ。
+
+| `breaching_only` | open expr | high-risk expr |
+|------------------|-----------|----------------|
+| false（default） | `cas_fleet_alerts_total > N` | `cas_fleet_alerts_by_risk_total >= N` |
+| true | `cas_fleet_open_alerts_breach == 1` | `cas_fleet_high_risk_open_breach == 1` |
 
 | コード | 条件 |
 |--------|------|
@@ -1112,9 +1117,9 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD / 10AE）
 
-クエリ: `fleet_id`（optional）、`alertname`（optional）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
+クエリ: `fleet_id`（optional）、`alertname`（optional）、`source`（optional、`sync` | `manual` | `sticky_clear`、Phase 10AE）、`breaching_only`（optional、Phase 10AE）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_HISTORY_ENABLED=true`（無効時 503）。
 
