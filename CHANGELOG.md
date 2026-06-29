@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.34.0] - 2026-06-28
+
+Phase 10AA — breach 横断一覧 + 手動上書き。
+
+### Added
+
+- **Phase 10AA:** `list_all_fleet_breach_states` — active 艦隊横断 breach 状態
+- `GET /ops/prometheus/alertmanager/breach-states` — `fleet_id` 省略時は管理者横断一覧
+- `PUT /ops/prometheus/alertmanager/breach-states` — opt-in 手動上書き + 監査 `alert.breach_state_manual_override`
+- `ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED` — 手動上書き gate
+- Ops UI — 全艦隊 breach テーブル（管理者）、breaching/ok 上書きボタン
+
 ## [1.33.0] - 2026-06-28
 
 Phase 10Z — DB dual push 拡張 + breach 状態 Ops UI。

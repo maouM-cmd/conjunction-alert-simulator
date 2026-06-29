@@ -7,6 +7,9 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from backend.app.db.session import get_redis_url, get_session_factory, is_database_configured
 
 REDIS_KEY_PREFIX = "cas:am:breach:"
@@ -38,8 +41,20 @@ def shared_breach_state_enabled() -> bool:
     return breach_redis_state_enabled() or breach_db_state_enabled()
 
 
+def breach_manual_override_enabled() -> bool:
+    return _env_bool("ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED", default=False)
+
+
 @dataclass(frozen=True)
 class FleetBreachStateItem:
+    alertname: str
+    is_breaching: bool
+
+
+@dataclass(frozen=True)
+class FleetBreachStateRow:
+    fleet_id: str
+    fleet_name: str | None
     alertname: str
     is_breaching: bool
 
@@ -60,6 +75,31 @@ def list_fleet_breach_states(fleet_id: str) -> list[FleetBreachStateItem]:
         )
         for alertname in FLEET_ALERTNAMES
     ]
+
+
+def list_all_fleet_breach_states(db: Session) -> list[FleetBreachStateRow]:
+    from backend.app.db.models import Fleet
+
+    fleets = db.execute(
+        select(Fleet).where(Fleet.active.is_(True)).order_by(Fleet.name)
+    ).scalars().all()
+    rows: list[FleetBreachStateRow] = []
+    for fleet in fleets:
+        fleet_id = str(fleet.id)
+        for alertname in FLEET_ALERTNAMES:
+            rows.append(
+                FleetBreachStateRow(
+                    fleet_id=fleet_id,
+                    fleet_name=fleet.name,
+                    alertname=alertname,
+                    is_breaching=get_breach_state(fleet_id, alertname),
+                )
+            )
+    return rows
+
+
+def is_valid_fleet_alertname(alertname: str) -> bool:
+    return alertname in FLEET_ALERTNAMES
 
 
 def _redis_key(fleet_id: str, alertname: str) -> str:

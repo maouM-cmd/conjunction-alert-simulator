@@ -32,7 +32,10 @@ from backend.app.models.schemas import (
     FleetOpsSummaryOut,
     FleetAlertRulesOut,
     FleetBreachStateListOut,
+    FleetBreachStateMultiListOut,
+    FleetBreachStateEntryOut,
     FleetBreachStateOut,
+    FleetBreachStateUpdate,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -700,6 +703,20 @@ def _silence_out(item: alertmanager_silence_service.SilenceItem) -> Alertmanager
     )
 
 
+def _fleet_breach_state_list_out(fleet_id: uuid.UUID) -> FleetBreachStateListOut:
+    items = breach_state_store.list_fleet_breach_states(str(fleet_id))
+    return FleetBreachStateListOut(
+        fleet_id=str(fleet_id),
+        backend=breach_state_store.breach_state_backend(),
+        manual_override_enabled=breach_state_store.breach_manual_override_enabled(),
+        items=[
+            FleetBreachStateOut(alertname=item.alertname, is_breaching=item.is_breaching)
+            for item in items
+        ],
+        total=len(items),
+    )
+
+
 @router.post("/prometheus/alertmanager/silences", response_model=AlertmanagerSilenceCreatedOut)
 def create_alertmanager_silence(
     body: AlertmanagerSilenceCreate,
@@ -725,26 +742,74 @@ def create_alertmanager_silence(
 
 @router.get(
     "/prometheus/alertmanager/breach-states",
-    response_model=FleetBreachStateListOut,
+    response_model=FleetBreachStateListOut | FleetBreachStateMultiListOut,
 )
 def list_fleet_breach_states(
-    fleet_id: str = Query(...),
+    fleet_id: str | None = None,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachStateListOut | FleetBreachStateMultiListOut:
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+
+    if fleet_id is None:
+        if is_api_key_required() and not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        rows = breach_state_store.list_all_fleet_breach_states(db)
+        return FleetBreachStateMultiListOut(
+            backend=breach_state_store.breach_state_backend(),
+            manual_override_enabled=breach_state_store.breach_manual_override_enabled(),
+            items=[
+                FleetBreachStateEntryOut(
+                    fleet_id=row.fleet_id,
+                    fleet_name=row.fleet_name,
+                    alertname=row.alertname,
+                    is_breaching=row.is_breaching,
+                )
+                for row in rows
+            ],
+            total=len(rows),
+        )
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    return _fleet_breach_state_list_out(fid)
+
+
+@router.put(
+    "/prometheus/alertmanager/breach-states",
+    response_model=FleetBreachStateListOut,
+)
+def update_fleet_breach_state(
+    body: FleetBreachStateUpdate,
+    db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> FleetBreachStateListOut:
     if not alertmanager_push_service.alertmanager_push_enabled():
         raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+    if not breach_state_store.breach_manual_override_enabled():
+        raise HTTPException(status_code=503, detail="breach 状態の手動上書きは無効です。")
+    if not breach_state_store.is_valid_fleet_alertname(body.alertname):
+        raise HTTPException(status_code=422, detail="alertname が不正です。")
 
-    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
-    items = breach_state_store.list_fleet_breach_states(str(fid))
-    return FleetBreachStateListOut(
-        fleet_id=str(fid),
-        backend=breach_state_store.breach_state_backend(),
-        items=[
-            FleetBreachStateOut(alertname=item.alertname, is_breaching=item.is_breaching)
-            for item in items
-        ],
-        total=len(items),
+    fid = _resolve_fleet_for_am_silence(principal, body.fleet_id)
+    breach_state_store.set_breach_state(str(fid), body.alertname, body.is_breaching)
+    audit_service.log_audit(
+        db,
+        fleet_id=fid,
+        action="alert.breach_state_manual_override",
+        resource_type="fleet",
+        resource_id=fid,
+        api_key_id=principal.api_key.id if principal.api_key else None,
+        detail={
+            "alertname": body.alertname,
+            "is_breaching": body.is_breaching,
+            "backend": breach_state_store.breach_state_backend(),
+        },
     )
+    db.commit()
+    return _fleet_breach_state_list_out(fid)
 
 
 @router.post(

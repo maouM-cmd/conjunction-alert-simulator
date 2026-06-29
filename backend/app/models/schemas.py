@@ -593,8 +593,29 @@ class FleetBreachStateOut(BaseModel):
 class FleetBreachStateListOut(BaseModel):
     fleet_id: str
     backend: str
+    manual_override_enabled: bool = False
     items: list[FleetBreachStateOut]
     total: int
+
+
+class FleetBreachStateEntryOut(BaseModel):
+    fleet_id: str
+    fleet_name: str | None = None
+    alertname: str
+    is_breaching: bool
+
+
+class FleetBreachStateMultiListOut(BaseModel):
+    backend: str
+    manual_override_enabled: bool = False
+    items: list[FleetBreachStateEntryOut]
+    total: int
+
+
+class FleetBreachStateUpdate(BaseModel):
+    fleet_id: str
+    alertname: str
+    is_breaching: bool
 
 
 class ConjunctionAlertListOut(BaseModel):

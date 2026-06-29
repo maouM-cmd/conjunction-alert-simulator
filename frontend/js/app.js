@@ -97,6 +97,10 @@ const els = {
   opsBreachStatesSection: document.getElementById("ops-breach-states-section"),
   opsBreachStatesStatus: document.getElementById("ops-breach-states-status"),
   opsBreachStatesTableBody: document.getElementById("ops-breach-states-table-body"),
+  opsBreachStatesActionsHeader: document.getElementById("ops-breach-states-actions-header"),
+  opsBreachStatesAllSection: document.getElementById("ops-breach-states-all-section"),
+  opsBreachStatesAllStatus: document.getElementById("ops-breach-states-all-status"),
+  opsBreachStatesAllTableBody: document.getElementById("ops-breach-states-all-table-body"),
   opsSilencesStatus: document.getElementById("ops-silences-status"),
   opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
   opsSilenceHours: document.getElementById("ops-silence-hours"),
@@ -253,6 +257,25 @@ async function apiPatch(path, body, { ops = false } = {}) {
     : { "Content-Type": "application/json" };
   const res = await fetch(`${API_BASE}${path}`, {
     method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+    credentials: ops ? "include" : "same-origin",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail;
+    const msg = typeof detail === "string" ? detail : `API エラー (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function apiPut(path, body, { ops = false } = {}) {
+  const headers = ops
+    ? getOpsApiHeaders({ "Content-Type": "application/json" })
+    : { "Content-Type": "application/json" };
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
     headers,
     body: JSON.stringify(body),
     credentials: ops ? "include" : "same-origin",
@@ -428,10 +451,53 @@ function formatBreachStateBackend(backend) {
   return labels[backend] || backend;
 }
 
+async function setOpsBreachState(fleetId, alertname, isBreaching) {
+  const label = isBreaching ? "breaching" : "ok";
+  if (!confirm(`${alertname} を ${label} に上書きしますか？`)) {
+    return;
+  }
+  try {
+    await apiPut(
+      "/api/v1/ops/prometheus/alertmanager/breach-states",
+      { fleet_id: fleetId, alertname, is_breaching: isBreaching },
+      { ops: true }
+    );
+    await refreshOpsBreachStates();
+    if (opsAuthMe.is_admin) {
+      await refreshOpsBreachStatesAll();
+    }
+    setOpsStatus(`breach 状態を ${label} に設定しました。`);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+function appendOpsBreachStateActions(tr, fleetId, item, manualOverrideEnabled) {
+  if (!manualOverrideEnabled) {
+    return;
+  }
+  const actionsTd = document.createElement("td");
+  actionsTd.className = "ops-breach-states-actions";
+  const breachBtn = document.createElement("button");
+  breachBtn.type = "button";
+  breachBtn.textContent = "breaching";
+  breachBtn.disabled = item.is_breaching;
+  breachBtn.addEventListener("click", () => setOpsBreachState(fleetId, item.alertname, true));
+  const okBtn = document.createElement("button");
+  okBtn.type = "button";
+  okBtn.textContent = "ok";
+  okBtn.disabled = !item.is_breaching;
+  okBtn.addEventListener("click", () => setOpsBreachState(fleetId, item.alertname, false));
+  actionsTd.appendChild(breachBtn);
+  actionsTd.appendChild(okBtn);
+  tr.appendChild(actionsTd);
+}
+
 async function refreshOpsBreachStates() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId || !els.opsBreachStatesSection) {
     els.opsBreachStatesSection?.classList.add("hidden");
+    els.opsBreachStatesAllSection?.classList.add("hidden");
     return;
   }
   els.opsBreachStatesSection.classList.remove("hidden");
@@ -440,6 +506,8 @@ async function refreshOpsBreachStates() {
       `/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id=${fleetId}`,
       { ops: true }
     );
+    const overrideOn = listing.manual_override_enabled === true;
+    els.opsBreachStatesActionsHeader?.classList.toggle("hidden", !overrideOn);
     els.opsBreachStatesStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)}`;
     els.opsBreachStatesTableBody.innerHTML = "";
     for (const item of listing.items) {
@@ -449,15 +517,50 @@ async function refreshOpsBreachStates() {
         <td>${item.alertname}</td>
         <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
       `;
+      appendOpsBreachStateActions(tr, fleetId, item, overrideOn);
       els.opsBreachStatesTableBody.appendChild(tr);
     }
   } catch (err) {
     if (err.message.includes("無効")) {
       els.opsBreachStatesStatus.textContent = "Alertmanager push は無効です。";
       els.opsBreachStatesTableBody.innerHTML = "";
+      els.opsBreachStatesActionsHeader?.classList.add("hidden");
       return;
     }
     els.opsBreachStatesStatus.textContent = err.message;
+  }
+}
+
+async function refreshOpsBreachStatesAll() {
+  if (!opsAuthMe.is_admin || !els.opsBreachStatesAllSection) {
+    els.opsBreachStatesAllSection?.classList.add("hidden");
+    return;
+  }
+  els.opsBreachStatesAllSection.classList.remove("hidden");
+  try {
+    const listing = await apiGet(
+      "/api/v1/ops/prometheus/alertmanager/breach-states",
+      { ops: true }
+    );
+    els.opsBreachStatesAllStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)} / ${listing.total} 行`;
+    els.opsBreachStatesAllTableBody.innerHTML = "";
+    for (const item of listing.items) {
+      const tr = document.createElement("tr");
+      const stateClass = item.is_breaching ? "ops-breach-active" : "ops-breach-ok";
+      tr.innerHTML = `
+        <td>${item.fleet_name || item.fleet_id}</td>
+        <td>${item.alertname}</td>
+        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
+      `;
+      els.opsBreachStatesAllTableBody.appendChild(tr);
+    }
+  } catch (err) {
+    if (err.message.includes("無効")) {
+      els.opsBreachStatesAllStatus.textContent = "Alertmanager push は無効です。";
+      els.opsBreachStatesAllTableBody.innerHTML = "";
+      return;
+    }
+    els.opsBreachStatesAllStatus.textContent = err.message;
   }
 }
 
@@ -598,7 +701,13 @@ async function refreshOpsDashboard() {
   if (!fleetId) {
     els.opsSilencesSection?.classList.add("hidden");
     els.opsBreachStatesSection?.classList.add("hidden");
-    setOpsStatus("艦隊を選択してください。", true);
+    if (opsAuthMe.is_admin) {
+      await refreshOpsBreachStatesAll();
+      setOpsStatus("艦隊を選択するか、全艦隊 breach 状態を確認してください。");
+    } else {
+      els.opsBreachStatesAllSection?.classList.add("hidden");
+      setOpsStatus("艦隊を選択してください。", true);
+    }
     return;
   }
   try {
@@ -839,7 +948,11 @@ async function refreshOpsDashboard() {
     }
     els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
     setOpsStatus(`${listing.total} 件のアラートを表示中。`);
-    await Promise.all([refreshOpsBreachStates(), refreshOpsSilences()]);
+    await Promise.all([
+      refreshOpsBreachStates(),
+      refreshOpsBreachStatesAll(),
+      refreshOpsSilences(),
+    ]);
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -1563,6 +1676,7 @@ function initEventListeners() {
     } else {
       els.opsSilencesSection?.classList.add("hidden");
       els.opsBreachStatesSection?.classList.add("hidden");
+    els.opsBreachStatesAllSection?.classList.add("hidden");
     }
   });
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);

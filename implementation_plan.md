@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AA — 次着手
+## Phase 10AB — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（次フェーズ要件は commercial-ops / 10Z スコープ外を参照）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（10AA スコープ外: sticky override、breach 履歴等）。
+
+## Phase 10AA — 完了
+
+breach 横断一覧 + 手動上書き。v1.34.0 ship 済み。
 
 ## Phase 10Z — 完了
 

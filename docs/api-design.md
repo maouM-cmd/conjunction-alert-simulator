@@ -1036,16 +1036,24 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 | Celery ON + DB ON | `/metrics` scrape と beat の両方から `sync_breaches`（DB 共有で重複 fire 防止） |
 | `shared_breach_state_enabled` | Redis ON **または** DB ON で metrics dual push 有効 |
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10Z）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10Z / 10AA）
 
-クエリ: `fleet_id`（必須）。艦隊スコープ認可。
+クエリ: `fleet_id`（optional）。艦隊スコープ認可。
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true`。
+
+| `fleet_id` | 認可 | 応答 |
+|----------|------|------|
+| 指定あり | fleet スコープ | `FleetBreachStateListOut` |
+| 省略 | 管理者のみ | `FleetBreachStateMultiListOut` |
+
+単艦隊応答:
 
 ```json
 {
   "fleet_id": "uuid",
   "backend": "db",
+  "manual_override_enabled": false,
   "items": [
     { "alertname": "CASFleetOpenAlertsHigh", "is_breaching": true },
     { "alertname": "CASFleetHighRiskOpenAlerts", "is_breaching": false }
@@ -1053,6 +1061,40 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
   "total": 2
 }
 ```
+
+管理者横断応答（Phase 10AA）:
+
+```json
+{
+  "backend": "memory",
+  "manual_override_enabled": true,
+  "items": [
+    {
+      "fleet_id": "uuid",
+      "fleet_name": "Ops Fleet",
+      "alertname": "CASFleetOpenAlertsHigh",
+      "is_breaching": false
+    }
+  ],
+  "total": 2
+}
+```
+
+### PUT /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10AA）
+
+前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED=true`。
+
+```json
+{
+  "fleet_id": "uuid",
+  "alertname": "CASFleetOpenAlertsHigh",
+  "is_breaching": true
+}
+```
+
+監査: `alert.breach_state_manual_override`（detail: `alertname`, `is_breaching`, `backend`）
+
+**注意:** 次回 `sync_breaches` で実メトリクスに基づき上書きされる。
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

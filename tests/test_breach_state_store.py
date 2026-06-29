@@ -237,3 +237,156 @@ def test_breach_states_disabled_returns_503(ops_client, monkeypatch):
         f"/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id={fleet_id}"
     )
     assert response.status_code == 503
+
+
+def test_breach_manual_override_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED", raising=False)
+    assert breach_state_store.breach_manual_override_enabled() is False
+
+
+def test_list_all_fleet_breach_states(ops_client, monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.delenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", raising=False)
+
+    from backend.app.services.fleet_service import create_fleet
+
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    assert factory is not None
+    db = factory()
+    try:
+        fleet_a = create_fleet(db, name="Breach Fleet A")
+        fleet_b = create_fleet(db, name="Breach Fleet B")
+        db.commit()
+        fleet_a_id = str(fleet_a.id)
+        fleet_b_id = str(fleet_b.id)
+        breach_state_store.set_breach_state(fleet_a_id, "CASFleetOpenAlertsHigh", True)
+        rows = breach_state_store.list_all_fleet_breach_states(db)
+        assert len(rows) == 4
+        by_key = {(r.fleet_id, r.alertname): r for r in rows}
+        assert by_key[(fleet_a_id, "CASFleetOpenAlertsHigh")].is_breaching is True
+        assert by_key[(fleet_a_id, "CASFleetOpenAlertsHigh")].fleet_name == "Breach Fleet A"
+        assert by_key[(fleet_b_id, "CASFleetOpenAlertsHigh")].is_breaching is False
+    finally:
+        db.close()
+
+
+def test_breach_states_admin_list_all(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Admin Breach Fleet")
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    breach_state_store.set_breach_state(fleet_id, "CASFleetHighRiskOpenAlerts", True)
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 2
+    assert "fleet_id" not in data
+    match = [item for item in data["items"] if item["fleet_id"] == fleet_id]
+    assert len(match) == 2
+    high_risk = next(i for i in match if i["alertname"] == "CASFleetHighRiskOpenAlerts")
+    assert high_risk["is_breaching"] is True
+
+
+def test_breach_states_admin_list_forbidden_for_fleet_key(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services import api_key_service
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Fleet Key Breach")
+        db.commit()
+        _, plain = api_key_service.create_api_key(db, fleet_id=fleet.id, name="ops")
+        db.commit()
+    finally:
+        db.close()
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states",
+        headers={"X-API-Key": plain},
+    )
+    assert response.status_code == 403
+
+
+def test_breach_state_manual_override(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    from backend.app.db.models import AuditLog
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Override Fleet")
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    response = ops_client.put(
+        "/api/v1/ops/prometheus/alertmanager/breach-states",
+        json={
+            "fleet_id": fleet_id,
+            "alertname": "CASFleetOpenAlertsHigh",
+            "is_breaching": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_override_enabled"] is True
+    assert data["items"][0]["is_breaching"] is True
+    assert breach_state_store.get_breach_state(fleet_id, "CASFleetOpenAlertsHigh") is True
+
+    db = factory()
+    try:
+        audits = db.query(AuditLog).filter(AuditLog.action == "alert.breach_state_manual_override").all()
+        assert len(audits) == 1
+        assert audits[0].detail["alertname"] == "CASFleetOpenAlertsHigh"
+    finally:
+        db.close()
+
+
+def test_breach_state_manual_override_disabled_returns_503(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.delenv("ALERTMANAGER_BREACH_STATE_MANUAL_OVERRIDE_ENABLED", raising=False)
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = str(uuid.uuid4())
+    response = ops_client.put(
+        "/api/v1/ops/prometheus/alertmanager/breach-states",
+        json={
+            "fleet_id": fleet_id,
+            "alertname": "CASFleetOpenAlertsHigh",
+            "is_breaching": True,
+        },
+    )
+    assert response.status_code == 503

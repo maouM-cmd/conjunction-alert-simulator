@@ -526,6 +526,25 @@ label.checkbox-row input[type="checkbox"] {
   color: #6bcf7f;
 }
 
+.ops-breach-states-actions button {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  margin-right: 0.25rem;
+}
+
+.ops-breach-states-all-section {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1a1a24;
+}
+
+.ops-breach-states-all-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
 .ops-silences-section {
   margin: 0.75rem 0;
   padding: 0.6rem;
