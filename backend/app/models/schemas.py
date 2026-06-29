@@ -528,6 +528,7 @@ class ConjunctionAlertOut(BaseModel):
     latest_mitigation_preview: MitigationPreviewOut | None = None
     latest_pc_refinement: PcRefinementOut | None = None
     escalated: bool = False
+    auto_mitigation_planned: bool = False
 
 
 class ConjunctionAlertListOut(BaseModel):

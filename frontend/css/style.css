@@ -424,6 +424,13 @@ label.checkbox-row input[type="checkbox"] {
   letter-spacing: 0.03em;
 }
 
+.ops-auto-planned {
+  font-size: 0.65rem;
+  color: #b39ddb;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
 .ops-sla-ok {
   color: #b8e0b8;
   font-weight: 600;

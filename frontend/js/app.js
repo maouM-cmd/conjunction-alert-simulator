@@ -219,6 +219,14 @@ function opsStatusBadge(status) {
   return `<span class="ops-status-badge ops-status-${status}">${status}</span>`;
 }
 
+function opsStatusCell(alert) {
+  let html = opsStatusBadge(alert.status);
+  if (alert.auto_mitigation_planned) {
+    html += '<br/><span class="ops-auto-planned">auto-planned</span>';
+  }
+  return html;
+}
+
 function formatSlaLag(hours) {
   if (hours == null) return "—";
   return `${hours.toFixed(1)}h`;
@@ -292,7 +300,7 @@ async function refreshOpsDashboard() {
         <td>${a.debris_name}<br/><small>NORAD ${a.debris_norad_id}</small></td>
         <td>${formatTime(a.tca)}</td>
         <td>${formatOpsPcHtml(a)}</td>
-        <td>${opsStatusBadge(a.status)}</td>
+        <td>${opsStatusCell(a)}</td>
         <td class="ops-actions" data-alert-id="${a.id}"></td>
       `;
       const actions = tr.querySelector(".ops-actions");

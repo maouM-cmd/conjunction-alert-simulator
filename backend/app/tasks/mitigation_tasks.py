@@ -33,12 +33,17 @@ def mitigation_sweep_task(alert_id: str) -> dict:
         notified = mitigation_service.maybe_notify_mitigation_best(
             db, uuid.UUID(alert_id), best
         )
+        planned = mitigation_service.maybe_auto_mitigation_plan(
+            db, uuid.UUID(alert_id), best
+        )
         return {
             "alert_id": alert_id,
             "trial_count": len(_previews),
             "best_preview_id": str(best.id) if best else None,
             "trigger_source": mitigation_service.TRIGGER_SCREENING_AUTO,
             "notified": notified,
+            "auto_planned": planned is not None,
+            "new_status": planned.status if planned else None,
         }
     except mitigation_service.MitigationServiceError as exc:
         logger.warning("Auto mitigation sweep failed for alert %s: %s", alert_id, exc)

@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.0] - 2026-06-28
+
+Phase 10G — Auto Mitigation Plan Transition。
+
+### Added
+
+- **Phase 10G:** 10F sweep 完了後、改善 best ありで条件付き `mitigation_planned` 自動遷移
+- `maybe_auto_mitigation_plan` — optional `open→acknowledged`（`AUTO_ACK_BEFORE_MITIGATION_PLAN`）
+- `notify_mitigation_plan_auto` — 自動対策計画遷移の追加通知
+- `ConjunctionAlertOut.auto_mitigation_planned` + Ops UI auto-planned バッジ
+- 監査: `alert.mitigation_plan_auto`
+- env: `AUTO_MITIGATION_PLAN_ENABLED`, `AUTO_ACK_BEFORE_MITIGATION_PLAN`
+
 ## [1.13.0] - 2026-06-28
 
 Phase 10F — Screening Auto COLA Sweep。

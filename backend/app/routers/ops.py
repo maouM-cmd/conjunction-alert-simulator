@@ -141,6 +141,7 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
         latest_mitigation_preview=_latest_preview_out(alert),
         latest_pc_refinement=_latest_pc_refinement_out(alert),
         escalated=_alert_escalated(alert),
+        auto_mitigation_planned=mitigation_service.is_auto_mitigation_planned(alert),
     )
 
 

@@ -64,6 +64,29 @@ def auto_mitigation_sweep_pc_min() -> float:
     return _env_float("AUTO_MITIGATION_SWEEP_PC_MIN", DEFAULT_PC_THRESHOLD)
 
 
+def auto_mitigation_plan_enabled() -> bool:
+    return _env_bool("AUTO_MITIGATION_PLAN_ENABLED", default=False)
+
+
+def auto_ack_before_mitigation_plan() -> bool:
+    return _env_bool("AUTO_ACK_BEFORE_MITIGATION_PLAN", default=False)
+
+
+def is_improving_best(best: AlertMitigationPreview | None) -> bool:
+    if best is None:
+        return False
+    return best.after_miss_distance_km > best.before_miss_distance_km
+
+
+def is_auto_mitigation_planned(alert: ConjunctionAlert) -> bool:
+    if alert.status != "mitigation_planned":
+        return False
+    if not alert.mitigation_previews:
+        return False
+    latest = alert.mitigation_previews[0]
+    return latest.trigger_source == TRIGGER_SCREENING_AUTO
+
+
 def should_auto_mitigation_sweep(
     *,
     escalated: bool,
@@ -335,6 +358,70 @@ def maybe_notify_mitigation_best(
 
     result = notify_mitigation_best(alert, best)
     return result.sent
+
+
+def maybe_auto_mitigation_plan(
+    db: Session,
+    alert_id: uuid.UUID,
+    best: AlertMitigationPreview | None,
+) -> ConjunctionAlert | None:
+    if not auto_mitigation_plan_enabled() or not is_improving_best(best):
+        return None
+
+    alert = db.execute(
+        select(ConjunctionAlert)
+        .options(joinedload(ConjunctionAlert.satellite))
+        .where(ConjunctionAlert.id == alert_id)
+    ).scalar_one_or_none()
+    if alert is None or best is None:
+        return None
+
+    auto_ack = False
+    if alert.status == "open" and auto_ack_before_mitigation_plan():
+        from backend.app.services import alert_service
+
+        alert = alert_service.transition_alert(
+            db,
+            alert_id,
+            new_status="acknowledged",
+            comment="auto-ack before mitigation plan",
+            api_key_id=None,
+        )
+        auto_ack = True
+
+    if alert.status != "acknowledged":
+        return None
+
+    updated = transition_alert_with_preview(
+        db,
+        alert_id,
+        preview_id=best.id,
+        comment="[auto mitigation plan]",
+        api_key_id=None,
+    )
+
+    from backend.app.services import alert_service, audit_service
+    from backend.app.services.webhook_notifier import notify_mitigation_plan_auto
+
+    audit_service.log_audit(
+        db,
+        fleet_id=updated.fleet_id,
+        action="alert.mitigation_plan_auto",
+        resource_type="alert",
+        resource_id=updated.id,
+        api_key_id=None,
+        detail={
+            "preview_id": str(best.id),
+            "delta_v_ms": best.delta_v_ms,
+            "direction": best.direction,
+            "auto_ack": auto_ack,
+            "trigger_source": best.trigger_source,
+        },
+    )
+    db.commit()
+    notify_alert = alert_service.get_alert(db, alert_id)
+    notify_mitigation_plan_auto(notify_alert, best)
+    return notify_alert
 
 
 def transition_alert_with_preview(

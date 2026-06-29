@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10G — 次着手
+## Phase 10H — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、API 99.9% SLA、`mitigation_planned` 自動遷移 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、API 99.9% SLA 等）。
+
+## Phase 10G — 完了
+
+10F sweep 後の改善 best による `mitigation_planned` 自動遷移、optional auto-ack、`notify_mitigation_plan_auto`、Ops auto-planned バッジ。v1.14.0 ship 済み。
 
 ## Phase 10F — 完了
 
