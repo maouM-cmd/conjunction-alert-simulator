@@ -677,12 +677,16 @@ function formatOpsPcHtml(alert) {
     ref.trigger_source === "screening_auto"
       ? ' <span class="ops-pc-auto">auto</span>'
       : "";
+  const propagatedBadge =
+    ref.covariance_source === "tle_rtn_propagated"
+      ? ' <span class="ops-pc-propagated">propagated σ</span>'
+      : "";
   const escalatedBadge = alert.escalated
     ? '<br/><span class="ops-pc-escalated">ESCALATED</span>'
     : "";
   return (
     `<span class="ops-pc-screening">${screening}</span>` +
-    `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})${autoBadge}</span>` +
+    `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})${autoBadge}${propagatedBadge}</span>` +
     escalatedBadge
   );
 }
@@ -694,7 +698,9 @@ function showPcRefinementResult(container, refinement) {
   div.className = "ops-pc-refinement-result";
   const methodLabel =
     refinement.pc_method === "cdm_rtn" ? "CDM RTN" : "TLE RTN";
-  div.textContent = `Pc refined: ${formatPc(refinement.pc_screening)} → ${formatPc(refinement.pc_refined)} (${methodLabel})`;
+  const propagatedBadge =
+    refinement.covariance_source === "tle_rtn_propagated" ? " propagated σ" : "";
+  div.textContent = `Pc refined: ${formatPc(refinement.pc_screening)} → ${formatPc(refinement.pc_refined)} (${methodLabel}${propagatedBadge})`;
   container.appendChild(div);
 }
 
@@ -778,6 +784,7 @@ function renderConjunctions(data) {
         ? `Pc: ${formatPc(c.pc)} (Alfriend) / Foster: ${formatPc(c.pc_foster)}` +
           (c.pc_monte_carlo != null ? ` / MC: ${formatPc(c.pc_monte_carlo)}` : "") +
           (c.covariance_source === "tle_rtn_anisotropic" ? " (非等方 σ)" : "") +
+          (c.covariance_source === "tle_rtn_propagated" ? " (伝播 σ)" : "") +
           (c.sigma_source === "cdm_covariance" ? " (CDM σ)" : "")
         : `Pc: ${formatPc(c.pc)} (Foster)` +
           (c.sigma_source === "cdm_covariance" ? " (CDM σ)" : "");

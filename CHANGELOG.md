@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.18.0] - 2026-06-28
+
+Phase 10K — TLE RTN 共分散伝播強化。
+
+### Added
+
+- **Phase 10K:** TLE epoch から TCA まで RTN 軸別時間成長伝播
+- `covariance_propagation_service` — `propagate_rtn_variance`、成長率 env
+- `covariance_source: tle_rtn_propagated`（screening / Pc 再計算 / `/conjunctions`）
+- Ops UI: propagated σ バッジ
+- env: `COV_PROPAGATION_ENABLED`（default false）、`COV_PROP_*_GROWTH_PER_DAY`
+
 ## [1.17.0] - 2026-06-28
 
 Phase 10J — API SLO DB 永続化。

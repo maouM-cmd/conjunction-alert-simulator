@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10K — 次着手
+## Phase 10L — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（共分散伝播強化 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（PagerDuty、CDM σ TCA シフト 等）。
+
+## Phase 10K — 完了
+
+TLE RTN 共分散 epoch→TCA 伝播、encounter Pc 統合、Ops propagated バッジ。v1.18.0 ship 済み。
 
 ## Phase 10J — 完了
 

@@ -417,6 +417,13 @@ label.checkbox-row input[type="checkbox"] {
   margin-left: 0.15rem;
 }
 
+.ops-pc-propagated {
+  font-size: 0.62rem;
+  color: #ce93d8;
+  font-weight: 600;
+  margin-left: 0.15rem;
+}
+
 .ops-pc-escalated {
   font-size: 0.65rem;
   color: #ffab91;

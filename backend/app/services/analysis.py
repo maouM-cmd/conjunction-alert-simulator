@@ -13,6 +13,7 @@ from backend.app.services.cdm_pc_enrichment import apply_cdm_covariance_to_event
 from backend.app.services.cdm_spacetrack_merge import apply_spacetrack_cdm_to_events
 from backend.app.services.conjunction import ConjunctionEvent, detect_conjunctions, resolve_risk_level
 from backend.app.services.pc_advanced import MC_TOP_N
+from backend.app.services.covariance_propagation_service import anisotropic_covariance_source
 from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
 from backend.app.services.pc_calculator import compute_pc_for_conjunction
 from backend.app.services.propagator import OrbitPoint, create_satrec, propagate_orbit
@@ -141,7 +142,7 @@ def _enrich_with_pc(
             include_monte_carlo=False,
             use_anisotropic_cov=anisotropic,
         )
-        cov_source = "tle_rtn_anisotropic" if anisotropic else "isotropic"
+        cov_source = anisotropic_covariance_source() if anisotropic else "isotropic"
         risk = resolve_risk_level(event.miss_distance_km, threshold_km, pc=enc.alfriend)
         enriched.append(
             replace(

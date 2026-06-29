@@ -58,14 +58,22 @@ def encounter_covariance_from_tle_pair(
     v_rel: np.ndarray,
     analysis_time: datetime,
     sigma_km: float | None = None,
+    *,
+    use_propagation: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Build encounter-plane 2x2 covariance and miss vector from TLE RTN estimates.
 
     Returns (C_2x2, b_2d).
     """
-    rtn1 = rtn_variance_from_tle(satellite, analysis_time, sigma_km)
-    rtn2 = rtn_variance_from_tle(debris, analysis_time, sigma_km)
+    if use_propagation:
+        from backend.app.services.covariance_propagation_service import propagate_rtn_variance
+
+        rtn1 = propagate_rtn_variance(satellite, analysis_time, sigma_km)
+        rtn2 = propagate_rtn_variance(debris, analysis_time, sigma_km)
+    else:
+        rtn1 = rtn_variance_from_tle(satellite, analysis_time, sigma_km)
+        rtn2 = rtn_variance_from_tle(debris, analysis_time, sigma_km)
     c1 = rtn_variance_to_matrix(rtn1)
     c2 = rtn_variance_to_matrix(rtn2)
 

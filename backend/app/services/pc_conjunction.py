@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from backend.app.services.encounter_plane import encounter_frame_rotation, miss_vector_encounter
+from backend.app.services.covariance_propagation_service import cov_propagation_enabled
 from backend.app.services.tle_rtn_covariance import encounter_covariance_from_tle_pair
 from backend.app.services.pc_advanced import (
     BULK_ALFRIEND_N_R,
@@ -61,6 +62,7 @@ def pc_for_tle_pair_at_index(
             v_rel,
             tca_time,
             sigma_km=sigma_km,
+            use_propagation=cov_propagation_enabled(),
         )
     else:
         r_enc = encounter_frame_rotation(r_rel, v_rel)

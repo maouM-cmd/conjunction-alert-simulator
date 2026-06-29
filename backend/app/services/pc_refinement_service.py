@@ -12,6 +12,10 @@ from sqlalchemy.orm import Session, joinedload
 from backend.app.db.models import AlertPcRefinement, ConjunctionAlert
 from backend.app.services.cdm_spacetrack_merge import apply_spacetrack_cdm_to_events
 from backend.app.services.conjunction import ConjunctionEvent, find_closest_approach
+from backend.app.services.covariance_propagation_service import (
+    anisotropic_covariance_source,
+    cov_propagation_enabled,
+)
 from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
 from backend.app.services.propagator import propagate_orbit
 from backend.app.services.tle_fetcher import find_tle_by_norad_id
@@ -173,7 +177,11 @@ def refine_alert_pc(
         )
         pc_refined = float(enc.foster)
         pc_method = "tle_rtn"
-        covariance_source = "tle_age"
+        covariance_source = (
+            anisotropic_covariance_source()
+            if cov_propagation_enabled()
+            else "tle_age"
+        )
 
     refinement = AlertPcRefinement(
         alert_id=alert.id,

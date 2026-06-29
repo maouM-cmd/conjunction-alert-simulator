@@ -57,7 +57,7 @@ cas_screening_overdue_fleets 0.0
 cas_http_requests_total{method="GET",status_class="2xx"} 42.0
 cas_api_availability_ratio 0.9995
 cas_api_slo_ok 1.0
-cas_info{version="1.17.0"} 1.0
+cas_info{version="1.18.0"} 1.0
 ```
 
 | メトリクス | 説明 |
@@ -176,6 +176,7 @@ cas_screening_overdue_fleets > 0
 `use_advanced_pc=false` 時は `pc` のみ（Foster）、`pc_method_used: foster`。  
 `use_advanced_pc=true` 時は primary `pc` = Alfriend、MC は Alfriend 降順上位 5 件のみ `pc_monte_carlo` が非 null。  
 `use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
+`COV_PROPAGATION_ENABLED=true` 時は `covariance_source: tle_rtn_propagated`（Phase 10K）。  
 `apply_cdm_covariance=true` + `cdm_text` で該当デブリに `sigma_source: cdm_covariance` / `covariance_source: cdm_encounter`。  
 `auto_spacetrack_cdm=true` で Space-Track から CDM を自動マージ（`cdm_text` がある場合は手動優先）。認証未設定時は merged=0 で解析継続。  
 `notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
@@ -841,6 +842,8 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 **env（Phase 10H）:** `SLA_API_TARGET_PERCENT`（default 99.9）, `SLA_API_ROLLING_WINDOW_HOURS`（default 720）
 
 **env（Phase 10J）:** `SLA_API_PERSIST_ENABLED`（default false）, `SLA_API_RETENTION_DAYS`（default 90）
+
+**env（Phase 10K）:** `COV_PROPAGATION_ENABLED`（default false）, `COV_PROP_R_GROWTH_PER_DAY`（default 0.10）, `COV_PROP_T_GROWTH_PER_DAY`（default 0.05）, `COV_PROP_N_GROWTH_PER_DAY`（default 0.05）
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J）
 
