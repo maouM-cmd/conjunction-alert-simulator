@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.db.models import ConjunctionAlert, Fleet, Satellite, ScreeningRun
-from backend.app.services.alert_stm_service import ALLOWED_TRANSITIONS, ALL_ALERT_STATUSES
+from backend.app.services.alert_stm_service import ALL_ALERT_STATUSES, effective_allowed_transitions
 from backend.app.services import fleet_alert_metrics_service
 from backend.app.services.analysis import ConjunctionAnalysisResult
 from backend.app.services.webhook_notifier import filter_alert_events
@@ -175,7 +175,7 @@ def transition_alert(
     skip_pagerduty_outbound: bool = False,
 ) -> ConjunctionAlert:
     alert = get_alert(db, alert_id)
-    allowed = ALLOWED_TRANSITIONS.get(alert.status, set())
+    allowed = effective_allowed_transitions().get(alert.status, set())
     if new_status not in allowed:
         raise ValidationError(
             f"状態 {alert.status} から {new_status} への遷移は許可されていません。"

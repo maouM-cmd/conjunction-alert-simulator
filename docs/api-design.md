@@ -935,6 +935,33 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 `FleetOpsSummaryOut` に `open_high_count`, `open_medium_count`, `open_low_count`（Phase 10S）。
 
+**env（Phase 10T）:** `ALERT_STM_REOPEN_TO_OPEN_ENABLED`（default false）, `ALERTMANAGER_SILENCES_ENABLED`（default false）, `ALERTMANAGER_SILENCE_DEFAULT_HOURS`（default 4）
+
+`GET /api/v1/ops/alerts/state-machine` — `reopen_to_open_enabled` フィールド追加。reopen ON 時 `acknowledged` / `escalated` / `false_positive` から `open` へ遷移可能。
+
+### POST /api/v1/ops/prometheus/alertmanager/silences（Phase 10T）
+
+`ALERTMANAGER_SILENCES_ENABLED=true` かつ `ALERTMANAGER_URL` 設定時、fleet 単位 silence を作成。
+
+```json
+{
+  "fleet_id": "uuid",
+  "alertname": "CASFleetOpenAlertsHigh",
+  "duration_hours": 4,
+  "comment": "maintenance window"
+}
+```
+
+| コード | 条件 |
+|--------|------|
+| 200 | silence 作成成功 |
+| 403 | 他艦隊へのアクセス |
+| 503 | silences 無効 / AM エラー |
+
+### GET /api/v1/ops/prometheus/alertmanager/silences（Phase 10T）
+
+クエリ: `fleet_id`（optional）。active silences 一覧。admin は全件、fleet key は自艦隊のみ。
+
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 
 クエリ: `days`（1〜90、default 30）、`fleet_id`（optional、Phase 10N）。UTC 日次 API 可用性 rollup。`fleet_id` 未指定時は global API SLO。

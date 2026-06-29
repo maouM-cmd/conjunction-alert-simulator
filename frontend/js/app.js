@@ -278,6 +278,7 @@ async function loadOpsFleets() {
 }
 
 const OPS_TRANSITION_LABELS = {
+  open: "再オープン",
   acknowledged: "Ack",
   false_positive: "誤検知",
   escalated: "エスカレーション",

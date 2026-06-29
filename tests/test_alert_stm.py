@@ -195,3 +195,63 @@ def test_alert_out_includes_allowed_next_statuses(ops_client, monkeypatch):
     data = response.json()
     assert "escalated" in data["allowed_next_statuses"]
     assert "acknowledged" in data["allowed_next_statuses"]
+
+
+def test_reopen_off_acknowledged_to_open_rejected(db_session, monkeypatch):
+    monkeypatch.delenv("ALERT_STM_REOPEN_TO_OPEN_ENABLED", raising=False)
+    alert = _seed_open_alert(db_session)
+    transition_alert(db_session, alert.id, new_status="acknowledged")
+    with pytest.raises(ValidationError):
+        transition_alert(db_session, alert.id, new_status="open")
+
+
+@pytest.mark.parametrize("from_status", ["acknowledged", "escalated", "false_positive"])
+def test_reopen_on_transition_to_open(db_session, monkeypatch, from_status):
+    monkeypatch.setenv("ALERT_STM_REOPEN_TO_OPEN_ENABLED", "true")
+    alert = _seed_open_alert(db_session)
+    if from_status == "escalated":
+        transition_alert(db_session, alert.id, new_status="escalated")
+    elif from_status == "acknowledged":
+        transition_alert(db_session, alert.id, new_status="acknowledged")
+    elif from_status == "false_positive":
+        transition_alert(db_session, alert.id, new_status="false_positive")
+    updated = transition_alert(db_session, alert.id, new_status="open")
+    assert updated.status == "open"
+
+
+def test_reopen_on_closed_to_open_still_rejected(db_session, monkeypatch):
+    monkeypatch.setenv("ALERT_STM_REOPEN_TO_OPEN_ENABLED", "true")
+    alert = _seed_open_alert(db_session)
+    transition_alert(db_session, alert.id, new_status="acknowledged")
+    transition_alert(db_session, alert.id, new_status="closed")
+    with pytest.raises(ValidationError):
+        transition_alert(db_session, alert.id, new_status="open")
+
+
+def test_state_machine_reflects_reopen(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERT_STM_REOPEN_TO_OPEN_ENABLED", "true")
+    response = ops_client.get("/api/v1/ops/alerts/state-machine")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["reopen_to_open_enabled"] is True
+    assert "open" in data["allowed_transitions"]["acknowledged"]
+
+
+def test_allowed_next_includes_open_when_reopen_on(ops_client, monkeypatch):
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+    monkeypatch.setenv("ALERT_STM_REOPEN_TO_OPEN_ENABLED", "true")
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    assert factory is not None
+    db = factory()
+    try:
+        alert = _seed_open_alert(db)
+        transition_alert(db, alert.id, new_status="acknowledged")
+        alert_id = str(alert.id)
+    finally:
+        db.close()
+
+    response = ops_client.get(f"/api/v1/ops/alerts/{alert_id}")
+    assert response.status_code == 200
+    assert "open" in response.json()["allowed_next_statuses"]

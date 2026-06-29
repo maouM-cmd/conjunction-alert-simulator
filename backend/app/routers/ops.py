@@ -15,6 +15,10 @@ from backend.app.models.schemas import (
     AlertStatus,
     AlertStateMachineOut,
     AlertTransition,
+    AlertmanagerSilenceCreate,
+    AlertmanagerSilenceCreatedOut,
+    AlertmanagerSilenceListOut,
+    AlertmanagerSilenceOut,
     AlertmanagerTestOut,
     ApiSloDayOut,
     ApiSloHistoryOut,
@@ -39,6 +43,7 @@ from backend.app.services import (
     alert_service,
     alert_stm_service,
     alertmanager_push_service,
+    alertmanager_silence_service,
     api_availability_service,
     audit_service,
     fleet_alert_metrics_service,
@@ -667,6 +672,73 @@ def alertmanager_test_push(
     if not result.sent:
         raise HTTPException(status_code=503, detail=result.message)
     return AlertmanagerTestOut(sent=result.sent, message=result.message)
+
+
+def _resolve_fleet_for_am_silence(
+    principal: AuthPrincipal,
+    fleet_id: str,
+) -> uuid.UUID:
+    fid = _parse_uuid(fleet_id, "fleet_id")
+    check_fleet_access(principal, fid)
+    return fid
+
+
+def _silence_out(item: alertmanager_silence_service.SilenceItem) -> AlertmanagerSilenceOut:
+    return AlertmanagerSilenceOut(
+        silence_id=item.silence_id,
+        fleet_id=item.fleet_id,
+        alertname=item.alertname,
+        starts_at=item.starts_at,
+        ends_at=item.ends_at,
+        comment=item.comment,
+    )
+
+
+@router.post("/prometheus/alertmanager/silences", response_model=AlertmanagerSilenceCreatedOut)
+def create_alertmanager_silence(
+    body: AlertmanagerSilenceCreate,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertmanagerSilenceCreatedOut:
+    if is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=403, detail="管理者または艦隊 API Key が必要です。")
+    fid = _resolve_fleet_for_am_silence(principal, body.fleet_id)
+    if not alertmanager_silence_service.alertmanager_silences_configured():
+        raise HTTPException(status_code=503, detail="Alertmanager silences は無効です。")
+    result = alertmanager_silence_service.create_fleet_silence(
+        fid,
+        alertname=body.alertname,
+        duration_hours=body.duration_hours,
+        comment=body.comment,
+    )
+    if not result.ok or not result.silence_id:
+        raise HTTPException(status_code=503, detail=result.message)
+    return AlertmanagerSilenceCreatedOut(silence_id=result.silence_id, message=result.message)
+
+
+@router.get("/prometheus/alertmanager/silences", response_model=AlertmanagerSilenceListOut)
+def list_alertmanager_silences(
+    fleet_id: str | None = None,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertmanagerSilenceListOut:
+    if not alertmanager_silence_service.alertmanager_silences_configured():
+        raise HTTPException(status_code=503, detail="Alertmanager silences は無効です。")
+
+    scoped_fleet: uuid.UUID | None = None
+    if fleet_id is not None:
+        scoped_fleet = _resolve_fleet_for_am_silence(principal, fleet_id)
+    elif is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=403, detail="管理者または艦隊 API Key が必要です。")
+        scoped_fleet = scoped
+
+    items, error = alertmanager_silence_service.list_silences(scoped_fleet)
+    if error:
+        raise HTTPException(status_code=503, detail=error)
+    out = [_silence_out(item) for item in items]
+    return AlertmanagerSilenceListOut(items=out, total=len(out))
 
 
 @router.get("/audit", response_model=AuditLogListOut)

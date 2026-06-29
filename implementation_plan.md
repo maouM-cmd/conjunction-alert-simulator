@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10T — 次着手
+## Phase 10U — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（STM `open` 巻き戻し、Alertmanager silences 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（triage 自動 silence、Celery 定期 AM push 等）。
+
+## Phase 10T — 完了
+
+STM `open` 巻き戻し（opt-in）+ Alertmanager silences API。v1.27.0 ship 済み。
 
 ## Phase 10S — 完了
 

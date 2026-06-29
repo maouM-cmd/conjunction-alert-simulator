@@ -541,6 +541,33 @@ class AlertStateMachineOut(BaseModel):
     statuses: list[str]
     allowed_transitions: dict[str, list[str]]
     matrix: list[list[bool]]
+    reopen_to_open_enabled: bool = False
+
+
+class AlertmanagerSilenceCreate(BaseModel):
+    fleet_id: str
+    alertname: str | None = None
+    duration_hours: float = Field(default=4.0, gt=0, le=720)
+    comment: str | None = None
+
+
+class AlertmanagerSilenceOut(BaseModel):
+    silence_id: str
+    fleet_id: str | None = None
+    alertname: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    comment: str | None = None
+
+
+class AlertmanagerSilenceListOut(BaseModel):
+    items: list[AlertmanagerSilenceOut]
+    total: int
+
+
+class AlertmanagerSilenceCreatedOut(BaseModel):
+    silence_id: str
+    message: str
 
 
 class ConjunctionAlertListOut(BaseModel):

@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.27.0] - 2026-06-28
+
+Phase 10T — STM `open` 巻き戻し + Alertmanager silences。
+
+### Added
+
+- **Phase 10T:** `ALERT_STM_REOPEN_TO_OPEN_ENABLED` — `acknowledged` / `escalated` / `false_positive` → `open`（opt-in）
+- `alert_stm_service.effective_allowed_transitions()` — reopen 統合
+- `alertmanager_silence_service` — `POST/GET /api/v2/silences` 連携
+- `POST /ops/prometheus/alertmanager/silences`, `GET` 一覧 API
+- `AlertStateMachineOut.reopen_to_open_enabled`
+- env: `ALERTMANAGER_SILENCES_ENABLED`, `ALERTMANAGER_SILENCE_DEFAULT_HOURS`
+
 ## [1.26.0] - 2026-06-28
 
 Phase 10S — risk_level 別メトリクス + Alertmanager push。

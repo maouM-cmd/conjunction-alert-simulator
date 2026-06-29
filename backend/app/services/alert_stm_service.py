@@ -1,4 +1,4 @@
-"""Alert state transition matrix — single source of truth (Phase 10R)."""
+"""Alert state transition matrix — single source of truth (Phase 10R / 10T)."""
 
 from __future__ import annotations
 
@@ -23,6 +23,10 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "false_positive": set(),
 }
 
+REOPEN_TO_OPEN_SOURCES: frozenset[str] = frozenset(
+    {"acknowledged", "escalated", "false_positive"}
+)
+
 
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name, "").strip().lower()
@@ -35,12 +39,24 @@ def stm_auto_escalate_status_enabled() -> bool:
     return _env_bool("ALERT_STM_AUTO_ESCALATE_STATUS", default=False)
 
 
+def reopen_to_open_enabled() -> bool:
+    return _env_bool("ALERT_STM_REOPEN_TO_OPEN_ENABLED", default=False)
+
+
+def effective_allowed_transitions() -> dict[str, set[str]]:
+    transitions = {status: set(targets) for status, targets in ALLOWED_TRANSITIONS.items()}
+    if reopen_to_open_enabled():
+        for from_status in REOPEN_TO_OPEN_SOURCES:
+            transitions.setdefault(from_status, set()).add("open")
+    return transitions
+
+
 def is_transition_allowed(from_status: str, to_status: str) -> bool:
-    return to_status in ALLOWED_TRANSITIONS.get(from_status, set())
+    return to_status in effective_allowed_transitions().get(from_status, set())
 
 
 def allowed_targets(from_status: str) -> list[str]:
-    return sorted(ALLOWED_TRANSITIONS.get(from_status, set()))
+    return sorted(effective_allowed_transitions().get(from_status, set()))
 
 
 def target_for_acknowledge(from_status: str) -> str | None:
@@ -73,4 +89,5 @@ def state_machine_payload() -> dict[str, Any]:
             status: allowed_targets(status) for status in ALL_ALERT_STATUSES
         },
         "matrix": stm_matrix(),
+        "reopen_to_open_enabled": reopen_to_open_enabled(),
     }
