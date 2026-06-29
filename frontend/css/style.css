@@ -490,6 +490,42 @@ label.checkbox-row input[type="checkbox"] {
   color: #aaa;
 }
 
+.ops-breach-states-section {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1a1a24;
+}
+
+.ops-breach-states-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.ops-breach-states-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.ops-breach-states-table th,
+.ops-breach-states-table td {
+  border: 1px solid #3a3a4a;
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+}
+
+.ops-breach-active {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.ops-breach-ok {
+  color: #6bcf7f;
+}
+
 .ops-silences-section {
   margin: 0.75rem 0;
   padding: 0.6rem;

@@ -1029,6 +1029,31 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 | store 優先順位 | Redis > DB > in-memory |
 | Celery ON + Redis ON | `/metrics` scrape と beat の両方から `sync_breaches`（Redis 共有で重複 fire 防止） |
 
+**Phase 10Z — DB dual push 拡張 + breach 状態 UI**
+
+| env | 挙動 |
+|-----|------|
+| Celery ON + DB ON | `/metrics` scrape と beat の両方から `sync_breaches`（DB 共有で重複 fire 防止） |
+| `shared_breach_state_enabled` | Redis ON **または** DB ON で metrics dual push 有効 |
+
+### GET /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10Z）
+
+クエリ: `fleet_id`（必須）。艦隊スコープ認可。
+
+前提: `ALERTMANAGER_PUSH_ENABLED=true`。
+
+```json
+{
+  "fleet_id": "uuid",
+  "backend": "db",
+  "items": [
+    { "alertname": "CASFleetOpenAlertsHigh", "is_breaching": true },
+    { "alertname": "CASFleetHighRiskOpenAlerts", "is_breaching": false }
+  ],
+  "total": 2
+}
+```
+
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 
 クエリ: `days`（1〜90、default 30）、`fleet_id`（optional、Phase 10N）。UTC 日次 API 可用性 rollup。`fleet_id` 未指定時は global API SLO。

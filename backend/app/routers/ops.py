@@ -31,6 +31,8 @@ from backend.app.models.schemas import (
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
     FleetAlertRulesOut,
+    FleetBreachStateListOut,
+    FleetBreachStateOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -48,6 +50,7 @@ from backend.app.services import (
     alertmanager_push_service,
     alertmanager_silence_service,
     api_availability_service,
+    breach_state_store,
     audit_service,
     fleet_alert_metrics_service,
     fleet_api_availability_service,
@@ -718,6 +721,30 @@ def create_alertmanager_silence(
     if not result.ok or not result.silence_id:
         raise HTTPException(status_code=503, detail=result.message)
     return AlertmanagerSilenceCreatedOut(silence_id=result.silence_id, message=result.message)
+
+
+@router.get(
+    "/prometheus/alertmanager/breach-states",
+    response_model=FleetBreachStateListOut,
+)
+def list_fleet_breach_states(
+    fleet_id: str = Query(...),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachStateListOut:
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    items = breach_state_store.list_fleet_breach_states(str(fid))
+    return FleetBreachStateListOut(
+        fleet_id=str(fid),
+        backend=breach_state_store.breach_state_backend(),
+        items=[
+            FleetBreachStateOut(alertname=item.alertname, is_breaching=item.is_breaching)
+            for item in items
+        ],
+        total=len(items),
+    )
 
 
 @router.post(

@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10Z — 次着手
+## Phase 10AA — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（DB 共有 dual push 拡張、breach 状態 UI 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（次フェーズ要件は commercial-ops / 10Z スコープ外を参照）。
+
+## Phase 10Z — 完了
+
+DB 共有 dual push 拡張 + breach 状態 Ops UI。v1.33.0 ship 済み。
 
 ## Phase 10Y — 完了
 

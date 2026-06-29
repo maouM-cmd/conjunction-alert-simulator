@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.33.0] - 2026-06-28
+
+Phase 10Z — DB dual push 拡張 + breach 状態 Ops UI。
+
+### Added
+
+- **Phase 10Z:** `shared_breach_state_enabled` — Redis または DB 共有時に metrics dual push
+- `should_sync_breaches_on_metrics_scrape()` — Celery ON + DB ON でも `/metrics` から breach push
+- `list_fleet_breach_states` / `breach_state_backend` — 艦隊 breach 状態参照
+- `GET /ops/prometheus/alertmanager/breach-states` — fleet スコープ breach 状態 API
+- Ops UI — Alertmanager Breach 状態テーブル（breaching / ok 表示）
+
 ## [1.32.0] - 2026-06-28
 
 Phase 10Y — silence 選択 bulk 削除。

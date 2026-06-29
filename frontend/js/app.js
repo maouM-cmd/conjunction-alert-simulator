@@ -94,6 +94,9 @@ const els = {
   btnOpsSsoLogin: document.getElementById("btn-ops-sso-login"),
   btnOpsSsoLogout: document.getElementById("btn-ops-sso-logout"),
   opsSilencesSection: document.getElementById("ops-silences-section"),
+  opsBreachStatesSection: document.getElementById("ops-breach-states-section"),
+  opsBreachStatesStatus: document.getElementById("ops-breach-states-status"),
+  opsBreachStatesTableBody: document.getElementById("ops-breach-states-table-body"),
   opsSilencesStatus: document.getElementById("ops-silences-status"),
   opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
   opsSilenceHours: document.getElementById("ops-silence-hours"),
@@ -416,6 +419,48 @@ function updateOpsSilencesDeleteSelectedButton() {
   els.btnOpsSilencesDeleteSelected.disabled = !checked || checked.length === 0;
 }
 
+function formatBreachStateLabel(isBreaching) {
+  return isBreaching ? "breaching" : "ok";
+}
+
+function formatBreachStateBackend(backend) {
+  const labels = { redis: "Redis", db: "DB", memory: "in-memory" };
+  return labels[backend] || backend;
+}
+
+async function refreshOpsBreachStates() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId || !els.opsBreachStatesSection) {
+    els.opsBreachStatesSection?.classList.add("hidden");
+    return;
+  }
+  els.opsBreachStatesSection.classList.remove("hidden");
+  try {
+    const listing = await apiGet(
+      `/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id=${fleetId}`,
+      { ops: true }
+    );
+    els.opsBreachStatesStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)}`;
+    els.opsBreachStatesTableBody.innerHTML = "";
+    for (const item of listing.items) {
+      const tr = document.createElement("tr");
+      const stateClass = item.is_breaching ? "ops-breach-active" : "ops-breach-ok";
+      tr.innerHTML = `
+        <td>${item.alertname}</td>
+        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
+      `;
+      els.opsBreachStatesTableBody.appendChild(tr);
+    }
+  } catch (err) {
+    if (err.message.includes("無効")) {
+      els.opsBreachStatesStatus.textContent = "Alertmanager push は無効です。";
+      els.opsBreachStatesTableBody.innerHTML = "";
+      return;
+    }
+    els.opsBreachStatesStatus.textContent = err.message;
+  }
+}
+
 async function refreshOpsSilences() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId || !els.opsSilencesSection) {
@@ -552,6 +597,7 @@ async function refreshOpsDashboard() {
   }
   if (!fleetId) {
     els.opsSilencesSection?.classList.add("hidden");
+    els.opsBreachStatesSection?.classList.add("hidden");
     setOpsStatus("艦隊を選択してください。", true);
     return;
   }
@@ -793,7 +839,7 @@ async function refreshOpsDashboard() {
     }
     els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
     setOpsStatus(`${listing.total} 件のアラートを表示中。`);
-    await refreshOpsSilences();
+    await Promise.all([refreshOpsBreachStates(), refreshOpsSilences()]);
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -1516,6 +1562,7 @@ function initEventListeners() {
       refreshOpsDashboard();
     } else {
       els.opsSilencesSection?.classList.add("hidden");
+      els.opsBreachStatesSection?.classList.add("hidden");
     }
   });
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);

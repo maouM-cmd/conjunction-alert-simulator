@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from backend.app.db.session import get_redis_url, get_session_factory, is_database_configured
 
 REDIS_KEY_PREFIX = "cas:am:breach:"
+FLEET_ALERTNAMES = (
+    "CASFleetOpenAlertsHigh",
+    "CASFleetHighRiskOpenAlerts",
+)
 
 _memory_state: dict[tuple[str, str], bool] = {}
 _redis_client = None
@@ -27,6 +32,34 @@ def breach_redis_state_enabled() -> bool:
 
 def breach_db_state_enabled() -> bool:
     return _env_bool("ALERTMANAGER_PUSH_DB_STATE_ENABLED", default=False)
+
+
+def shared_breach_state_enabled() -> bool:
+    return breach_redis_state_enabled() or breach_db_state_enabled()
+
+
+@dataclass(frozen=True)
+class FleetBreachStateItem:
+    alertname: str
+    is_breaching: bool
+
+
+def breach_state_backend() -> str:
+    if _use_redis():
+        return "redis"
+    if _use_db():
+        return "db"
+    return "memory"
+
+
+def list_fleet_breach_states(fleet_id: str) -> list[FleetBreachStateItem]:
+    return [
+        FleetBreachStateItem(
+            alertname=alertname,
+            is_breaching=get_breach_state(fleet_id, alertname),
+        )
+        for alertname in FLEET_ALERTNAMES
+    ]
 
 
 def _redis_key(fleet_id: str, alertname: str) -> str:

@@ -201,6 +201,19 @@
           <button id="btn-ops-refresh" type="button" class="primary">更新</button>
         </div>
         <div id="ops-summary" class="ops-summary"></div>
+        <section id="ops-breach-states-section" class="ops-breach-states-section hidden">
+          <h3>Alertmanager Breach 状態</h3>
+          <p id="ops-breach-states-status" class="meta"></p>
+          <table id="ops-breach-states-table" class="ops-breach-states-table">
+            <thead>
+              <tr>
+                <th>alertname</th>
+                <th>状態</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-states-table-body"></tbody>
+          </table>
+        </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">
           <h3>Alertmanager Silences</h3>
           <p id="ops-silences-status" class="meta"></p>

@@ -6,6 +6,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 
 from backend.app.services import alertmanager_push_service, breach_state_store
 
@@ -141,6 +142,7 @@ def test_redis_takes_priority_over_db(monkeypatch):
 def test_should_sync_breaches_on_metrics_scrape(monkeypatch):
     monkeypatch.delenv("ALERTMANAGER_PUSH_CELERY_ENABLED", raising=False)
     monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.delenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", raising=False)
     assert alertmanager_push_service.should_sync_breaches_on_metrics_scrape() is True
 
     monkeypatch.setenv("ALERTMANAGER_PUSH_CELERY_ENABLED", "true")
@@ -148,3 +150,90 @@ def test_should_sync_breaches_on_metrics_scrape(monkeypatch):
 
     monkeypatch.setenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", "true")
     assert alertmanager_push_service.should_sync_breaches_on_metrics_scrape() is True
+
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.setenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", "true")
+    assert alertmanager_push_service.should_sync_breaches_on_metrics_scrape() is True
+
+
+def test_list_fleet_breach_states(monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.delenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", raising=False)
+
+    fleet_id = str(uuid.uuid4())
+    breach_state_store.set_breach_state(fleet_id, "CASFleetOpenAlertsHigh", True)
+    breach_state_store.set_breach_state(fleet_id, "CASFleetHighRiskOpenAlerts", False)
+
+    items = breach_state_store.list_fleet_breach_states(fleet_id)
+    assert len(items) == 2
+    assert items[0].alertname == "CASFleetOpenAlertsHigh"
+    assert items[0].is_breaching is True
+    assert items[1].alertname == "CASFleetHighRiskOpenAlerts"
+    assert items[1].is_breaching is False
+    assert breach_state_store.breach_state_backend() == "memory"
+
+
+def test_breach_state_backend_db(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", "true")
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+
+    from backend.app.db.models import Base
+    from backend.app.db.session import get_engine, reset_engine_for_tests
+
+    reset_engine_for_tests()
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    try:
+        assert breach_state_store.breach_state_backend() == "db"
+    finally:
+        reset_engine_for_tests()
+
+
+@pytest.fixture
+def ops_client(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    from backend.app.db.models import Base
+    from backend.app.db.session import get_engine, reset_engine_for_tests
+
+    reset_engine_for_tests()
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    from backend.app.main import app
+
+    with TestClient(app) as client:
+        yield client
+    reset_engine_for_tests()
+
+
+def test_breach_states_endpoint(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
+    monkeypatch.delenv("ALERTMANAGER_PUSH_DB_STATE_ENABLED", raising=False)
+
+    fleet_id = str(uuid.uuid4())
+    breach_state_store.set_breach_state(fleet_id, "CASFleetOpenAlertsHigh", True)
+
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id={fleet_id}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fleet_id"] == fleet_id
+    assert data["backend"] == "memory"
+    assert data["total"] == 2
+    assert data["items"][0]["alertname"] == "CASFleetOpenAlertsHigh"
+    assert data["items"][0]["is_breaching"] is True
+    assert data["items"][1]["is_breaching"] is False
+
+
+def test_breach_states_disabled_returns_503(ops_client, monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_PUSH_ENABLED", raising=False)
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+    fleet_id = str(uuid.uuid4())
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id={fleet_id}"
+    )
+    assert response.status_code == 503

@@ -585,6 +585,18 @@ class AlertmanagerSilenceBulkDelete(BaseModel):
     silence_ids: list[str] = Field(min_length=1, max_length=100)
 
 
+class FleetBreachStateOut(BaseModel):
+    alertname: str
+    is_breaching: bool
+
+
+class FleetBreachStateListOut(BaseModel):
+    fleet_id: str
+    backend: str
+    items: list[FleetBreachStateOut]
+    total: int
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int
