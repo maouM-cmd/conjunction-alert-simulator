@@ -556,9 +556,17 @@ function formatOpsPcHtml(alert) {
     return `<span class="ops-pc-screening">${screening}</span>`;
   }
   const methodLabel = ref.pc_method === "cdm_rtn" ? "CDM RTN" : "TLE RTN";
+  const autoBadge =
+    ref.trigger_source === "screening_auto"
+      ? ' <span class="ops-pc-auto">auto</span>'
+      : "";
+  const escalatedBadge = alert.escalated
+    ? '<br/><span class="ops-pc-escalated">ESCALATED</span>'
+    : "";
   return (
     `<span class="ops-pc-screening">${screening}</span>` +
-    `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})</span>`
+    `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})${autoBadge}</span>` +
+    escalatedBadge
   );
 }
 

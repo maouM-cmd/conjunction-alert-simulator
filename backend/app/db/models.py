@@ -220,6 +220,7 @@ class AlertPcRefinement(Base):
     pc_method: Mapped[str] = mapped_column(String(32), nullable=False)
     covariance_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
     miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    trigger_source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
     api_key_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
     )

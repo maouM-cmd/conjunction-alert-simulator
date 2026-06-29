@@ -497,6 +497,7 @@ class PcRefinementOut(BaseModel):
     pc_method: str
     covariance_source: str | None
     miss_distance_km: float
+    trigger_source: str
     api_key_id: str | None
     created_at: datetime
 
@@ -525,6 +526,7 @@ class ConjunctionAlertOut(BaseModel):
     updated_at: datetime
     latest_mitigation_preview: MitigationPreviewOut | None = None
     latest_pc_refinement: PcRefinementOut | None = None
+    escalated: bool = False
 
 
 class ConjunctionAlertListOut(BaseModel):

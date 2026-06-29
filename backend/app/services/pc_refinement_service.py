@@ -1,7 +1,8 @@
-"""Alert-linked Pc refinement with CDM/TLE RTN covariance (Phase 10D)."""
+"""Alert-linked Pc refinement with CDM/TLE RTN covariance (Phase 10D / 10E)."""
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import timedelta, timezone
 
@@ -15,10 +16,13 @@ from backend.app.services.pc_conjunction import pc_for_tle_pair_at_index
 from backend.app.services.propagator import propagate_orbit
 from backend.app.services.tle_fetcher import find_tle_by_norad_id
 from backend.app.services.tle_parser import parse_tle
+from backend.app.services.webhook_notifier import DEFAULT_PC_THRESHOLD
 
 REFINE_WINDOW_HOURS = 1.0
 REFINE_STEP_MINUTES = 1
 DEFAULT_THRESHOLD_KM = 50.0
+TRIGGER_MANUAL = "manual"
+TRIGGER_SCREENING_AUTO = "screening_auto"
 
 
 class PcRefinementServiceError(Exception):
@@ -27,6 +31,45 @@ class PcRefinementServiceError(Exception):
 
 class NotFoundError(PcRefinementServiceError):
     pass
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes", "on")
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return max(float(raw), 0.0)
+    except ValueError:
+        return default
+
+
+def auto_pc_refine_enabled() -> bool:
+    return _env_bool("AUTO_PC_REFINE_ENABLED", default=False)
+
+
+def auto_pc_refine_pc_min() -> float:
+    return _env_float("AUTO_PC_REFINE_PC_MIN", DEFAULT_PC_THRESHOLD)
+
+
+def pc_escalation_pc_min() -> float:
+    return _env_float("PC_ESCALATION_PC_MIN", DEFAULT_PC_THRESHOLD)
+
+
+def is_pc_escalated(pc_refined: float) -> bool:
+    return pc_refined >= pc_escalation_pc_min()
+
+
+def should_auto_refine(alert: ConjunctionAlert) -> bool:
+    if not auto_pc_refine_enabled():
+        return False
+    return alert.pc >= auto_pc_refine_pc_min()
 
 
 def _ensure_aware(dt):
@@ -67,6 +110,7 @@ def refine_alert_pc(
     alert_id: uuid.UUID,
     *,
     api_key_id: uuid.UUID | None = None,
+    trigger_source: str = TRIGGER_MANUAL,
 ) -> AlertPcRefinement:
     alert = db.execute(
         select(ConjunctionAlert)
@@ -138,6 +182,7 @@ def refine_alert_pc(
         pc_method=pc_method,
         covariance_source=covariance_source,
         miss_distance_km=ca.miss_distance_km,
+        trigger_source=trigger_source,
         api_key_id=api_key_id,
     )
     db.add(refinement)
@@ -145,10 +190,15 @@ def refine_alert_pc(
 
     from backend.app.services import audit_service
 
+    audit_action = (
+        "alert.pc_refine_auto"
+        if trigger_source == TRIGGER_SCREENING_AUTO
+        else "alert.pc_refine"
+    )
     audit_service.log_audit(
         db,
         fleet_id=alert.fleet_id,
-        action="alert.pc_refine",
+        action=audit_action,
         resource_type="alert",
         resource_id=alert.id,
         api_key_id=api_key_id,
@@ -158,11 +208,63 @@ def refine_alert_pc(
             "pc_refined": pc_refined,
             "pc_method": pc_method,
             "covariance_source": covariance_source,
+            "trigger_source": trigger_source,
         },
     )
     db.commit()
     db.refresh(refinement)
     return refinement
+
+
+def maybe_escalate_after_refine(db: Session, refinement: AlertPcRefinement) -> bool:
+    if not is_pc_escalated(refinement.pc_refined):
+        return False
+
+    alert = db.execute(
+        select(ConjunctionAlert)
+        .options(joinedload(ConjunctionAlert.satellite))
+        .where(ConjunctionAlert.id == refinement.alert_id)
+    ).scalar_one_or_none()
+    if alert is None:
+        return False
+
+    from backend.app.services import audit_service
+    from backend.app.services.webhook_notifier import notify_pc_escalation
+
+    result = notify_pc_escalation(alert, refinement)
+    audit_service.log_audit(
+        db,
+        fleet_id=alert.fleet_id,
+        action="alert.pc_escalate",
+        resource_type="alert",
+        resource_id=alert.id,
+        api_key_id=None,
+        detail={
+            "refinement_id": str(refinement.id),
+            "pc_screening": refinement.pc_screening,
+            "pc_refined": refinement.pc_refined,
+            "pc_method": refinement.pc_method,
+            "notification_sent": result.sent,
+            "notification_message": result.message,
+        },
+    )
+    db.commit()
+    return result.sent
+
+
+def enqueue_auto_refine_for_alerts(alerts: list[ConjunctionAlert]) -> int:
+    """Enqueue Celery Pc refine tasks for eligible new open alerts."""
+    if not auto_pc_refine_enabled() or not alerts:
+        return 0
+
+    from backend.app.tasks.pc_refinement_tasks import refine_alert_pc_task
+
+    enqueued = 0
+    for alert in alerts:
+        if should_auto_refine(alert):
+            refine_alert_pc_task.delay(str(alert.id))
+            enqueued += 1
+    return enqueued
 
 
 def list_pc_refinements(db: Session, alert_id: uuid.UUID) -> list[AlertPcRefinement]:

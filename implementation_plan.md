@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10E — 次着手
+## Phase 10F — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、共分散伝播、99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、COLA 自動試算、99.9% SLA 等）。
+
+## Phase 10E — 完了
+
+スクリーニング自動 Pc 再計算、エスカレーション通知、`trigger_source`、Ops auto/ESCALATED バッジ。v1.12.0 ship 済み。
 
 ## Phase 10D — 完了
 

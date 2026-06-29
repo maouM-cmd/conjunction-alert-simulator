@@ -552,6 +552,69 @@ def notify_new_alerts(alerts: list) -> WebhookResult:
     return _post_payload(payload, len(batch_alerts))
 
 
+def notify_pc_escalation(alert, refinement) -> WebhookResult:
+    """POST escalation notification when refined Pc exceeds threshold (Phase 10E)."""
+    from backend.app.db.models import AlertPcRefinement, ConjunctionAlert
+
+    if not _is_delivery_configured():
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message=_delivery_not_configured_message(),
+        )
+    if not isinstance(alert, ConjunctionAlert) or not isinstance(refinement, AlertPcRefinement):
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="通知対象が不正です。",
+        )
+
+    satellite = alert.satellite
+    if satellite is None:
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="衛星情報がありません。",
+        )
+
+    method_label = "CDM RTN" if refinement.pc_method == "cdm_rtn" else "TLE RTN"
+    line = (
+        f"ESCALATION: {satellite.name} (NORAD {satellite.norad_id}) vs "
+        f"{alert.debris_name} (NORAD {alert.debris_norad_id}): "
+        f"screening Pc={_format_pc(refinement.pc_screening)} → "
+        f"refined Pc={_format_pc(refinement.pc_refined)} ({method_label}) / "
+        f"TCA={alert.tca.isoformat()}"
+    )
+
+    fmt = _webhook_format()
+    if fmt in ("slack", "slack_bot"):
+        payload = {"text": f"*CAS Pc Escalation*\n{line}"}
+    elif fmt == "smtp":
+        payload = {
+            "subject": f"CAS Pc Escalation — {satellite.name}",
+            "text": line,
+        }
+    else:
+        payload = {
+            "source": "cas",
+            "escalation": True,
+            "alert_id": str(alert.id),
+            "satellite": {"name": satellite.name, "norad_id": satellite.norad_id},
+            "debris": {"name": alert.debris_name, "norad_id": alert.debris_norad_id},
+            "pc_screening": refinement.pc_screening,
+            "pc_refined": refinement.pc_refined,
+            "pc_method": refinement.pc_method,
+            "trigger_source": refinement.trigger_source,
+            "tca": alert.tca.isoformat(),
+            "message": line,
+        }
+
+    return _post_payload(payload, 1)
+
+
 def send_test_webhook() -> WebhookResult:
     """Send a test ping to the configured alert delivery."""
     if not _is_delivery_configured():

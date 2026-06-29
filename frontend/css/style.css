@@ -403,6 +403,20 @@ label.checkbox-row input[type="checkbox"] {
   line-height: 1.35;
 }
 
+.ops-pc-auto {
+  font-size: 0.62rem;
+  color: #90caf9;
+  font-weight: 600;
+  margin-left: 0.15rem;
+}
+
+.ops-pc-escalated {
+  font-size: 0.65rem;
+  color: #ffab91;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
 .ops-sla-ok {
   color: #b8e0b8;
   font-weight: 600;

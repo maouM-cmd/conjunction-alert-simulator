@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.12.0] - 2026-06-28
+
+Phase 10E — Screening Auto Pc Refine & Escalation。
+
+### Added
+
+- **Phase 10E:** スクリーニング新規 open の自動 Pc 再計算（Celery、`AUTO_PC_REFINE_ENABLED`）
+- `alert_pc_refinements.trigger_source` — `manual` / `screening_auto`（Alembic 008）
+- `refine_alert_pc_task` — worker 非同期 Pc 再計算
+- `notify_pc_escalation` — refined Pc 閾値超過時の追加通知
+- `ConjunctionAlertOut.escalated` + Ops UI auto / ESCALATED バッジ
+- 監査: `alert.pc_refine_auto` / `alert.pc_escalate`
+- env: `AUTO_PC_REFINE_PC_MIN`, `PC_ESCALATION_PC_MIN`
+
 ## [1.11.0] - 2026-06-28
 
 Phase 10D — Alert Pc Refinement。

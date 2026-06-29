@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.models import ConjunctionAlert, ScreeningRun
 from backend.app.services import alert_service, fleet_service, screening_service
+from backend.app.services import pc_refinement_service
 from backend.app.services.batch_analysis import run_batch_conjunction_analysis
 from backend.app.services.scale_config import fleet_max_satellites, screening_chunk_size
 from backend.app.services.webhook_notifier import notify_new_alerts
@@ -121,13 +122,14 @@ def _execute_single_chunk_on_run(
     try:
         batch = _run_batch_for_satellites(satellites, params)
         satellite_by_norad = {s.norad_id: s.id for s in satellites}
-        alert_service.ingest_screening_results(
+        new_opens = alert_service.ingest_screening_results(
             db,
             run_id=run.id,
             fleet_id=run.fleet_id,
             results=batch.results,
             satellite_by_norad=satellite_by_norad,
         )
+        pc_refinement_service.enqueue_auto_refine_for_alerts(new_opens)
         if schedule and params["notify_on_complete"]:
             _notify_parent_cycle_alerts(db, run, [run.id])
         return screening_service.mark_run_completed(
@@ -168,13 +170,14 @@ def _execute_chunk_run(db: Session, run: ScreeningRun) -> ScreeningRun:
 
         batch = _run_batch_for_satellites(satellites, params)
         satellite_by_norad = {s.norad_id: s.id for s in satellites}
-        alert_service.ingest_screening_results(
+        new_opens = alert_service.ingest_screening_results(
             db,
             run_id=run.id,
             fleet_id=run.fleet_id,
             results=batch.results,
             satellite_by_norad=satellite_by_norad,
         )
+        pc_refinement_service.enqueue_auto_refine_for_alerts(new_opens)
         screening_service.mark_run_completed(
             db,
             run,

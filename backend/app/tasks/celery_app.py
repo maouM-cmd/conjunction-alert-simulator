@@ -14,7 +14,7 @@ celery_app = Celery(
     "cas",
     broker=redis_url,
     backend=redis_url,
-    include=["backend.app.tasks.screening_tasks"],
+    include=["backend.app.tasks.screening_tasks", "backend.app.tasks.pc_refinement_tasks"],
 )
 
 celery_app.conf.update(

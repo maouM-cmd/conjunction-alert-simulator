@@ -100,9 +100,16 @@ def _pc_refinement_out(refinement: AlertPcRefinement) -> PcRefinementOut:
         pc_method=refinement.pc_method,
         covariance_source=refinement.covariance_source,
         miss_distance_km=refinement.miss_distance_km,
+        trigger_source=refinement.trigger_source,
         api_key_id=str(refinement.api_key_id) if refinement.api_key_id else None,
         created_at=refinement.created_at,
     )
+
+
+def _alert_escalated(alert: ConjunctionAlert) -> bool:
+    if not alert.pc_refinements:
+        return False
+    return pc_refinement_service.is_pc_escalated(alert.pc_refinements[0].pc_refined)
 
 
 def _latest_pc_refinement_out(alert: ConjunctionAlert) -> PcRefinementOut | None:
@@ -132,6 +139,7 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
         updated_at=alert.updated_at,
         latest_mitigation_preview=_latest_preview_out(alert),
         latest_pc_refinement=_latest_pc_refinement_out(alert),
+        escalated=_alert_escalated(alert),
     )
 
 
@@ -416,7 +424,9 @@ def create_pc_refinement(
             db,
             aid,
             api_key_id=principal.api_key.id if principal.api_key else None,
+            trigger_source=pc_refinement_service.TRIGGER_MANUAL,
         )
+        pc_refinement_service.maybe_escalate_after_refine(db, refinement)
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
     except pc_refinement_service.PcRefinementServiceError as exc:
