@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -37,6 +38,10 @@ from backend.app.models.schemas import (
     FleetAlertRulesApplyOut,
     FleetBreachHistorySettingsUpdate,
     FleetBreachHistorySettingsOut,
+    FleetBreachHistorySettingsEntryOut,
+    FleetBreachHistorySettingsListOut,
+    FleetBreachHistorySettingsBulkUpdate,
+    FleetBreachHistorySettingsBulkOut,
     FleetBreachStateListOut,
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
@@ -705,6 +710,30 @@ def _validate_history_alertnames(
     return resolved
 
 
+def _normalize_history_dates(
+    since: datetime | None,
+    until: datetime | None,
+) -> tuple[datetime | None, datetime | None]:
+    from datetime import timezone
+
+    if since is not None and since.tzinfo is None:
+        since = since.replace(tzinfo=timezone.utc)
+    if until is not None and until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    if since is not None and until is not None and since > until:
+        raise HTTPException(status_code=422, detail="since は until 以前である必要があります。")
+    return since, until
+
+
+def _require_admin_breach_history(principal: AuthPrincipal) -> None:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not breach_history_service.breach_history_enabled():
+        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+
+
 @router.get("/prometheus/fleet-alert-rules", response_model=FleetAlertRulesOut)
 def fleet_alert_rules(
     fleet_id: str | None = None,
@@ -768,7 +797,60 @@ def fleet_alert_rules_apply(
         fleet_id=str(scoped_fleet) if scoped_fleet is not None else None,
         content=content,
         message=result.message,
+        reloaded=result.reloaded,
+        reload_message=result.reload_message,
     )
+
+
+@router.get(
+    "/fleets/breach-history-settings",
+    response_model=FleetBreachHistorySettingsListOut,
+)
+def list_fleet_breach_history_settings(
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistorySettingsListOut:
+    _require_admin_breach_history(principal)
+    rows = breach_history_service.list_fleet_retention_settings(db)
+    items = [
+        FleetBreachHistorySettingsEntryOut(
+            fleet_id=str(row.fleet_id),
+            fleet_name=row.fleet_name,
+            retention_days=row.retention_days,
+            effective_retention_days=row.effective_retention_days,
+        )
+        for row in rows
+    ]
+    return FleetBreachHistorySettingsListOut(items=items, total=len(items))
+
+
+@router.patch(
+    "/fleets/breach-history-settings/bulk",
+    response_model=FleetBreachHistorySettingsBulkOut,
+)
+def bulk_update_fleet_breach_history_settings(
+    body: FleetBreachHistorySettingsBulkUpdate,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistorySettingsBulkOut:
+    _require_admin_breach_history(principal)
+    if not body.items:
+        raise HTTPException(status_code=422, detail="items が空です。")
+
+    parsed: list[tuple[uuid.UUID, int | None]] = []
+    for item in body.items:
+        fid = _parse_uuid(item.fleet_id, "fleet_id")
+        fleet = db.get(Fleet, fid)
+        if fleet is None or not fleet.active:
+            raise HTTPException(status_code=404, detail="艦隊が見つかりません。")
+        parsed.append((fid, item.retention_days))
+
+    try:
+        updated = breach_history_service.bulk_update_fleet_retention(db, parsed)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="retention_days が範囲外です。") from exc
+
+    return FleetBreachHistorySettingsBulkOut(updated=updated)
 
 
 @router.patch(
@@ -781,12 +863,7 @@ def update_fleet_breach_history_settings(
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> FleetBreachHistorySettingsOut:
-    if is_api_key_required() and not principal.is_admin:
-        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
-    if not principal.is_admin:
-        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
-    if not breach_history_service.breach_history_enabled():
-        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+    _require_admin_breach_history(principal)
 
     fid = _parse_uuid(fleet_id, "fleet_id")
     fleet = db.get(Fleet, fid)
@@ -954,6 +1031,8 @@ def list_fleet_breach_history(
     alertnames: list[str] | None = Query(None),
     source: str | None = None,
     breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     format: str = Query("json", pattern="^(json|csv)$"),
@@ -966,6 +1045,7 @@ def list_fleet_breach_history(
         raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
 
     _validate_history_alertnames(alertname, alertnames)
+    since, until = _normalize_history_dates(since, until)
     if source is not None and source not in breach_history_service.VALID_SOURCES:
         raise HTTPException(status_code=422, detail="source が不正です。")
 
@@ -981,6 +1061,8 @@ def list_fleet_breach_history(
             alertnames=alertnames,
             source=source,
             breaching_only=breaching_only,
+            since=since,
+            until=until,
             limit=limit,
             offset=offset,
         )
@@ -1031,6 +1113,8 @@ def list_fleet_breach_history(
         alertnames=alertnames,
         source=source,
         breaching_only=breaching_only,
+        since=since,
+        until=until,
         limit=limit,
         offset=offset,
     )

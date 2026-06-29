@@ -582,6 +582,27 @@ label.checkbox-row input[type="checkbox"] {
   margin-bottom: 0.5rem;
 }
 
+.ops-breach-retention-all-section {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1a1a24;
+}
+
+.ops-breach-retention-all-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.ops-breach-retention-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
 .ops-breach-history-all-section {
   margin: 0.75rem 0;
   padding: 0.6rem;

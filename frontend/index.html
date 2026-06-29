@@ -263,6 +263,14 @@
               <input id="ops-breach-history-alertname-highrisk" type="checkbox" value="CASFleetHighRiskOpenAlerts" />
               CASFleetHighRiskOpenAlerts
             </label>
+            <label class="ops-breach-filter">
+              since
+              <input id="ops-breach-history-since" type="datetime-local" />
+            </label>
+            <label class="ops-breach-filter">
+              until
+              <input id="ops-breach-history-until" type="datetime-local" />
+            </label>
           </div>
           <div id="ops-breach-history-retention-row" class="ops-breach-history-retention hidden">
             <label class="ops-breach-filter">
@@ -285,6 +293,28 @@
               </tr>
             </thead>
             <tbody id="ops-breach-history-table-body"></tbody>
+          </table>
+        </section>
+        <section id="ops-breach-retention-all-section" class="ops-breach-retention-all-section hidden">
+          <h3>Breach 履歴 retention 一覧（管理者）</h3>
+          <p id="ops-breach-retention-all-status" class="meta"></p>
+          <div class="ops-breach-retention-bulk">
+            <label class="ops-breach-filter">
+              一括 retention 日数（空=default に戻す）
+              <input id="ops-breach-retention-bulk-days" type="number" min="1" max="3650" placeholder="90" />
+            </label>
+            <button id="btn-ops-breach-retention-bulk-save" type="button">選択艦隊に適用</button>
+          </div>
+          <table id="ops-breach-retention-all-table" class="ops-breach-states-table">
+            <thead>
+              <tr>
+                <th><input id="ops-breach-retention-select-all" type="checkbox" /></th>
+                <th>艦隊</th>
+                <th>override 日数</th>
+                <th>effective 日数</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-retention-all-table-body"></tbody>
           </table>
         </section>
         <section id="ops-breach-history-all-section" class="ops-breach-history-all-section hidden">
@@ -312,6 +342,14 @@
             <label class="ops-breach-filter">
               <input id="ops-breach-history-all-alertname-highrisk" type="checkbox" value="CASFleetHighRiskOpenAlerts" />
               CASFleetHighRiskOpenAlerts
+            </label>
+            <label class="ops-breach-filter">
+              since
+              <input id="ops-breach-history-all-since" type="datetime-local" />
+            </label>
+            <label class="ops-breach-filter">
+              until
+              <input id="ops-breach-history-all-until" type="datetime-local" />
             </label>
           </div>
           <div class="button-row">

@@ -925,9 +925,9 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 
 Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
-### POST /api/v1/ops/prometheus/fleet-alert-rules/apply（Phase 10AG）
+### POST /api/v1/ops/prometheus/fleet-alert-rules/apply（Phase 10AG / 10AH）
 
-GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 設定時、生成ルールを atomic にファイル書き込み。
+GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 設定時、生成ルールを atomic にファイル書き込み。`applied=true` 時、`PROMETHEUS_RELOAD_URL` があれば POST reload（Phase 10AH）。
 
 | コード | 条件 |
 |--------|------|
@@ -942,11 +942,34 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
   "format": "yaml",
   "fleet_id": "uuid-or-null",
   "content": "groups:\n  ...",
-  "message": "ルールを ... に書き込みました。"
+  "message": "ルールを ... に書き込みました。",
+  "reloaded": true,
+  "reload_message": "Prometheus reload を実行しました。"
 }
 ```
 
-**env:** `PROMETHEUS_FLEET_RULES_OUTPUT_PATH`（未設定時 `applied=false`、ダウンロード案内メッセージ）
+**env:** `PROMETHEUS_FLEET_RULES_OUTPUT_PATH`（未設定時 `applied=false`）、`PROMETHEUS_RELOAD_URL`（Phase 10AH、任意 Basic Auth）
+
+### GET /api/v1/ops/fleets/breach-history-settings（Phase 10AH）
+
+管理者のみ。active 艦隊の retention override / effective 一覧。
+
+応答 `FleetBreachHistorySettingsListOut`: `items[]`（`fleet_id`, `fleet_name`, `retention_days`, `effective_retention_days`）, `total`
+
+### PATCH /api/v1/ops/fleets/breach-history-settings/bulk（Phase 10AH）
+
+管理者のみ。複数艦隊の retention を一括更新。
+
+```json
+{
+  "items": [
+    { "fleet_id": "uuid", "retention_days": 30 },
+    { "fleet_id": "uuid", "retention_days": null }
+  ]
+}
+```
+
+応答 `FleetBreachHistorySettingsBulkOut`: `updated`
 
 ### PATCH /api/v1/ops/fleets/{fleet_id}/breach-history-settings（Phase 10AG）
 
@@ -1156,9 +1179,9 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD / 10AE / 10AG）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD / 10AE / 10AG / 10AH）
 
-クエリ: `fleet_id`（optional）、`alertname`（optional）、`alertnames`（optional、繰り返し、Phase 10AG）、`source`（optional、`sync` | `manual` | `sticky_clear`、Phase 10AE）、`breaching_only`（optional、Phase 10AE）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
+クエリ: `fleet_id`（optional）、`alertname`（optional）、`alertnames`（optional、繰り返し、Phase 10AG）、`since` / `until`（optional、ISO8601、Phase 10AH）、`source`（optional、`sync` | `manual` | `sticky_clear`、Phase 10AE）、`breaching_only`（optional、Phase 10AE）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_HISTORY_ENABLED=true`（無効時 503）。
 

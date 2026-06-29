@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.41.0] - 2026-06-28
+
+Phase 10AH — Prometheus reload + retention bulk + 履歴日付 range。
+
+### Added
+
+- **Phase 10AH:** apply 後 `PROMETHEUS_RELOAD_URL` reload webhook
+- `GET /ops/fleets/breach-history-settings` — retention 一覧（管理者）
+- `PATCH /ops/fleets/breach-history-settings/bulk` — 一括 retention 更新
+- `GET history?since=&until=` — 日付 range フィルタ
+- Ops UI — retention 一覧/bulk、since/until、reload ステータス
+
 ## [1.40.0] - 2026-06-28
 
 Phase 10AG — 艦隊別 retention + ルール apply + alertnames フィルタ。

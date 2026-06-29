@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AH — 次着手
+## Phase 10AI — 次着手
 
-商用運用ロードマップ Phase 10+（Prometheus reload webhook、retention bulk 設定、履歴日付 range 等）。
+商用運用ロードマップ Phase 10+（reload リトライ、retention CSV、履歴集計 API 等）。
+
+## Phase 10AH — 完了
+
+Prometheus reload、retention bulk、履歴 since/until フィルタ。v1.41.0 ship 済み。
 
 ## Phase 10AG — 完了
 

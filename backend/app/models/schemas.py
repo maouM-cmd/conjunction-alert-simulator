@@ -753,6 +753,8 @@ class FleetAlertRulesApplyOut(BaseModel):
     fleet_id: str | None = None
     content: str
     message: str
+    reloaded: bool = False
+    reload_message: str | None = None
 
 
 class FleetBreachHistorySettingsUpdate(BaseModel):
@@ -763,6 +765,31 @@ class FleetBreachHistorySettingsOut(BaseModel):
     fleet_id: str
     retention_days: int | None
     effective_retention_days: int
+
+
+class FleetBreachHistorySettingsEntryOut(BaseModel):
+    fleet_id: str
+    fleet_name: str
+    retention_days: int | None
+    effective_retention_days: int
+
+
+class FleetBreachHistorySettingsListOut(BaseModel):
+    items: list[FleetBreachHistorySettingsEntryOut]
+    total: int
+
+
+class FleetBreachHistorySettingsBulkItem(BaseModel):
+    fleet_id: str
+    retention_days: int | None = None
+
+
+class FleetBreachHistorySettingsBulkUpdate(BaseModel):
+    items: list[FleetBreachHistorySettingsBulkItem]
+
+
+class FleetBreachHistorySettingsBulkOut(BaseModel):
+    updated: int
 
 
 class OidcConfigOut(BaseModel):

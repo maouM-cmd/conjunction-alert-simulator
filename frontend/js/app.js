@@ -114,6 +114,14 @@ const els = {
   opsBreachHistoryRetentionRow: document.getElementById("ops-breach-history-retention-row"),
   opsBreachHistoryRetentionDays: document.getElementById("ops-breach-history-retention-days"),
   btnOpsBreachHistoryRetentionSave: document.getElementById("btn-ops-breach-history-retention-save"),
+  opsBreachHistorySince: document.getElementById("ops-breach-history-since"),
+  opsBreachHistoryUntil: document.getElementById("ops-breach-history-until"),
+  opsBreachRetentionAllSection: document.getElementById("ops-breach-retention-all-section"),
+  opsBreachRetentionAllStatus: document.getElementById("ops-breach-retention-all-status"),
+  opsBreachRetentionAllTableBody: document.getElementById("ops-breach-retention-all-table-body"),
+  opsBreachRetentionBulkDays: document.getElementById("ops-breach-retention-bulk-days"),
+  btnOpsBreachRetentionBulkSave: document.getElementById("btn-ops-breach-retention-bulk-save"),
+  opsBreachRetentionSelectAll: document.getElementById("ops-breach-retention-select-all"),
   opsBreachHistoryAllSection: document.getElementById("ops-breach-history-all-section"),
   opsBreachHistoryAllStatus: document.getElementById("ops-breach-history-all-status"),
   opsBreachHistoryAllTableBody: document.getElementById("ops-breach-history-all-table-body"),
@@ -122,6 +130,8 @@ const els = {
   opsBreachHistoryAllBreachingOnly: document.getElementById("ops-breach-history-all-breaching-only"),
   opsBreachHistoryAllAlertnameOpen: document.getElementById("ops-breach-history-all-alertname-open"),
   opsBreachHistoryAllAlertnameHighrisk: document.getElementById("ops-breach-history-all-alertname-highrisk"),
+  opsBreachHistoryAllSince: document.getElementById("ops-breach-history-all-since"),
+  opsBreachHistoryAllUntil: document.getElementById("ops-breach-history-all-until"),
   opsFleetAlertRulesSection: document.getElementById("ops-fleet-alert-rules-section"),
   opsFleetAlertRulesStatus: document.getElementById("ops-fleet-alert-rules-status"),
   opsFleetAlertRulesBreachingOnly: document.getElementById("ops-fleet-alert-rules-breaching-only"),
@@ -559,7 +569,37 @@ function breachStatesQuerySuffix({ breachingOnly = false } = {}) {
   return breachingOnly ? "&breaching_only=true" : "";
 }
 
-function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = [] } = {}) {
+function datetimeLocalToIso(value) {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toISOString();
+}
+
+function breachHistoryFilterOptions(scope = "fleet") {
+  if (scope === "all") {
+    return {
+      sourceEl: els.opsBreachHistoryAllSource,
+      breachingOnlyEl: els.opsBreachHistoryAllBreachingOnly,
+      alertnameEls: [els.opsBreachHistoryAllAlertnameOpen, els.opsBreachHistoryAllAlertnameHighrisk],
+      sinceEl: els.opsBreachHistoryAllSince,
+      untilEl: els.opsBreachHistoryAllUntil,
+    };
+  }
+  return {
+    sourceEl: els.opsBreachHistorySource,
+    breachingOnlyEl: els.opsBreachHistoryBreachingOnly,
+    alertnameEls: [els.opsBreachHistoryAlertnameOpen, els.opsBreachHistoryAlertnameHighrisk],
+    sinceEl: els.opsBreachHistorySince,
+    untilEl: els.opsBreachHistoryUntil,
+  };
+}
+
+function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = [], sinceEl, untilEl } = {}) {
   const params = [];
   const source = sourceEl?.value?.trim();
   if (source) {
@@ -572,6 +612,14 @@ function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = []
     if (el?.checked && el.value) {
       params.push(`alertnames=${encodeURIComponent(el.value)}`);
     }
+  }
+  const since = datetimeLocalToIso(sinceEl?.value);
+  if (since) {
+    params.push(`since=${encodeURIComponent(since)}`);
+  }
+  const until = datetimeLocalToIso(untilEl?.value);
+  if (until) {
+    params.push(`until=${encodeURIComponent(until)}`);
   }
   return params.length ? `&${params.join("&")}` : "";
 }
@@ -660,12 +708,21 @@ async function refreshOpsBreachHistory() {
     return;
   }
   els.opsBreachHistorySection.classList.remove("hidden");
-  const filterSuffix = breachHistoryQuerySuffix({
-    sourceEl: els.opsBreachHistorySource,
-    breachingOnlyEl: els.opsBreachHistoryBreachingOnly,
-    alertnameEls: [els.opsBreachHistoryAlertnameOpen, els.opsBreachHistoryAlertnameHighrisk],
-  });
+  const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions("fleet"));
   els.opsBreachHistoryRetentionRow?.classList.toggle("hidden", !opsAuthMe.is_admin);
+  if (opsAuthMe.is_admin && els.opsBreachHistoryRetentionDays) {
+    try {
+      const settings = await apiGet("/api/v1/ops/fleets/breach-history-settings", { ops: true });
+      const row = settings.items.find((item) => item.fleet_id === fleetId);
+      if (row) {
+        els.opsBreachHistoryRetentionDays.value =
+          row.retention_days != null ? String(row.retention_days) : "";
+        els.opsBreachHistoryRetentionDays.placeholder = String(row.effective_retention_days);
+      }
+    } catch {
+      // retention 一覧取得失敗時は入力欄をそのまま
+    }
+  }
   try {
     const listing = await apiGet(
       `/api/v1/ops/prometheus/alertmanager/breach-states/history?fleet_id=${fleetId}&limit=50${filterSuffix}`,
@@ -700,11 +757,7 @@ async function downloadOpsBreachHistoryCsv() {
   if (!fleetId) {
     return;
   }
-  const filterSuffix = breachHistoryQuerySuffix({
-    sourceEl: els.opsBreachHistorySource,
-    breachingOnlyEl: els.opsBreachHistoryBreachingOnly,
-    alertnameEls: [els.opsBreachHistoryAlertnameOpen, els.opsBreachHistoryAlertnameHighrisk],
-  });
+  const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions("fleet"));
   try {
     const res = await fetch(
       `${API_BASE}/api/v1/ops/prometheus/alertmanager/breach-states/history?fleet_id=${fleetId}&format=csv${filterSuffix}`,
@@ -736,11 +789,7 @@ async function refreshOpsBreachHistoryAll() {
     return;
   }
   els.opsBreachHistoryAllSection.classList.remove("hidden");
-  const filterSuffix = breachHistoryQuerySuffix({
-    sourceEl: els.opsBreachHistoryAllSource,
-    breachingOnlyEl: els.opsBreachHistoryAllBreachingOnly,
-    alertnameEls: [els.opsBreachHistoryAllAlertnameOpen, els.opsBreachHistoryAllAlertnameHighrisk],
-  });
+  const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions("all"));
   try {
     const listing = await apiGet(
       `/api/v1/ops/prometheus/alertmanager/breach-states/history?limit=50${filterSuffix}`,
@@ -772,11 +821,7 @@ async function refreshOpsBreachHistoryAll() {
 }
 
 async function downloadOpsBreachHistoryAllCsv() {
-  const filterSuffix = breachHistoryQuerySuffix({
-    sourceEl: els.opsBreachHistoryAllSource,
-    breachingOnlyEl: els.opsBreachHistoryAllBreachingOnly,
-    alertnameEls: [els.opsBreachHistoryAllAlertnameOpen, els.opsBreachHistoryAllAlertnameHighrisk],
-  });
+  const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions("all"));
   try {
     const res = await fetch(
       `${API_BASE}/api/v1/ops/prometheus/alertmanager/breach-states/history?format=csv${filterSuffix}`,
@@ -859,6 +904,74 @@ async function saveOpsBreachHistoryRetention() {
       els.opsBreachHistoryRetentionDays.placeholder = String(result.effective_retention_days);
     }
     setOpsStatus(`retention 保存済み（effective: ${result.effective_retention_days} 日）`);
+    await refreshOpsBreachRetentionAll();
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+async function refreshOpsBreachRetentionAll() {
+  if (!opsAuthMe.is_admin || !els.opsBreachRetentionAllSection) {
+    els.opsBreachRetentionAllSection?.classList.add("hidden");
+    return;
+  }
+  els.opsBreachRetentionAllSection.classList.remove("hidden");
+  try {
+    const listing = await apiGet("/api/v1/ops/fleets/breach-history-settings", { ops: true });
+    els.opsBreachRetentionAllStatus.textContent = `${listing.total} 艦隊`;
+    els.opsBreachRetentionAllTableBody.innerHTML = "";
+    for (const item of listing.items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="checkbox" class="ops-breach-retention-row-select" data-fleet-id="${item.fleet_id}" /></td>
+        <td>${item.fleet_name}</td>
+        <td>${item.retention_days != null ? item.retention_days : "—"}</td>
+        <td>${item.effective_retention_days}</td>
+      `;
+      els.opsBreachRetentionAllTableBody.appendChild(tr);
+    }
+    if (els.opsBreachRetentionSelectAll) {
+      els.opsBreachRetentionSelectAll.checked = false;
+    }
+  } catch (err) {
+    if (err.message.includes("履歴は無効")) {
+      els.opsBreachRetentionAllStatus.textContent = "breach 履歴は無効です。";
+      els.opsBreachRetentionAllTableBody.innerHTML = "";
+      return;
+    }
+    els.opsBreachRetentionAllStatus.textContent = err.message;
+  }
+}
+
+async function saveOpsBreachRetentionBulk() {
+  if (!opsAuthMe.is_admin || !els.opsBreachRetentionAllTableBody) {
+    return;
+  }
+  const selected = [...els.opsBreachRetentionAllTableBody.querySelectorAll(".ops-breach-retention-row-select:checked")];
+  if (!selected.length) {
+    setOpsStatus("一括適用する艦隊を選択してください。", true);
+    return;
+  }
+  const raw = els.opsBreachRetentionBulkDays?.value?.trim() ?? "";
+  const retentionDays = raw === "" ? null : Number(raw);
+  if (raw !== "" && (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650)) {
+    setOpsStatus("retention 日数は 1〜3650 の整数か空にしてください。", true);
+    return;
+  }
+  try {
+    const result = await apiPatch(
+      "/api/v1/ops/fleets/breach-history-settings/bulk",
+      {
+        items: selected.map((el) => ({
+          fleet_id: el.dataset.fleetId,
+          retention_days: retentionDays,
+        })),
+      },
+      { ops: true }
+    );
+    setOpsStatus(`${result.updated} 艦隊の retention を更新しました。`);
+    await refreshOpsBreachRetentionAll();
+    await refreshOpsBreachHistory();
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -915,8 +1028,13 @@ async function applyOpsFleetAlertRules() {
       throw new Error(data.detail || `API エラー (${res.status})`);
     }
     if (data.applied) {
-      els.opsFleetAlertRulesStatus.textContent = `${data.message} (${data.path})`;
-      setOpsStatus("ルールを適用しました。");
+      const reloadNote = data.reloaded
+        ? ` / reload OK`
+        : data.reload_message
+          ? ` / reload: ${data.reload_message}`
+          : "";
+      els.opsFleetAlertRulesStatus.textContent = `${data.message} (${data.path})${reloadNote}`;
+      setOpsStatus(data.reloaded ? "ルールを適用し Prometheus reload しました。" : "ルールを適用しました。");
     } else {
       els.opsFleetAlertRulesStatus.textContent = data.message;
       setOpsStatus(data.message, true);
@@ -1071,11 +1189,13 @@ async function refreshOpsDashboard() {
     if (opsAuthMe.is_admin) {
       await refreshOpsBreachStatesAll();
       await refreshOpsBreachHistoryAll();
+      await refreshOpsBreachRetentionAll();
       refreshOpsFleetAlertRulesSection();
       setOpsStatus("艦隊を選択するか、全艦隊 breach 状態を確認してください。");
     } else {
       els.opsBreachStatesAllSection?.classList.add("hidden");
       els.opsBreachHistoryAllSection?.classList.add("hidden");
+      els.opsBreachRetentionAllSection?.classList.add("hidden");
       els.opsFleetAlertRulesSection?.classList.add("hidden");
       setOpsStatus("艦隊を選択してください。", true);
     }
@@ -1324,6 +1444,7 @@ async function refreshOpsDashboard() {
       refreshOpsBreachStatesAll(),
       refreshOpsBreachHistory(),
       refreshOpsBreachHistoryAll(),
+      refreshOpsBreachRetentionAll(),
       refreshOpsFleetAlertRulesSection(),
       refreshOpsSilences(),
     ]);
@@ -2052,6 +2173,7 @@ function initEventListeners() {
       els.opsBreachStatesSection?.classList.add("hidden");
       els.opsBreachStatesAllSection?.classList.add("hidden");
       els.opsBreachHistoryAllSection?.classList.add("hidden");
+      els.opsBreachRetentionAllSection?.classList.add("hidden");
       els.opsFleetAlertRulesSection?.classList.add("hidden");
       els.opsBreachHistorySection?.classList.add("hidden");
     }
@@ -2077,6 +2199,9 @@ function initEventListeners() {
   for (const el of [els.opsBreachHistoryAlertnameOpen, els.opsBreachHistoryAlertnameHighrisk]) {
     el?.addEventListener("change", refreshOpsBreachHistory);
   }
+  for (const el of [els.opsBreachHistorySince, els.opsBreachHistoryUntil]) {
+    el?.addEventListener("change", refreshOpsBreachHistory);
+  }
   if (els.btnOpsBreachHistoryRetentionSave) {
     els.btnOpsBreachHistoryRetentionSave.addEventListener("click", saveOpsBreachHistoryRetention);
   }
@@ -2089,11 +2214,25 @@ function initEventListeners() {
   for (const el of [els.opsBreachHistoryAllAlertnameOpen, els.opsBreachHistoryAllAlertnameHighrisk]) {
     el?.addEventListener("change", refreshOpsBreachHistoryAll);
   }
+  for (const el of [els.opsBreachHistoryAllSince, els.opsBreachHistoryAllUntil]) {
+    el?.addEventListener("change", refreshOpsBreachHistoryAll);
+  }
   if (els.btnOpsFleetAlertRulesDownload) {
     els.btnOpsFleetAlertRulesDownload.addEventListener("click", downloadOpsFleetAlertRules);
   }
   if (els.btnOpsFleetAlertRulesApply) {
     els.btnOpsFleetAlertRulesApply.addEventListener("click", applyOpsFleetAlertRules);
+  }
+  if (els.btnOpsBreachRetentionBulkSave) {
+    els.btnOpsBreachRetentionBulkSave.addEventListener("click", saveOpsBreachRetentionBulk);
+  }
+  if (els.opsBreachRetentionSelectAll) {
+    els.opsBreachRetentionSelectAll.addEventListener("change", () => {
+      const checked = els.opsBreachRetentionSelectAll.checked;
+      for (const el of els.opsBreachRetentionAllTableBody?.querySelectorAll(".ops-breach-retention-row-select") ?? []) {
+        el.checked = checked;
+      }
+    });
   }
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
   if (els.btnOpsSilenceCreate) {

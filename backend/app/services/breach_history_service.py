@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, select
@@ -35,6 +36,46 @@ def breach_history_retention_days() -> int:
 
 RETENTION_DAYS_MIN = 1
 RETENTION_DAYS_MAX = 3650
+
+
+@dataclass(frozen=True)
+class FleetRetentionRow:
+    fleet_id: uuid.UUID
+    fleet_name: str
+    retention_days: int | None
+    effective_retention_days: int
+
+
+def list_fleet_retention_settings(db: Session) -> list[FleetRetentionRow]:
+    from backend.app.db.models import Fleet
+
+    fleets = db.execute(
+        select(Fleet).where(Fleet.active.is_(True)).order_by(Fleet.name)
+    ).scalars().all()
+    return [
+        FleetRetentionRow(
+            fleet_id=fleet.id,
+            fleet_name=fleet.name,
+            retention_days=fleet.breach_history_retention_days,
+            effective_retention_days=effective_retention_days(db, fleet.id),
+        )
+        for fleet in fleets
+    ]
+
+
+def bulk_update_fleet_retention(
+    db: Session,
+    items: list[tuple[uuid.UUID, int | None]],
+) -> int:
+    updated = 0
+    for fleet_id, retention_days in items:
+        if retention_days is not None and not (
+            RETENTION_DAYS_MIN <= retention_days <= RETENTION_DAYS_MAX
+        ):
+            raise ValueError("retention_days out of range")
+        update_fleet_retention_days(db, fleet_id, retention_days)
+        updated += 1
+    return updated
 
 
 def effective_retention_days(db: Session, fleet_id: uuid.UUID | None) -> int:
@@ -122,6 +163,8 @@ def _apply_history_filters(
     alertnames: list[str] | None = None,
     source: str | None = None,
     breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ):
     from backend.app.db.models import FleetAlertBreachHistory
 
@@ -132,6 +175,10 @@ def _apply_history_filters(
         base = base.where(FleetAlertBreachHistory.source == source)
     if breaching_only:
         base = base.where(FleetAlertBreachHistory.is_breaching.is_(True))
+    if since is not None:
+        base = base.where(FleetAlertBreachHistory.created_at >= since)
+    if until is not None:
+        base = base.where(FleetAlertBreachHistory.created_at <= until)
     return base
 
 
@@ -143,6 +190,8 @@ def list_history(
     alertnames: list[str] | None = None,
     source: str | None = None,
     breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list, int]:
@@ -155,6 +204,8 @@ def list_history(
         alertnames=alertnames,
         source=source,
         breaching_only=breaching_only,
+        since=since,
+        until=until,
     )
 
     count_stmt = select(func.count()).select_from(base.subquery())
@@ -173,6 +224,8 @@ def list_all_history(
     alertnames: list[str] | None = None,
     source: str | None = None,
     breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list, int]:
@@ -185,6 +238,8 @@ def list_all_history(
         alertnames=alertnames,
         source=source,
         breaching_only=breaching_only,
+        since=since,
+        until=until,
     )
 
     count_stmt = select(func.count()).select_from(base.subquery())
