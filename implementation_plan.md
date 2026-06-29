@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10L — 次着手
+## Phase 10M — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（PagerDuty、CDM σ TCA シフト 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（CDM σ TCA シフト、fleet 別 API SLO 等）。
+
+## Phase 10L — 完了
+
+PagerDuty Events API v2 通知 — 全 alert 経路 + test ping + severity マッピング。v1.19.0 ship 済み。
 
 ## Phase 10K — 完了
 

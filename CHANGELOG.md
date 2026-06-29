@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.19.0] - 2026-06-28
+
+Phase 10L — PagerDuty 通知連携。
+
+### Added
+
+- **Phase 10L:** `ALERT_WEBHOOK_FORMAT=pagerduty` — PagerDuty Events API v2
+- `PAGERDUTY_ROUTING_KEY` env（`ALERT_WEBHOOK_URL` 不要）
+- 全通知経路対応: conjunction / batch / new alerts / Pc escalation / mitigation / test ping
+- severity: escalation→critical, high→error, medium→warning, test→info
+- `/health` `alert_delivery_format: pagerduty`
+
 ## [1.18.0] - 2026-06-28
 
 Phase 10K — TLE RTN 共分散伝播強化。

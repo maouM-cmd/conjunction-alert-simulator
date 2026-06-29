@@ -36,7 +36,7 @@
 ```
 
 `alert_delivery_configured`: 通知配信に必要な env が揃っている場合 `true`。  
-`alert_delivery_format`: `generic` | `slack` | `slack_bot` | `smtp`（未設定時 `null`）。秘密値は返さない。
+`alert_delivery_format`: `generic` | `slack` | `slack_bot` | `smtp` | `pagerduty`（未設定時 `null`）。秘密値は返さない。
 
 **Phase 9E:** `status` は `ok` | `degraded`（設定済み check が全て ok なら ok）。`checks.*` は `ok` | `error` | `skipped`。HTTP は常に **200**（Render liveness 互換）。
 
@@ -57,7 +57,7 @@ cas_screening_overdue_fleets 0.0
 cas_http_requests_total{method="GET",status_class="2xx"} 42.0
 cas_api_availability_ratio 0.9995
 cas_api_slo_ok 1.0
-cas_info{version="1.18.0"} 1.0
+cas_info{version="1.19.0"} 1.0
 ```
 
 | メトリクス | 説明 |
@@ -182,7 +182,8 @@ cas_screening_overdue_fleets > 0
 `notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
 `ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
 `ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。  
-`ALERT_WEBHOOK_FORMAT=smtp` で SMTP メール（`SMTP_HOST` + `SMTP_FROM` + `SMTP_TO`、任意 `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_USE_TLS`）。
+`ALERT_WEBHOOK_FORMAT=smtp` で SMTP メール（`SMTP_HOST` + `SMTP_FROM` + `SMTP_TO`、任意 `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_USE_TLS`）。  
+`ALERT_WEBHOOK_FORMAT=pagerduty` で PagerDuty Events API v2（`PAGERDUTY_ROUTING_KEY`、`ALERT_WEBHOOK_URL` 不要）（Phase 10L）。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー

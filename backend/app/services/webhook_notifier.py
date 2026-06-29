@@ -1,4 +1,4 @@
-"""Webhook alert notification (generic JSON, Slack, Slack Bot, or SMTP email)."""
+"""Webhook alert notification (generic JSON, Slack, Slack Bot, SMTP, or PagerDuty)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,9 @@ DEFAULT_SMTP_PORT = 587
 WEBHOOK_TIMEOUT_SEC = 10.0
 SLACK_TEXT_MAX_LEN = 4096
 SLACK_API_POST_MESSAGE = "https://slack.com/api/chat.postMessage"
-VALID_WEBHOOK_FORMATS = ("generic", "slack", "slack_bot", "smtp")
+PAGERDUTY_EVENTS_URL = "https://events.pagerduty.com/v2/enqueue"
+PAGERDUTY_SOURCE = "conjunction-alert-simulator"
+VALID_WEBHOOK_FORMATS = ("generic", "slack", "slack_bot", "smtp", "pagerduty")
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,11 @@ def _smtp_use_tls() -> bool:
     return raw not in ("0", "false", "no", "off")
 
 
+def _pagerduty_routing_key() -> str | None:
+    key = os.environ.get("PAGERDUTY_ROUTING_KEY", "").strip()
+    return key or None
+
+
 def _webhook_format() -> str:
     fmt = os.environ.get("ALERT_WEBHOOK_FORMAT", "generic").strip().lower()
     return fmt if fmt in VALID_WEBHOOK_FORMATS else "generic"
@@ -102,6 +109,8 @@ def _is_delivery_configured() -> bool:
         return bool(_slack_bot_token() and _slack_channel_id())
     if fmt == "smtp":
         return _is_smtp_configured()
+    if fmt == "pagerduty":
+        return bool(_pagerduty_routing_key())
     return bool(_webhook_url())
 
 
@@ -117,6 +126,8 @@ def _delivery_not_configured_message() -> str:
         if not _smtp_from():
             return "SMTP_FROM が未設定です。"
         return "SMTP_TO が未設定です。"
+    if fmt == "pagerduty":
+        return "PAGERDUTY_ROUTING_KEY が未設定です。"
     return "ALERT_WEBHOOK_URL が未設定です。"
 
 
@@ -231,6 +242,45 @@ def _build_email_payload(subject: str, header: str, lines: list[str]) -> dict:
     return {"subject": subject, "text": _build_text_body(header, lines)}
 
 
+def _risk_severity(risk_level: str) -> str:
+    if risk_level == "high":
+        return "error"
+    if risk_level == "medium":
+        return "warning"
+    return "info"
+
+
+def _max_severity_from_risk_levels(risk_levels: list[str]) -> str:
+    if "high" in risk_levels:
+        return "error"
+    if "medium" in risk_levels:
+        return "warning"
+    return "info"
+
+
+def _build_pagerduty_enqueue(
+    summary: str,
+    severity: str,
+    custom_details: dict,
+    *,
+    dedup_key: str | None = None,
+) -> dict:
+    routing_key = _pagerduty_routing_key()
+    body: dict = {
+        "routing_key": routing_key or "",
+        "event_action": "trigger",
+        "payload": {
+            "summary": summary[:1024],
+            "severity": severity,
+            "source": PAGERDUTY_SOURCE,
+            "custom_details": custom_details,
+        },
+    }
+    if dedup_key:
+        body["dedup_key"] = dedup_key
+    return body
+
+
 def _serialize_payload(
     satellite: ParsedTle | None,
     events: list[ConjunctionEvent],
@@ -261,6 +311,23 @@ def _serialize_payload(
         lines = [_alert_line(satellite, e) for e in events]
         header = f"CAS conjunction alert — {satellite.name} (NORAD {satellite.norad_id})"
         return _build_email_payload("CAS conjunction alert", header, lines)
+
+    if fmt == "pagerduty":
+        if batch_alerts is not None:
+            lines = [_alert_line(sat, e) for sat, e in batch_alerts]
+            header = (
+                f"CAS batch alert — {len(batch_alerts)} event(s) across "
+                f"{satellite_count} satellite(s)"
+            )
+            severity = _max_severity_from_risk_levels([e.risk_level for _, e in batch_alerts])
+            details = _build_batch_generic_payload(batch_alerts, satellite_count)
+            return _build_pagerduty_enqueue(header, severity, details)
+        assert satellite is not None
+        lines = [_alert_line(satellite, e) for e in events]
+        header = f"CAS conjunction alert — {satellite.name} (NORAD {satellite.norad_id})"
+        severity = _max_severity_from_risk_levels([e.risk_level for e in events])
+        details = _build_generic_payload(satellite, events)
+        return _build_pagerduty_enqueue(header, severity, details)
 
     if batch_alerts is not None:
         return _build_batch_generic_payload(batch_alerts, satellite_count)
@@ -379,6 +446,39 @@ def _send_smtp(subject: str, body: str, alert_count: int) -> WebhookResult:
         )
 
 
+def _post_pagerduty(payload: dict, alert_count: int) -> WebhookResult:
+    routing_key = _pagerduty_routing_key()
+    if not routing_key:
+        return WebhookResult(
+            sent=False,
+            alert_count=alert_count,
+            degraded=False,
+            message="PAGERDUTY_ROUTING_KEY が未設定です。",
+        )
+
+    body = dict(payload)
+    body["routing_key"] = routing_key
+
+    try:
+        with httpx.Client(timeout=WEBHOOK_TIMEOUT_SEC) as client:
+            response = client.post(PAGERDUTY_EVENTS_URL, json=body)
+            response.raise_for_status()
+        return WebhookResult(
+            sent=True,
+            alert_count=alert_count,
+            degraded=False,
+            message="PagerDuty Events API 成功。",
+        )
+    except httpx.HTTPError as exc:
+        logger.warning("PagerDuty Events API 失敗: %s", exc)
+        return WebhookResult(
+            sent=False,
+            alert_count=alert_count,
+            degraded=True,
+            message=f"PagerDuty Events API 失敗: {exc}",
+        )
+
+
 def _post_payload(payload: dict, alert_count: int) -> WebhookResult:
     fmt = _webhook_format()
     if fmt == "slack_bot":
@@ -403,6 +503,9 @@ def _post_payload(payload: dict, alert_count: int) -> WebhookResult:
                 message="SMTP 形式のペイロードが不正です。",
             )
         return _send_smtp(subject, text, alert_count)
+
+    if fmt == "pagerduty":
+        return _post_pagerduty(payload, alert_count)
 
     url = _webhook_url()
     if not url:
@@ -597,6 +700,24 @@ def notify_pc_escalation(alert, refinement) -> WebhookResult:
             "subject": f"CAS Pc Escalation — {satellite.name}",
             "text": line,
         }
+    elif fmt == "pagerduty":
+        payload = _build_pagerduty_enqueue(
+            f"CAS Pc Escalation — {satellite.name} vs {alert.debris_name}",
+            "critical",
+            {
+                "escalation": True,
+                "alert_id": str(alert.id),
+                "satellite": {"name": satellite.name, "norad_id": satellite.norad_id},
+                "debris": {"name": alert.debris_name, "norad_id": alert.debris_norad_id},
+                "pc_screening": refinement.pc_screening,
+                "pc_refined": refinement.pc_refined,
+                "pc_method": refinement.pc_method,
+                "trigger_source": refinement.trigger_source,
+                "tca": alert.tca.isoformat(),
+                "message": line,
+            },
+            dedup_key=f"cas-escalation-{alert.id}",
+        )
     else:
         payload = {
             "source": "cas",
@@ -662,6 +783,26 @@ def notify_mitigation_best(alert, best_preview) -> WebhookResult:
             "subject": f"CAS Mitigation Best — {satellite.name}",
             "text": line,
         }
+    elif fmt == "pagerduty":
+        payload = _build_pagerduty_enqueue(
+            f"CAS Mitigation Best — {satellite.name} vs {alert.debris_name}",
+            "warning",
+            {
+                "mitigation_best": True,
+                "alert_id": str(alert.id),
+                "satellite": {"name": satellite.name, "norad_id": satellite.norad_id},
+                "debris": {"name": alert.debris_name, "norad_id": alert.debris_norad_id},
+                "preview_id": str(best_preview.id),
+                "direction": best_preview.direction,
+                "delta_v_ms": best_preview.delta_v_ms,
+                "before_miss_distance_km": best_preview.before_miss_distance_km,
+                "after_miss_distance_km": best_preview.after_miss_distance_km,
+                "trigger_source": best_preview.trigger_source,
+                "tca": alert.tca.isoformat(),
+                "message": line,
+            },
+            dedup_key=f"cas-mitigation-best-{alert.id}",
+        )
     else:
         payload = {
             "source": "cas",
@@ -729,6 +870,27 @@ def notify_mitigation_plan_auto(alert, preview) -> WebhookResult:
             "subject": f"CAS Mitigation Plan Auto — {satellite.name}",
             "text": line,
         }
+    elif fmt == "pagerduty":
+        payload = _build_pagerduty_enqueue(
+            f"CAS Mitigation Plan Auto — {satellite.name} vs {alert.debris_name}",
+            "warning",
+            {
+                "mitigation_plan_auto": True,
+                "alert_id": str(alert.id),
+                "status": alert.status,
+                "satellite": {"name": satellite.name, "norad_id": satellite.norad_id},
+                "debris": {"name": alert.debris_name, "norad_id": alert.debris_norad_id},
+                "preview_id": str(preview.id),
+                "direction": preview.direction,
+                "delta_v_ms": preview.delta_v_ms,
+                "before_miss_distance_km": preview.before_miss_distance_km,
+                "after_miss_distance_km": preview.after_miss_distance_km,
+                "trigger_source": preview.trigger_source,
+                "tca": alert.tca.isoformat(),
+                "message": line,
+            },
+            dedup_key=f"cas-mitigation-plan-{alert.id}",
+        )
     else:
         payload = {
             "source": "cas",
@@ -765,6 +927,13 @@ def send_test_webhook() -> WebhookResult:
         payload = {"text": "*CAS* webhook test ping"}
     elif fmt == "smtp":
         payload = {"subject": "CAS webhook test", "text": "CAS webhook test ping"}
+    elif fmt == "pagerduty":
+        payload = _build_pagerduty_enqueue(
+            "CAS webhook test ping",
+            "info",
+            {"test": True, "message": "CAS webhook test ping"},
+            dedup_key="cas-webhook-test",
+        )
     else:
         payload = {
             "source": "cas",

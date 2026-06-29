@@ -331,3 +331,142 @@ def test_health_smtp_format(mock_smtp_cls):
         data = response.json()
         assert data["alert_delivery_configured"] is True
         assert data["alert_delivery_format"] == "smtp"
+
+
+PAGERDUTY_ENV = {
+    "ALERT_WEBHOOK_FORMAT": "pagerduty",
+    "PAGERDUTY_ROUTING_KEY": "test-routing-key",
+}
+
+
+def test_notify_pagerduty_without_routing_key():
+    with patch.dict(
+        os.environ,
+        {"ALERT_WEBHOOK_FORMAT": "pagerduty", "PAGERDUTY_ROUTING_KEY": ""},
+        clear=False,
+    ):
+        sat = parse_tle(DEMO_SAT)
+        result = notify_conjunction_events(sat, [_sample_event(1e-3)])
+        assert result.sent is False
+        assert "PAGERDUTY_ROUTING_KEY" in result.message
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_send_test_webhook_pagerduty_success(mock_client_cls):
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    with patch.dict(os.environ, PAGERDUTY_ENV, clear=False):
+        result = send_test_webhook()
+        assert result.sent is True
+        assert result.message == "PagerDuty Events API 成功。"
+        call_args = mock_client.post.call_args
+        assert call_args.args[0] == "https://events.pagerduty.com/v2/enqueue"
+        body = call_args.kwargs["json"]
+        assert body["routing_key"] == "test-routing-key"
+        assert body["event_action"] == "trigger"
+        assert body["payload"]["severity"] == "info"
+        assert body["payload"]["summary"] == "CAS webhook test ping"
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_notify_pagerduty_severity_error(mock_client_cls):
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    with patch.dict(os.environ, PAGERDUTY_ENV, clear=False):
+        sat = parse_tle(DEMO_SAT)
+        notify_conjunction_events(sat, [_sample_event(1e-3, "high")])
+        body = mock_client.post.call_args.kwargs["json"]
+        assert body["payload"]["severity"] == "error"
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_notify_pc_escalation_pagerduty_critical(mock_client_cls):
+    from uuid import uuid4
+
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    alert_cls = type("ConjunctionAlert", (object,), {})
+    refine_cls = type("AlertPcRefinement", (object,), {})
+    alert_id = uuid4()
+    alert = alert_cls()
+    alert.id = alert_id
+    alert.debris_name = "DEB"
+    alert.debris_norad_id = 99999
+    alert.tca = datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc)
+    alert.satellite = type("Sat", (object,), {"name": "SAT", "norad_id": 25544})()
+    refinement = refine_cls()
+    refinement.pc_screening = 1e-4
+    refinement.pc_refined = 2e-4
+    refinement.pc_method = "tle_rtn"
+    refinement.trigger_source = "screening_auto"
+
+    from backend.app.services.webhook_notifier import notify_pc_escalation
+
+    with (
+        patch.dict(os.environ, PAGERDUTY_ENV, clear=False),
+        patch("backend.app.db.models.ConjunctionAlert", alert_cls),
+        patch("backend.app.db.models.AlertPcRefinement", refine_cls),
+    ):
+        result = notify_pc_escalation(alert, refinement)
+        assert result.sent is True
+        body = mock_client.post.call_args.kwargs["json"]
+        assert body["payload"]["severity"] == "critical"
+        assert body["dedup_key"] == f"cas-escalation-{alert_id}"
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_webhook_test_endpoint_pagerduty_success(mock_client_cls):
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    with patch.dict(os.environ, PAGERDUTY_ENV, clear=False):
+        response = client.post("/api/v1/alerts/webhook/test")
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+
+
+def test_webhook_test_endpoint_pagerduty_without_key_returns_503():
+    with patch.dict(
+        os.environ,
+        {"ALERT_WEBHOOK_FORMAT": "pagerduty", "PAGERDUTY_ROUTING_KEY": ""},
+        clear=False,
+    ):
+        response = client.post("/api/v1/alerts/webhook/test")
+        assert response.status_code == 503
+
+
+@patch("backend.app.services.webhook_notifier.httpx.Client")
+def test_health_pagerduty_format(mock_client_cls):
+    with patch.dict(os.environ, PAGERDUTY_ENV, clear=False):
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["alert_delivery_configured"] is True
+        assert data["alert_delivery_format"] == "pagerduty"
