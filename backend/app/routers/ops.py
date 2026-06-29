@@ -34,6 +34,9 @@ from backend.app.models.schemas import (
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
     FleetAlertRulesOut,
+    FleetAlertRulesApplyOut,
+    FleetBreachHistorySettingsUpdate,
+    FleetBreachHistorySettingsOut,
     FleetBreachStateListOut,
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
@@ -66,6 +69,7 @@ from backend.app.services import (
     breach_history_service,
     audit_service,
     fleet_alert_metrics_service,
+    fleet_alert_rules_apply_service,
     fleet_api_availability_service,
     mitigation_service,
     pc_refinement_service,
@@ -629,21 +633,13 @@ def list_pc_refinements(
     )
 
 
-@router.get("/prometheus/fleet-alert-rules", response_model=FleetAlertRulesOut)
-def fleet_alert_rules(
-    fleet_id: str | None = None,
-    breaching_only: bool = False,
-    breaching_fleets_only: bool = False,
-    format: str = Query("yaml", pattern="^(yaml|json)$"),
-    db: Session = Depends(require_db),
-    principal: AuthPrincipal = Depends(get_auth_principal),
-) -> FleetAlertRulesOut:
-    if not fleet_alert_metrics_service.fleet_alert_metrics_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail="Fleet alert metrics は無効です（FLEET_ALERT_METRICS_ENABLED）。",
-        )
-
+def _resolve_fleet_alert_rule_fleets(
+    db: Session,
+    principal: AuthPrincipal,
+    fleet_id: str | None,
+    *,
+    breaching_fleets_only: bool,
+) -> tuple[list[Fleet], uuid.UUID | None]:
     fleets: list[Fleet]
     scoped_fleet: uuid.UUID | None = None
     if fleet_id is not None:
@@ -668,7 +664,15 @@ def fleet_alert_rules(
 
     if breaching_fleets_only:
         fleets = [f for f in fleets if breach_state_store.fleet_has_breaching_alert(str(f.id))]
+    return fleets, scoped_fleet
 
+
+def _build_fleet_alert_rules_content(
+    fleets: list[Fleet],
+    *,
+    breaching_only: bool,
+    format: str,
+) -> tuple[str, str]:
     rules: list = []
     for fleet in fleets:
         rules.extend(
@@ -684,11 +688,130 @@ def fleet_alert_rules(
         content = fleet_alert_metrics_service.render_fleet_alert_rules_json(rules)
     else:
         content = fleet_alert_metrics_service.render_fleet_alert_rules_yaml(rules)
+    return fmt, content
+
+
+def _validate_history_alertnames(
+    alertname: str | None,
+    alertnames: list[str] | None,
+) -> list[str] | None:
+    if alertnames is not None and len(alertnames) == 0:
+        raise HTTPException(status_code=422, detail="alertnames が空です。")
+    resolved = breach_history_service.resolve_alertnames_filter(alertname, alertnames)
+    if resolved is not None:
+        for name in resolved:
+            if not breach_state_store.is_valid_fleet_alertname(name):
+                raise HTTPException(status_code=422, detail="alertname が不正です。")
+    return resolved
+
+
+@router.get("/prometheus/fleet-alert-rules", response_model=FleetAlertRulesOut)
+def fleet_alert_rules(
+    fleet_id: str | None = None,
+    breaching_only: bool = False,
+    breaching_fleets_only: bool = False,
+    format: str = Query("yaml", pattern="^(yaml|json)$"),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetAlertRulesOut:
+    if not fleet_alert_metrics_service.fleet_alert_metrics_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Fleet alert metrics は無効です（FLEET_ALERT_METRICS_ENABLED）。",
+        )
+
+    fleets, scoped_fleet = _resolve_fleet_alert_rule_fleets(
+        db, principal, fleet_id, breaching_fleets_only=breaching_fleets_only
+    )
+    fmt, content = _build_fleet_alert_rules_content(
+        fleets, breaching_only=breaching_only, format=format
+    )
 
     return FleetAlertRulesOut(
         format=fmt,
         fleet_id=str(scoped_fleet) if scoped_fleet is not None else None,
         content=content,
+    )
+
+
+@router.post("/prometheus/fleet-alert-rules/apply", response_model=FleetAlertRulesApplyOut)
+def fleet_alert_rules_apply(
+    fleet_id: str | None = None,
+    breaching_only: bool = False,
+    breaching_fleets_only: bool = False,
+    format: str = Query("yaml", pattern="^(yaml|json)$"),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetAlertRulesApplyOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not fleet_alert_metrics_service.fleet_alert_metrics_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Fleet alert metrics は無効です（FLEET_ALERT_METRICS_ENABLED）。",
+        )
+
+    fleets, scoped_fleet = _resolve_fleet_alert_rule_fleets(
+        db, principal, fleet_id, breaching_fleets_only=breaching_fleets_only
+    )
+    fmt, content = _build_fleet_alert_rules_content(
+        fleets, breaching_only=breaching_only, format=format
+    )
+    result = fleet_alert_rules_apply_service.apply_fleet_alert_rules(content, format=fmt)
+
+    return FleetAlertRulesApplyOut(
+        applied=result.applied,
+        path=result.path,
+        format=fmt,
+        fleet_id=str(scoped_fleet) if scoped_fleet is not None else None,
+        content=content,
+        message=result.message,
+    )
+
+
+@router.patch(
+    "/fleets/{fleet_id}/breach-history-settings",
+    response_model=FleetBreachHistorySettingsOut,
+)
+def update_fleet_breach_history_settings(
+    fleet_id: str,
+    body: FleetBreachHistorySettingsUpdate,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistorySettingsOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not breach_history_service.breach_history_enabled():
+        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+
+    fid = _parse_uuid(fleet_id, "fleet_id")
+    fleet = db.get(Fleet, fid)
+    if fleet is None or not fleet.active:
+        raise HTTPException(status_code=404, detail="艦隊が見つかりません。")
+
+    if body.retention_days is not None and not (
+        breach_history_service.RETENTION_DAYS_MIN
+        <= body.retention_days
+        <= breach_history_service.RETENTION_DAYS_MAX
+    ):
+        raise HTTPException(status_code=422, detail="retention_days が範囲外です。")
+
+    try:
+        effective = breach_history_service.update_fleet_retention_days(
+            db, fid, body.retention_days
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="艦隊が見つかりません。") from exc
+
+    db.refresh(fleet)
+    return FleetBreachHistorySettingsOut(
+        fleet_id=str(fid),
+        retention_days=fleet.breach_history_retention_days,
+        effective_retention_days=effective,
     )
 
 
@@ -828,6 +951,7 @@ def list_fleet_breach_states(
 def list_fleet_breach_history(
     fleet_id: str | None = None,
     alertname: str | None = None,
+    alertnames: list[str] | None = Query(None),
     source: str | None = None,
     breaching_only: bool = False,
     limit: int = Query(default=100, ge=1, le=500),
@@ -841,8 +965,7 @@ def list_fleet_breach_history(
     if not breach_history_service.breach_history_enabled():
         raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
 
-    if alertname is not None and not breach_state_store.is_valid_fleet_alertname(alertname):
-        raise HTTPException(status_code=422, detail="alertname が不正です。")
+    _validate_history_alertnames(alertname, alertnames)
     if source is not None and source not in breach_history_service.VALID_SOURCES:
         raise HTTPException(status_code=422, detail="source が不正です。")
 
@@ -855,6 +978,7 @@ def list_fleet_breach_history(
         rows, total = breach_history_service.list_all_history(
             db,
             alertname=alertname,
+            alertnames=alertnames,
             source=source,
             breaching_only=breaching_only,
             limit=limit,
@@ -904,6 +1028,7 @@ def list_fleet_breach_history(
         db,
         fid,
         alertname=alertname,
+        alertnames=alertnames,
         source=source,
         breaching_only=breaching_only,
         limit=limit,

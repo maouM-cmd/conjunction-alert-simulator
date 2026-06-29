@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.40.0] - 2026-06-28
+
+Phase 10AG — 艦隊別 retention + ルール apply + alertnames フィルタ。
+
+### Added
+
+- **Phase 10AG:** `fleets.breach_history_retention_days` — 艦隊別 breach 履歴 retention
+- `effective_retention_days` — per-fleet purge cutoff
+- `PATCH /ops/fleets/{fleet_id}/breach-history-settings` — 管理者 retention 設定
+- `POST /ops/prometheus/fleet-alert-rules/apply` — `PROMETHEUS_FLEET_RULES_OUTPUT_PATH` へ atomic 書き込み
+- `GET history?alertnames=` — 複数 alertname OR フィルタ
+- Ops UI — retention 保存、alertname チェックボックス、ルール apply
+
 ## [1.39.0] - 2026-06-28
 
 Phase 10AF — per-fleet 履歴 purge + breaching 艦隊 rules + Ops UI。

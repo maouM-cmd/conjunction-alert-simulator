@@ -27,6 +27,7 @@ class Fleet(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), default=list)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    breach_history_retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False

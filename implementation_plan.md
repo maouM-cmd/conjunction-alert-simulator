@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AG — 次着手
+## Phase 10AH — 次着手
 
-商用運用ロードマップ Phase 10+（艦隊別 retention 日数、Alertmanager rule apply 等）。
+商用運用ロードマップ Phase 10+（Prometheus reload webhook、retention bulk 設定、履歴日付 range 等）。
+
+## Phase 10AG — 完了
+
+艦隊別 retention 日数、ルール apply、履歴 alertnames 複数フィルタ。v1.40.0 ship 済み。
 
 ## Phase 10AF — 完了
 

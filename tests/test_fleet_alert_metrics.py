@@ -222,6 +222,45 @@ def test_fleet_alert_rules_breaching_fleets_only(ops_client, monkeypatch):
     assert content.count("alert: CASFleetOpenAlertsHigh") == 1
 
 
+def test_fleet_alert_rules_apply_writes_file(ops_client, monkeypatch, tmp_path):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    output = tmp_path / "fleet-rules.yaml"
+    monkeypatch.setenv("PROMETHEUS_FLEET_RULES_OUTPUT_PATH", str(output))
+
+    fleet_id, _ = _create_fleet_with_key(ops_client, monkeypatch, "Apply Rules Fleet")
+    response = ops_client.post(
+        f"/api/v1/ops/prometheus/fleet-alert-rules/apply?fleet_id={fleet_id}",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["applied"] is True
+    assert data["path"] == str(output)
+    assert output.exists()
+    assert "CASFleetOpenAlertsHigh" in output.read_text(encoding="utf-8")
+
+
+def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("PROMETHEUS_FLEET_RULES_OUTPUT_PATH", raising=False)
+
+    fleet_id, _ = _create_fleet_with_key(ops_client, monkeypatch, "Apply No Path Fleet")
+    response = ops_client.post(
+        f"/api/v1/ops/prometheus/fleet-alert-rules/apply?fleet_id={fleet_id}",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["applied"] is False
+    assert data["path"] is None
+    assert "PROMETHEUS_FLEET_RULES_OUTPUT_PATH" in data["message"]
+
+
 def test_collect_fleet_risk_counts_high_open(db_session):
     from pathlib import Path
 

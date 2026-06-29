@@ -746,6 +746,25 @@ class FleetAlertRulesOut(BaseModel):
     content: str
 
 
+class FleetAlertRulesApplyOut(BaseModel):
+    applied: bool
+    path: str | None = None
+    format: str
+    fleet_id: str | None = None
+    content: str
+    message: str
+
+
+class FleetBreachHistorySettingsUpdate(BaseModel):
+    retention_days: int | None = None
+
+
+class FleetBreachHistorySettingsOut(BaseModel):
+    fleet_id: str
+    retention_days: int | None
+    effective_retention_days: int
+
+
 class OidcConfigOut(BaseModel):
     enabled: bool
     login_path: str | None = None

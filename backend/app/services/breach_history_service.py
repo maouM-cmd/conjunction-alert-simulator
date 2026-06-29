@@ -33,6 +33,53 @@ def breach_history_retention_days() -> int:
         return 90
 
 
+RETENTION_DAYS_MIN = 1
+RETENTION_DAYS_MAX = 3650
+
+
+def effective_retention_days(db: Session, fleet_id: uuid.UUID | None) -> int:
+    if fleet_id is None:
+        return breach_history_retention_days()
+    from backend.app.db.models import Fleet
+
+    fleet = db.get(Fleet, fleet_id)
+    if fleet is not None and fleet.breach_history_retention_days is not None:
+        return max(min(fleet.breach_history_retention_days, RETENTION_DAYS_MAX), RETENTION_DAYS_MIN)
+    return breach_history_retention_days()
+
+
+def update_fleet_retention_days(
+    db: Session,
+    fleet_id: uuid.UUID,
+    retention_days: int | None,
+) -> int:
+    from backend.app.db.models import Fleet
+
+    fleet = db.get(Fleet, fleet_id)
+    if fleet is None or not fleet.active:
+        raise ValueError("fleet not found")
+    if retention_days is not None and not (RETENTION_DAYS_MIN <= retention_days <= RETENTION_DAYS_MAX):
+        raise ValueError("retention_days out of range")
+    fleet.breach_history_retention_days = retention_days
+    db.commit()
+    db.refresh(fleet)
+    return effective_retention_days(db, fleet_id)
+
+
+def resolve_alertnames_filter(
+    alertname: str | None,
+    alertnames: list[str] | None,
+) -> list[str] | None:
+    names: list[str] = []
+    if alertnames:
+        names.extend(alertnames)
+    if alertname is not None:
+        names.append(alertname)
+    if not names:
+        return None
+    return list(dict.fromkeys(names))
+
+
 def record_transition(
     fleet_id: uuid.UUID,
     alertname: str,
@@ -68,9 +115,19 @@ def record_transition(
         db.close()
 
 
-def _apply_history_filters(base, *, source: str | None = None, breaching_only: bool = False):
+def _apply_history_filters(
+    base,
+    *,
+    alertname: str | None = None,
+    alertnames: list[str] | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
+):
     from backend.app.db.models import FleetAlertBreachHistory
 
+    resolved = resolve_alertnames_filter(alertname, alertnames)
+    if resolved is not None:
+        base = base.where(FleetAlertBreachHistory.alertname.in_(resolved))
     if source is not None:
         base = base.where(FleetAlertBreachHistory.source == source)
     if breaching_only:
@@ -83,6 +140,7 @@ def list_history(
     fleet_id: uuid.UUID,
     *,
     alertname: str | None = None,
+    alertnames: list[str] | None = None,
     source: str | None = None,
     breaching_only: bool = False,
     limit: int = 100,
@@ -91,9 +149,13 @@ def list_history(
     from backend.app.db.models import FleetAlertBreachHistory
 
     base = select(FleetAlertBreachHistory).where(FleetAlertBreachHistory.fleet_id == fleet_id)
-    if alertname is not None:
-        base = base.where(FleetAlertBreachHistory.alertname == alertname)
-    base = _apply_history_filters(base, source=source, breaching_only=breaching_only)
+    base = _apply_history_filters(
+        base,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+    )
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = db.execute(count_stmt).scalar_one()
@@ -108,6 +170,7 @@ def list_all_history(
     db: Session,
     *,
     alertname: str | None = None,
+    alertnames: list[str] | None = None,
     source: str | None = None,
     breaching_only: bool = False,
     limit: int = 100,
@@ -116,9 +179,13 @@ def list_all_history(
     from backend.app.db.models import FleetAlertBreachHistory
 
     base = select(FleetAlertBreachHistory).options(joinedload(FleetAlertBreachHistory.fleet))
-    if alertname is not None:
-        base = base.where(FleetAlertBreachHistory.alertname == alertname)
-    base = _apply_history_filters(base, source=source, breaching_only=breaching_only)
+    base = _apply_history_filters(
+        base,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+    )
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = db.execute(count_stmt).scalar_one()
@@ -134,7 +201,8 @@ def purge_old_breach_history(db: Session, *, fleet_id: uuid.UUID | None = None) 
         return 0
     from backend.app.db.models import FleetAlertBreachHistory
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=breach_history_retention_days())
+    days = effective_retention_days(db, fleet_id)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     stmt = delete(FleetAlertBreachHistory).where(FleetAlertBreachHistory.created_at < cutoff)
     if fleet_id is not None:
         stmt = stmt.where(FleetAlertBreachHistory.fleet_id == fleet_id)
