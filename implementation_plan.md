@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10R — 次着手
+## Phase 10S — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（risk_level 別メトリクス、Alertmanager push 等）。
+
+## Phase 10R — 完了
+
+6×6 アラート STM — `alert_stm_service` 正本化、`escalated` 状態、state-machine API、PD inbound / Pc auto-escalate 統合。v1.25.0 ship 済み。
 
 ## Phase 10Q — 完了
 

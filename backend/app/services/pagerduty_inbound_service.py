@@ -13,6 +13,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.app.services import alert_service, audit_service
+from backend.app.services.alert_stm_service import (
+    target_for_acknowledge,
+    transition_chain_for_resolve,
+)
 from backend.app.services.webhook_notifier import pagerduty_dedup_key
 
 logger = logging.getLogger(__name__)
@@ -92,21 +96,11 @@ def verify_pagerduty_signature(headers: dict[str, str], body: bytes) -> bool:
 
 
 def _target_status_for_ack(current_status: str) -> str | None:
-    if current_status == "open":
-        return "acknowledged"
-    if current_status in ("acknowledged", "mitigation_planned", "closed", "false_positive"):
-        return None
-    return None
+    return target_for_acknowledge(current_status)
 
 
 def _resolve_status_chain(current_status: str) -> list[str]:
-    if current_status in ("closed", "false_positive"):
-        return []
-    if current_status == "open":
-        return ["acknowledged", "closed"]
-    if current_status in ("acknowledged", "mitigation_planned"):
-        return ["closed"]
-    return []
+    return transition_chain_for_resolve(current_status)
 
 
 def handle_pagerduty_event(db: Session, payload: dict[str, Any]) -> PagerDutyInboundResult:

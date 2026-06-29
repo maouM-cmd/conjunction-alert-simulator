@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.25.0] - 2026-06-28
+
+Phase 10R — 6×6 アラート STM（State Transition Matrix）。
+
+### Added
+
+- **Phase 10R:** 6 状態 STM 正本化 — `alert_stm_service`（`escalated` 追加）
+- `GET /api/v1/ops/alerts/state-machine` — 6×6 遷移マトリクス API
+- `ConjunctionAlertOut.allowed_next_statuses` — Ops UI ボタン生成
+- `FleetOpsSummaryOut.escalated_count`、fleet metrics に `escalated`
+- PagerDuty inbound — `escalated` 状態の ack/resolve 連鎖
+- env: `ALERT_STM_AUTO_ESCALATE_STATUS`（default false）— Pc refine 後 `open` → `escalated`
+
 ## [1.24.0] - 2026-06-28
 
 Phase 10Q — per-fleet Prometheus アラートメトリクス。

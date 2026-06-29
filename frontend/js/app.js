@@ -277,6 +277,14 @@ async function loadOpsFleets() {
   }
 }
 
+const OPS_TRANSITION_LABELS = {
+  acknowledged: "Ack",
+  false_positive: "誤検知",
+  escalated: "エスカレーション",
+  mitigation_planned: "対策計画",
+  closed: "クローズ",
+};
+
 function opsStatusBadge(status) {
   return `<span class="ops-status-badge ops-status-${status}">${status}</span>`;
 }
@@ -387,6 +395,7 @@ async function refreshOpsDashboard() {
     els.opsSummary.innerHTML = `
       <strong>${summary.fleet_name}</strong><br/>
       open: ${summary.open_count} /
+      escalated: ${summary.escalated_count ?? 0} /
       ack: ${summary.acknowledged_count} /
       対策計画: ${summary.mitigation_planned_count} /
       closed: ${summary.closed_count}<br/>
@@ -491,22 +500,11 @@ async function refreshOpsDashboard() {
         showPcRefinementResult(actions, a.latest_pc_refinement);
       }
 
-      const transitions = {
-        open: [
-          { label: "Ack", status: "acknowledged" },
-          { label: "誤検知", status: "false_positive" },
-        ],
-        acknowledged: [
-          { label: "対策計画", status: "mitigation_planned" },
-          { label: "クローズ", status: "closed" },
-          { label: "誤検知", status: "false_positive" },
-        ],
-        mitigation_planned: [
-          { label: "クローズ", status: "closed" },
-          { label: "誤検知", status: "false_positive" },
-        ],
-      };
-      for (const t of transitions[a.status] || []) {
+      const transitions = (a.allowed_next_statuses || []).map((status) => ({
+        label: OPS_TRANSITION_LABELS[status] || status,
+        status,
+      }));
+      for (const t of transitions) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = t.label;
@@ -692,9 +690,10 @@ function formatOpsPcHtml(alert) {
     ref.covariance_source === "tle_rtn_propagated"
       ? ' <span class="ops-pc-propagated">propagated σ</span>'
       : "";
-  const escalatedBadge = alert.escalated
-    ? '<br/><span class="ops-pc-escalated">ESCALATED</span>'
-    : "";
+  const escalatedBadge =
+    alert.escalated && alert.status !== "escalated"
+      ? '<br/><span class="ops-pc-escalated">ESCALATED</span>'
+      : "";
   return (
     `<span class="ops-pc-screening">${screening}</span>` +
     `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})${autoBadge}${propagatedBadge}</span>` +

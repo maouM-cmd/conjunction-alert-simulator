@@ -12,13 +12,9 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.models import ConjunctionAlert, Fleet
 
-ALERT_STATUSES = (
-    "open",
-    "acknowledged",
-    "mitigation_planned",
-    "closed",
-    "false_positive",
-)
+from backend.app.services.alert_stm_service import ALL_ALERT_STATUSES
+
+ALERT_STATUSES = ALL_ALERT_STATUSES
 
 
 def _env_bool(name: str, default: bool = False) -> bool:

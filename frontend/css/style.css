@@ -327,6 +327,7 @@ label.checkbox-row input[type="checkbox"] {
 }
 
 .ops-status-open { background: #5c2a2a; color: #ffb4b4; }
+.ops-status-escalated { background: #5c3a1a; color: #ffc89a; }
 .ops-status-acknowledged { background: #4a4020; color: #ffe08a; }
 .ops-status-mitigation_planned { background: #2a3a5c; color: #a8c8ff; }
 .ops-status-closed { background: #2a3a2a; color: #b8e0b8; }

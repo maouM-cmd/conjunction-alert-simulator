@@ -435,7 +435,12 @@ class ScreeningRunListOut(BaseModel):
 
 
 AlertStatus = Literal[
-    "open", "acknowledged", "mitigation_planned", "closed", "false_positive"
+    "open",
+    "escalated",
+    "acknowledged",
+    "mitigation_planned",
+    "closed",
+    "false_positive",
 ]
 
 
@@ -529,6 +534,13 @@ class ConjunctionAlertOut(BaseModel):
     latest_pc_refinement: PcRefinementOut | None = None
     escalated: bool = False
     auto_mitigation_planned: bool = False
+    allowed_next_statuses: list[AlertStatus] = Field(default_factory=list)
+
+
+class AlertStateMachineOut(BaseModel):
+    statuses: list[str]
+    allowed_transitions: dict[str, list[str]]
+    matrix: list[list[bool]]
 
 
 class ConjunctionAlertListOut(BaseModel):
@@ -547,6 +559,7 @@ class FleetOpsSummaryOut(BaseModel):
     fleet_id: str
     fleet_name: str
     open_count: int
+    escalated_count: int = 0
     acknowledged_count: int
     mitigation_planned_count: int
     closed_count: int

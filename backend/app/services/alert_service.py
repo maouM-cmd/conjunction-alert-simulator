@@ -9,21 +9,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.db.models import ConjunctionAlert, Fleet, Satellite, ScreeningRun
+from backend.app.services.alert_stm_service import ALLOWED_TRANSITIONS, ALL_ALERT_STATUSES
 from backend.app.services.analysis import ConjunctionAnalysisResult
 from backend.app.services.webhook_notifier import filter_alert_events
 
 DEDUPE_WINDOW = timedelta(hours=24)
 
 AlertStatus = str
-
-ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "open": {"acknowledged", "false_positive"},
-    "acknowledged": {"mitigation_planned", "false_positive", "closed"},
-    "mitigation_planned": {"closed", "false_positive"},
-    "closed": set(),
-    "false_positive": set(),
-}
-
 
 class AlertServiceError(Exception):
     pass
@@ -218,7 +210,7 @@ def get_fleet_summary(db: Session, fleet_id: uuid.UUID) -> dict:
         raise NotFoundError("艦隊が見つかりません。")
 
     counts: dict[str, int] = {}
-    for status in ("open", "acknowledged", "mitigation_planned", "closed", "false_positive"):
+    for status in ALL_ALERT_STATUSES:
         counts[status] = int(
             db.execute(
                 select(func.count())
@@ -238,6 +230,7 @@ def get_fleet_summary(db: Session, fleet_id: uuid.UUID) -> dict:
         "fleet_id": fleet_id,
         "fleet_name": fleet.name,
         "open_count": counts["open"],
+        "escalated_count": counts["escalated"],
         "acknowledged_count": counts["acknowledged"],
         "mitigation_planned_count": counts["mitigation_planned"],
         "closed_count": counts["closed"],

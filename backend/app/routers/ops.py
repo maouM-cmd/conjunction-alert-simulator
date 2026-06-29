@@ -13,6 +13,7 @@ from backend.app.db.session import require_db
 from backend.app.services.auth_config import is_api_key_required
 from backend.app.models.schemas import (
     AlertStatus,
+    AlertStateMachineOut,
     AlertTransition,
     ApiSloDayOut,
     ApiSloHistoryOut,
@@ -35,6 +36,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services import (
     alert_service,
+    alert_stm_service,
     api_availability_service,
     audit_service,
     fleet_alert_metrics_service,
@@ -150,6 +152,7 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
         latest_pc_refinement=_latest_pc_refinement_out(alert),
         escalated=_alert_escalated(alert),
         auto_mitigation_planned=mitigation_service.is_auto_mitigation_planned(alert),
+        allowed_next_statuses=alert_stm_service.allowed_targets(alert.status),  # type: ignore[arg-type]
     )
 
 
@@ -339,6 +342,7 @@ def fleet_ops_summary(
         fleet_id=str(summary["fleet_id"]),
         fleet_name=summary["fleet_name"],
         open_count=summary["open_count"],
+        escalated_count=summary["escalated_count"],
         acknowledged_count=summary["acknowledged_count"],
         mitigation_planned_count=summary["mitigation_planned_count"],
         closed_count=summary["closed_count"],
@@ -347,6 +351,15 @@ def fleet_ops_summary(
         latest_run_status=summary["latest_run_status"],
         latest_run_finished_at=summary["latest_run_finished_at"],
     )
+
+
+@router.get("/alerts/state-machine", response_model=AlertStateMachineOut)
+def alert_state_machine(
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertStateMachineOut:
+    _ = principal
+    payload = alert_stm_service.state_machine_payload()
+    return AlertStateMachineOut(**payload)
 
 
 @router.get("/alerts", response_model=ConjunctionAlertListOut)

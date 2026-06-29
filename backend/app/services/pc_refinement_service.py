@@ -228,6 +228,20 @@ def maybe_escalate_after_refine(db: Session, refinement: AlertPcRefinement) -> b
     from backend.app.services.webhook_notifier import notify_pc_escalation
 
     result = notify_pc_escalation(alert, refinement)
+    status_escalated = False
+    if alert.status == "open":
+        from backend.app.services.alert_stm_service import stm_auto_escalate_status_enabled
+
+        if stm_auto_escalate_status_enabled():
+            from backend.app.services.alert_service import transition_alert
+
+            transition_alert(
+                db,
+                alert.id,
+                new_status="escalated",
+                comment="Auto escalated by Pc refinement",
+            )
+            status_escalated = True
     audit_service.log_audit(
         db,
         fleet_id=alert.fleet_id,
@@ -242,6 +256,7 @@ def maybe_escalate_after_refine(db: Session, refinement: AlertPcRefinement) -> b
             "pc_method": refinement.pc_method,
             "notification_sent": result.sent,
             "notification_message": result.message,
+            "status_escalated": status_escalated,
         },
     )
     db.commit()
