@@ -6,6 +6,7 @@ CAS の GitHub Release を tag から作成するチェックリストです。
 
 | Tag | 本文 | タイトル例 |
 |-----|------|-----------|
+| `v1.10.0` | [`RELEASE_NOTES_v1.10.0.md`](RELEASE_NOTES_v1.10.0.md) | CAS v1.10.0 — Phase 10C |
 | `v1.9.0` | [`RELEASE_NOTES_v1.9.0.md`](RELEASE_NOTES_v1.9.0.md) | CAS v1.9.0 — Phase 10B |
 | `v1.8.0` | [`RELEASE_NOTES_v1.8.0.md`](RELEASE_NOTES_v1.8.0.md) | CAS v1.8.0 — Phase 10A |
 | `v1.7.0` | [`RELEASE_NOTES_v1.7.0.md`](RELEASE_NOTES_v1.7.0.md) | CAS v1.7.0 — Phase 9E |

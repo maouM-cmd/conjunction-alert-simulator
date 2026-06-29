@@ -353,11 +353,33 @@ label.checkbox-row input[type="checkbox"] {
   margin-top: 0.15rem;
 }
 
+.ops-mitigation-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-top: 0.15rem;
+}
+
+.ops-mitigation-controls select,
+.ops-mitigation-controls input {
+  font-size: 0.65rem;
+  max-width: 4.5rem;
+}
+
+.ops-mitigation-plan-btn {
+  font-weight: 600;
+}
+
 .ops-mitigation-result {
   font-size: 0.68rem;
   color: #a8d4ff;
   padding: 0.15rem 0;
   line-height: 1.35;
+}
+
+.ops-mitigation-best {
+  color: #ffe08a;
+  font-weight: 600;
 }
 
 .ops-sla-ok {

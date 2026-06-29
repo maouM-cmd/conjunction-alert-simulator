@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10C — 次着手
+## Phase 10D — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（COLA 拡張、SSO、99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、共分散伝播、99.9% SLA 等）。
+
+## Phase 10C — 完了
+
+COLA Δv スイープ、mitigation-plan 連携、Ops UI 拡張。v1.10.0 ship 済み。
 
 ## Phase 10B — 完了
 

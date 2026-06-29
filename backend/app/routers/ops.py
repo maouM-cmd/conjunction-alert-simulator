@@ -22,6 +22,9 @@ from backend.app.models.schemas import (
     MitigationPreviewListOut,
     MitigationPreviewOut,
     MitigationPreviewRequest,
+    MitigationPlanRequest,
+    MitigationSweepOut,
+    MitigationSweepRequest,
     SlaSummaryOut,
 )
 from backend.app.services import alert_service, audit_service, mitigation_service, sla_service
@@ -47,6 +50,8 @@ def _handle_service_error(exc: alert_service.AlertServiceError) -> HTTPException
 def _handle_mitigation_error(exc: mitigation_service.MitigationServiceError) -> HTTPException:
     if isinstance(exc, mitigation_service.NotFoundError):
         return HTTPException(status_code=404, detail=str(exc))
+    if isinstance(exc, mitigation_service.ValidationError):
+        return HTTPException(status_code=400, detail=str(exc))
     return HTTPException(status_code=400, detail=str(exc))
 
 
@@ -289,6 +294,73 @@ def list_mitigation_previews(
         items=[_preview_out(p) for p in items],
         total=len(items),
     )
+
+
+@router.post(
+    "/alerts/{alert_id}/mitigation-sweep",
+    response_model=MitigationSweepOut,
+    status_code=201,
+)
+def create_mitigation_sweep(
+    alert_id: str,
+    body: MitigationSweepRequest,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> MitigationSweepOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        previews, best = mitigation_service.run_alert_mitigation_sweep(
+            db,
+            aid,
+            direction=body.direction,
+            delta_v_min_ms=body.delta_v_min_ms,
+            delta_v_max_ms=body.delta_v_max_ms,
+            delta_v_step_ms=body.delta_v_step_ms,
+            max_trials=body.max_trials,
+            duration_days=body.duration_days,
+            step_minutes=body.step_minutes,
+            api_key_id=principal.api_key.id if principal.api_key else None,
+        )
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except mitigation_service.MitigationServiceError as exc:
+        raise _handle_mitigation_error(exc) from exc
+    return MitigationSweepOut(
+        items=[_preview_out(p) for p in previews],
+        best=_preview_out(best) if best else None,
+        total=len(previews),
+    )
+
+
+@router.post("/alerts/{alert_id}/mitigation-plan", response_model=ConjunctionAlertOut)
+def create_mitigation_plan(
+    alert_id: str,
+    body: MitigationPlanRequest,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> ConjunctionAlertOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    preview_uuid = None
+    if body.preview_id is not None:
+        preview_uuid = _parse_uuid(body.preview_id, "preview_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        updated = mitigation_service.transition_alert_with_preview(
+            db,
+            aid,
+            preview_id=preview_uuid,
+            comment=body.comment,
+            api_key_id=principal.api_key.id if principal.api_key else None,
+        )
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except mitigation_service.MitigationServiceError as exc:
+        raise _handle_mitigation_error(exc) from exc
+    refreshed = alert_service.get_alert(db, updated.id)
+    return _alert_out(refreshed)
 
 
 @router.get("/audit", response_model=AuditLogListOut)

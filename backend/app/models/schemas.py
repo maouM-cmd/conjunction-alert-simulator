@@ -468,6 +468,27 @@ class MitigationPreviewListOut(BaseModel):
     total: int
 
 
+class MitigationSweepRequest(BaseModel):
+    direction: ManeuverDirection = "prograde"
+    delta_v_min_ms: float = 0.01
+    delta_v_max_ms: float = 0.10
+    delta_v_step_ms: float = 0.01
+    max_trials: int = Field(default=20, ge=1, le=50)
+    duration_days: float = 7.0
+    step_minutes: int = 1
+
+
+class MitigationSweepOut(BaseModel):
+    items: list[MitigationPreviewOut]
+    best: MitigationPreviewOut | None
+    total: int
+
+
+class MitigationPlanRequest(BaseModel):
+    preview_id: str | None = None
+    comment: str | None = None
+
+
 class ConjunctionAlertOut(BaseModel):
     id: str
     fleet_id: str

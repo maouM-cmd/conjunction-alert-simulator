@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.10.0] - 2026-06-28
+
+Phase 10C — COLA Sweep & Mitigation Planning。
+
+### Added
+
+- **Phase 10C:** Δv スイープ API + 対策計画連携
+- `POST /api/v1/ops/alerts/{id}/mitigation-sweep` — best 選定（最小改善 Δv）
+- `POST /api/v1/ops/alerts/{id}/mitigation-plan` — preview 付き `mitigation_planned` 遷移
+- 監査: `alert.mitigation_sweep` / `alert.mitigation_plan`
+- Ops UI: direction/Δv 入力、Δv スイープ、試算→対策計画ボタン
+
 ## [1.9.0] - 2026-06-28
 
 Phase 10B — SLA Metrics（FR-9E-4 計測可能化）。

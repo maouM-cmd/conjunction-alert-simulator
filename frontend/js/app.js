@@ -235,6 +235,18 @@ function formatSlaLine(slaItem) {
   return `Screening lag: ${lag} — <span class="ops-sla-overdue">OVERDUE</span>`;
 }
 
+function showMitigationResult(actions, result, { best = false } = {}) {
+  let resultDiv = actions.querySelector(".ops-mitigation-result-live");
+  if (!resultDiv) {
+    resultDiv = document.createElement("div");
+    resultDiv.className = "ops-mitigation-result ops-mitigation-result-live";
+    actions.appendChild(resultDiv);
+  }
+  resultDiv.classList.toggle("ops-mitigation-best", best);
+  const prefix = best ? "best" : "試算";
+  resultDiv.textContent = `${prefix}: Δv ${result.delta_v_ms} m/s (${result.direction}): miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km`;
+}
+
 async function refreshOpsDashboard() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId) {
@@ -279,6 +291,44 @@ async function refreshOpsDashboard() {
       commentInput.placeholder = "コメント（任意）";
       commentInput.value = a.comment || "";
       actions.appendChild(commentInput);
+
+      const mitControls = document.createElement("div");
+      mitControls.className = "ops-mitigation-controls";
+      const dirSelect = document.createElement("select");
+      dirSelect.className = "ops-mitigation-direction";
+      for (const dir of ["prograde", "retrograde", "normal"]) {
+        const opt = document.createElement("option");
+        opt.value = dir;
+        opt.textContent = dir;
+        dirSelect.appendChild(opt);
+      }
+      const deltaInput = document.createElement("input");
+      deltaInput.type = "number";
+      deltaInput.className = "ops-mitigation-delta";
+      deltaInput.min = "0.001";
+      deltaInput.step = "0.001";
+      deltaInput.value = "0.01";
+      deltaInput.title = "Δv (m/s)";
+      const sweepMin = document.createElement("input");
+      sweepMin.type = "number";
+      sweepMin.className = "ops-mitigation-sweep-min";
+      sweepMin.min = "0.001";
+      sweepMin.step = "0.01";
+      sweepMin.value = "0.01";
+      sweepMin.title = "スイープ min Δv";
+      const sweepMax = document.createElement("input");
+      sweepMax.type = "number";
+      sweepMax.className = "ops-mitigation-sweep-max";
+      sweepMax.min = "0.001";
+      sweepMax.step = "0.01";
+      sweepMax.value = "0.10";
+      sweepMax.title = "スイープ max Δv";
+      mitControls.appendChild(dirSelect);
+      mitControls.appendChild(deltaInput);
+      mitControls.appendChild(sweepMin);
+      mitControls.appendChild(sweepMax);
+      actions.appendChild(mitControls);
+
       const transitions = {
         open: [
           { label: "Ack", status: "acknowledged" },
@@ -332,16 +382,13 @@ async function refreshOpsDashboard() {
           mitBtn.disabled = true;
           const result = await apiPost(
             `/api/v1/ops/alerts/${a.id}/mitigation-preview`,
-            {},
+            {
+              direction: dirSelect.value,
+              delta_v_ms: parseFloat(deltaInput.value) || 0.01,
+            },
             { ops: true }
           );
-          let resultDiv = actions.querySelector(".ops-mitigation-result-live");
-          if (!resultDiv) {
-            resultDiv = document.createElement("div");
-            resultDiv.className = "ops-mitigation-result ops-mitigation-result-live";
-            actions.appendChild(resultDiv);
-          }
-          resultDiv.textContent = `試算: Δv ${result.delta_v_ms} m/s (${result.direction}): miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km`;
+          showMitigationResult(actions, result);
           setOpsStatus(
             `回避試算完了 — miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km（Δv ${result.delta_v_ms} m/s ${result.direction}）`
           );
@@ -352,6 +399,63 @@ async function refreshOpsDashboard() {
         }
       });
       actions.appendChild(mitBtn);
+
+      const sweepBtn = document.createElement("button");
+      sweepBtn.type = "button";
+      sweepBtn.className = "ops-mitigation-btn";
+      sweepBtn.textContent = "Δv スイープ";
+      sweepBtn.addEventListener("click", async () => {
+        try {
+          sweepBtn.disabled = true;
+          const minV = parseFloat(sweepMin.value) || 0.01;
+          const maxV = parseFloat(sweepMax.value) || 0.1;
+          const stepV = 0.01;
+          const result = await apiPost(
+            `/api/v1/ops/alerts/${a.id}/mitigation-sweep`,
+            {
+              direction: dirSelect.value,
+              delta_v_min_ms: minV,
+              delta_v_max_ms: maxV,
+              delta_v_step_ms: stepV,
+            },
+            { ops: true }
+          );
+          if (result.best) {
+            showMitigationResult(actions, result.best, { best: true });
+          }
+          setOpsStatus(`Δv スイープ完了 — ${result.total} 試算、best Δv ${result.best?.delta_v_ms ?? "—"} m/s`);
+        } catch (err) {
+          setOpsStatus(err.message, true);
+        } finally {
+          sweepBtn.disabled = false;
+        }
+      });
+      actions.appendChild(sweepBtn);
+
+      if (a.status === "acknowledged") {
+        const planBtn = document.createElement("button");
+        planBtn.type = "button";
+        planBtn.className = "ops-mitigation-btn ops-mitigation-plan-btn";
+        planBtn.textContent = "試算→対策計画";
+        planBtn.addEventListener("click", async () => {
+          try {
+            planBtn.disabled = true;
+            await apiPost(
+              `/api/v1/ops/alerts/${a.id}/mitigation-plan`,
+              { comment: commentInput.value || null },
+              { ops: true }
+            );
+            await refreshOpsDashboard();
+            setOpsStatus("試算結果を含めて対策計画へ遷移しました。");
+          } catch (err) {
+            setOpsStatus(err.message, true);
+          } finally {
+            planBtn.disabled = false;
+          }
+        });
+        actions.appendChild(planBtn);
+      }
+
       els.opsAlertTableBody.appendChild(tr);
     }
     els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
