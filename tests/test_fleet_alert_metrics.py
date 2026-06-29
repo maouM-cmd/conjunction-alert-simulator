@@ -200,6 +200,28 @@ def test_fleet_alert_rules_breaching_only_api(ops_client, monkeypatch):
     assert "cas_fleet_high_risk_open_breach" in response.json()["content"]
 
 
+def test_fleet_alert_rules_breaching_fleets_only(ops_client, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services import breach_state_store
+
+    fleet_a, _ = _create_fleet_with_key(ops_client, monkeypatch, "Breaching Rules Fleet")
+    fleet_b, _ = _create_fleet_with_key(ops_client, monkeypatch, "OK Rules Fleet")
+    breach_state_store.set_breach_state(fleet_a, "CASFleetOpenAlertsHigh", True)
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/fleet-alert-rules?breaching_fleets_only=true",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    content = response.json()["content"]
+    assert fleet_a in content
+    assert fleet_b not in content
+    assert content.count("alert: CASFleetOpenAlertsHigh") == 1
+
+
 def test_collect_fleet_risk_counts_high_open(db_session):
     from pathlib import Path
 

@@ -37,14 +37,20 @@ def sync_fleet_alert_breaches() -> dict[str, str]:
 
 @celery_app.task(name="backend.app.tasks.alertmanager_tasks.purge_old_breach_history")
 def purge_old_breach_history() -> dict:
-    from backend.app.services import breach_history_service
+    from backend.app.services import breach_history_service, fleet_alert_metrics_service
 
     if not breach_history_service.breach_history_enabled():
         return {"status": "skipped", "reason": "breach history not enabled"}
 
     db = _session()
     try:
-        deleted = breach_history_service.purge_old_breach_history(db)
-        return {"status": "ok", "deleted": deleted}
+        fleets = fleet_alert_metrics_service.list_active_fleets(db)
+        by_fleet: dict[str, int] = {}
+        total = 0
+        for fleet in fleets:
+            deleted = breach_history_service.purge_old_breach_history(db, fleet_id=fleet.id)
+            by_fleet[str(fleet.id)] = deleted
+            total += deleted
+        return {"status": "ok", "deleted": total, "by_fleet": by_fleet}
     finally:
         db.close()

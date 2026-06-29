@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.39.0] - 2026-06-28
+
+Phase 10AF — per-fleet 履歴 purge + breaching 艦隊 rules + Ops UI。
+
+### Added
+
+- **Phase 10AF:** `purge_old_breach_history(fleet_id)` — 艦隊スコープ retention purge
+- `DELETE /ops/prometheus/alertmanager/breach-states/history` — 手動 purge API
+- Celery purge — active 艦隊ループ、`by_fleet` 集計
+- `GET fleet-alert-rules?breaching_fleets_only=true` — breaching 艦隊のみ rule 出力
+- `fleet_has_breaching_alert` — breach_state_store ヘルパー
+- Ops UI — Prometheus アラートルール雛形ダウンロード
+
 ## [1.38.0] - 2026-06-28
 
 Phase 10AE — breach gauge ルール + 履歴フィルタ。

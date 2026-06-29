@@ -112,6 +112,10 @@ def is_valid_fleet_alertname(alertname: str) -> bool:
     return alertname in FLEET_ALERTNAMES
 
 
+def fleet_has_breaching_alert(fleet_id: str) -> bool:
+    return any(get_breach_state(fleet_id, alertname) for alertname in FLEET_ALERTNAMES)
+
+
 def _redis_key(fleet_id: str, alertname: str) -> str:
     return f"{REDIS_KEY_PREFIX}{fleet_id}:{alertname}"
 

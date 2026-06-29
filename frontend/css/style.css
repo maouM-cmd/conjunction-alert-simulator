@@ -587,6 +587,26 @@ label.checkbox-row input[type="checkbox"] {
   font-size: 0.95rem;
 }
 
+.ops-fleet-alert-rules-section {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1a1a24;
+}
+
+.ops-fleet-alert-rules-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.ops-fleet-alert-rules-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
 .ops-breach-states-all-section {
   margin: 0.75rem 0;
   padding: 0.6rem;

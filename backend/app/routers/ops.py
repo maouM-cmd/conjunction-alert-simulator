@@ -44,6 +44,7 @@ from backend.app.models.schemas import (
     FleetBreachHistoryOut,
     FleetBreachHistoryEntryOut,
     FleetBreachHistoryMultiListOut,
+    FleetBreachHistoryPurgedOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -632,6 +633,7 @@ def list_pc_refinements(
 def fleet_alert_rules(
     fleet_id: str | None = None,
     breaching_only: bool = False,
+    breaching_fleets_only: bool = False,
     format: str = Query("yaml", pattern="^(yaml|json)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
@@ -663,6 +665,9 @@ def fleet_alert_rules(
         scoped_fleet = scoped
     else:
         fleets = fleet_alert_metrics_service.list_active_fleets(db)
+
+    if breaching_fleets_only:
+        fleets = [f for f in fleets if breach_state_store.fleet_has_breaching_alert(str(f.id))]
 
     rules: list = []
     for fleet in fleets:
@@ -935,6 +940,44 @@ def list_fleet_breach_history(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.delete(
+    "/prometheus/alertmanager/breach-states/history",
+    response_model=FleetBreachHistoryPurgedOut,
+)
+def purge_fleet_breach_history(
+    fleet_id: str | None = None,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistoryPurgedOut:
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+    if not breach_history_service.breach_history_enabled():
+        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+
+    if fleet_id is None:
+        if is_api_key_required() and not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        fleets = fleet_alert_metrics_service.list_active_fleets(db)
+        total = 0
+        for fleet in fleets:
+            total += breach_history_service.purge_old_breach_history(db, fleet_id=fleet.id)
+        return FleetBreachHistoryPurgedOut(
+            deleted=total,
+            fleet_id=None,
+            message=f"{total} 件の古い breach 履歴を削除しました。",
+        )
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    deleted = breach_history_service.purge_old_breach_history(db, fleet_id=fid)
+    return FleetBreachHistoryPurgedOut(
+        deleted=deleted,
+        fleet_id=str(fid),
+        message=f"{deleted} 件の古い breach 履歴を削除しました。",
     )
 
 

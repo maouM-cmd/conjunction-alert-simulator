@@ -306,6 +306,30 @@
             <tbody id="ops-breach-history-all-table-body"></tbody>
           </table>
         </section>
+        <section id="ops-fleet-alert-rules-section" class="ops-fleet-alert-rules-section hidden">
+          <h3>Prometheus アラートルール雛形</h3>
+          <p id="ops-fleet-alert-rules-status" class="meta"></p>
+          <div class="ops-fleet-alert-rules-options">
+            <label class="ops-breach-filter">
+              <input id="ops-fleet-alert-rules-breaching-only" type="checkbox" />
+              breach Gauge expr
+            </label>
+            <label class="ops-breach-filter">
+              <input id="ops-fleet-alert-rules-breaching-fleets-only" type="checkbox" />
+              breaching 艦隊のみ
+            </label>
+            <label class="ops-breach-filter">
+              format
+              <select id="ops-fleet-alert-rules-format">
+                <option value="yaml">yaml</option>
+                <option value="json">json</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="btn-ops-fleet-alert-rules-download" type="button">ルールをダウンロード</button>
+          </div>
+        </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">
           <h3>Alertmanager Silences</h3>
           <p id="ops-silences-status" class="meta"></p>

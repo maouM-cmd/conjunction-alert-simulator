@@ -657,6 +657,12 @@ class FleetBreachHistoryMultiListOut(BaseModel):
     offset: int
 
 
+class FleetBreachHistoryPurgedOut(BaseModel):
+    deleted: int
+    fleet_id: str | None = None
+    message: str
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int

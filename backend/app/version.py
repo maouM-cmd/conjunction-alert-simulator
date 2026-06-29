@@ -1,3 +1,3 @@
 """Application version (Phase 9D ship)."""
 
-APP_VERSION = "1.38.0"
+APP_VERSION = "1.39.0"

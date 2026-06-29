@@ -115,6 +115,12 @@ const els = {
   btnOpsBreachHistoryAllCsv: document.getElementById("btn-ops-breach-history-all-csv"),
   opsBreachHistoryAllSource: document.getElementById("ops-breach-history-all-source"),
   opsBreachHistoryAllBreachingOnly: document.getElementById("ops-breach-history-all-breaching-only"),
+  opsFleetAlertRulesSection: document.getElementById("ops-fleet-alert-rules-section"),
+  opsFleetAlertRulesStatus: document.getElementById("ops-fleet-alert-rules-status"),
+  opsFleetAlertRulesBreachingOnly: document.getElementById("ops-fleet-alert-rules-breaching-only"),
+  opsFleetAlertRulesBreachingFleetsOnly: document.getElementById("ops-fleet-alert-rules-breaching-fleets-only"),
+  opsFleetAlertRulesFormat: document.getElementById("ops-fleet-alert-rules-format"),
+  btnOpsFleetAlertRulesDownload: document.getElementById("btn-ops-fleet-alert-rules-download"),
   opsSilencesStatus: document.getElementById("ops-silences-status"),
   opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
   opsSilenceHours: document.getElementById("ops-silence-hours"),
@@ -778,6 +784,74 @@ async function downloadOpsBreachHistoryAllCsv() {
   }
 }
 
+function fleetAlertRulesQueryString() {
+  const fleetId = els.opsFleetSelect.value;
+  const params = [];
+  if (fleetId) {
+    params.push(`fleet_id=${fleetId}`);
+  }
+  if (els.opsFleetAlertRulesBreachingOnly?.checked) {
+    params.push("breaching_only=true");
+  }
+  if (els.opsFleetAlertRulesBreachingFleetsOnly?.checked) {
+    params.push("breaching_fleets_only=true");
+  }
+  const format = els.opsFleetAlertRulesFormat?.value || "yaml";
+  params.push(`format=${format}`);
+  return `?${params.join("&")}`;
+}
+
+function refreshOpsFleetAlertRulesSection() {
+  if (!els.opsFleetAlertRulesSection) {
+    return;
+  }
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId && !opsAuthMe.is_admin) {
+    els.opsFleetAlertRulesSection.classList.add("hidden");
+    return;
+  }
+  els.opsFleetAlertRulesSection.classList.remove("hidden");
+  if (els.opsFleetAlertRulesBreachingFleetsOnly) {
+    els.opsFleetAlertRulesBreachingFleetsOnly.disabled = Boolean(fleetId);
+  }
+  els.opsFleetAlertRulesStatus.textContent = fleetId
+    ? "艦隊スコープのルール雛形をダウンロードできます。"
+    : "管理者: 全艦隊または breaching 艦隊のみで出力できます。";
+}
+
+async function downloadOpsFleetAlertRules() {
+  try {
+    const format = els.opsFleetAlertRulesFormat?.value || "yaml";
+    const res = await fetch(
+      `${API_BASE}/api/v1/ops/prometheus/fleet-alert-rules${fleetAlertRulesQueryString()}`,
+      {
+        headers: getOpsApiHeaders(),
+        credentials: "include",
+      }
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const data = await res.json();
+    const blob = new Blob([data.content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const fleetId = els.opsFleetSelect.value || "all";
+    a.download = `fleet-alert-rules-${fleetId}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpsStatus("アラートルール雛形をダウンロードしました。");
+  } catch (err) {
+    if (err.message.includes("無効")) {
+      els.opsFleetAlertRulesStatus.textContent = "Fleet alert metrics は無効です。";
+      return;
+    }
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function refreshOpsSilences() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId || !els.opsSilencesSection) {
@@ -919,10 +993,12 @@ async function refreshOpsDashboard() {
     if (opsAuthMe.is_admin) {
       await refreshOpsBreachStatesAll();
       await refreshOpsBreachHistoryAll();
+      refreshOpsFleetAlertRulesSection();
       setOpsStatus("艦隊を選択するか、全艦隊 breach 状態を確認してください。");
     } else {
       els.opsBreachStatesAllSection?.classList.add("hidden");
       els.opsBreachHistoryAllSection?.classList.add("hidden");
+      els.opsFleetAlertRulesSection?.classList.add("hidden");
       setOpsStatus("艦隊を選択してください。", true);
     }
     return;
@@ -1170,6 +1246,7 @@ async function refreshOpsDashboard() {
       refreshOpsBreachStatesAll(),
       refreshOpsBreachHistory(),
       refreshOpsBreachHistoryAll(),
+      refreshOpsFleetAlertRulesSection(),
       refreshOpsSilences(),
     ]);
   } catch (err) {
@@ -1897,6 +1974,7 @@ function initEventListeners() {
       els.opsBreachStatesSection?.classList.add("hidden");
       els.opsBreachStatesAllSection?.classList.add("hidden");
       els.opsBreachHistoryAllSection?.classList.add("hidden");
+      els.opsFleetAlertRulesSection?.classList.add("hidden");
       els.opsBreachHistorySection?.classList.add("hidden");
     }
   });
@@ -1923,6 +2001,9 @@ function initEventListeners() {
   }
   if (els.opsBreachHistoryAllBreachingOnly) {
     els.opsBreachHistoryAllBreachingOnly.addEventListener("change", refreshOpsBreachHistoryAll);
+  }
+  if (els.btnOpsFleetAlertRulesDownload) {
+    els.btnOpsFleetAlertRulesDownload.addEventListener("click", downloadOpsFleetAlertRules);
   }
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
   if (els.btnOpsSilenceCreate) {

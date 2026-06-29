@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AF — 次着手
+## Phase 10AG — 次着手
 
-商用運用ロードマップ Phase 10+（per-fleet breach 履歴 retention、breaching 艦隊 rule 出力等）。
+商用運用ロードマップ Phase 10+（艦隊別 retention 日数、Alertmanager rule apply 等）。
+
+## Phase 10AF — 完了
+
+per-fleet 履歴 purge + breaching 艦隊 rules + Ops UI。v1.39.0 ship 済み。
 
 ## Phase 10AE — 完了
 

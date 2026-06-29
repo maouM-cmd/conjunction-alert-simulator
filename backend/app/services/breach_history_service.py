@@ -129,15 +129,16 @@ def list_all_history(
     return list(rows), int(total)
 
 
-def purge_old_breach_history(db: Session) -> int:
+def purge_old_breach_history(db: Session, *, fleet_id: uuid.UUID | None = None) -> int:
     if not breach_history_enabled():
         return 0
     from backend.app.db.models import FleetAlertBreachHistory
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=breach_history_retention_days())
-    result = db.execute(
-        delete(FleetAlertBreachHistory).where(FleetAlertBreachHistory.created_at < cutoff)
-    )
+    stmt = delete(FleetAlertBreachHistory).where(FleetAlertBreachHistory.created_at < cutoff)
+    if fleet_id is not None:
+        stmt = stmt.where(FleetAlertBreachHistory.fleet_id == fleet_id)
+    result = db.execute(stmt)
     db.commit()
     return int(result.rowcount or 0)
 
