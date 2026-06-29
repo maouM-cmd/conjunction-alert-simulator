@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10X — 次着手
+## Phase 10Y — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（breach DB 永続化、metrics + Celery 同時 push 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（silence チェックボックス bulk 等）。
+
+## Phase 10X — 完了
+
+breach DB 永続化 + Redis 時 dual push。v1.31.0 ship 済み。
 
 ## Phase 10W — 完了
 

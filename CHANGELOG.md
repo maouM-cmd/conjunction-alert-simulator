@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.31.0] - 2026-06-28
+
+Phase 10X — breach DB 永続化 + Redis 時 dual push。
+
+### Added
+
+- **Phase 10X:** `fleet_alert_breach_states` テーブル — breach 状態 DB 永続化（opt-in）
+- `ALERTMANAGER_PUSH_DB_STATE_ENABLED` — store 優先順位 Redis > DB > in-memory
+- `should_sync_breaches_on_metrics_scrape()` — Celery ON + Redis ON 時に `/metrics` からも breach push
+
 ## [1.30.0] - 2026-06-28
 
 Phase 10W — silence 一括削除 + Ops UI silence 管理。

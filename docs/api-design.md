@@ -991,7 +991,7 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 | env | 挙動 |
 |-----|------|
-| `ALERTMANAGER_PUSH_CELERY_ENABLED=true` | Celery beat `sync_fleet_alert_breaches` が breach push（`/metrics` からは push 除外） |
+| `ALERTMANAGER_PUSH_CELERY_ENABLED=true` | Celery beat `sync_fleet_alert_breaches` が breach push（Redis OFF 時は `/metrics` から push 除外） |
 | `ALERTMANAGER_PUSH_CELERY_INTERVAL_SEC` | beat 間隔（default 60） |
 | `ALERTMANAGER_AUTO_SILENCE_ON_TRIAGE_ENABLED=true` | `acknowledged` / `false_positive` 遷移時に fleet silence 自動作成 |
 | `ALERTMANAGER_AUTO_SILENCE_HOURS` | 自動 silence 時間（default 4） |
@@ -1004,6 +1004,14 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 |-----|------|
 | `ALERTMANAGER_PUSH_REDIS_STATE_ENABLED=true` | Redis `cas:am:breach:{fleet_id}:{alertname}` で Celery ワーカー間 breach 状態共有（`REDIS_URL` 必須） |
 | default OFF | in-memory フォールバック（既存挙動） |
+
+**Phase 10X — breach DB 永続化 + dual push**
+
+| env | 挙動 |
+|-----|------|
+| `ALERTMANAGER_PUSH_DB_STATE_ENABLED=true` | PostgreSQL `fleet_alert_breach_states` で breach 状態永続化（`DATABASE_URL` 必須） |
+| store 優先順位 | Redis > DB > in-memory |
+| Celery ON + Redis ON | `/metrics` scrape と beat の両方から `sync_breaches`（Redis 共有で重複 fire 防止） |
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

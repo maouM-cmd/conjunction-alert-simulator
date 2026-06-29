@@ -138,6 +138,7 @@ def test_metrics_skips_sync_when_celery_push_enabled(mock_sync, ops_client, monk
     monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
     monkeypatch.setenv("ALERTMANAGER_PUSH_CELERY_ENABLED", "true")
     monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.delenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", raising=False)
 
     from backend.app.db.session import get_session_factory
     from backend.app.services.fleet_service import add_satellite, create_fleet
@@ -162,3 +163,36 @@ def test_metrics_skips_sync_when_celery_push_enabled(mock_sync, ops_client, monk
     response = ops_client.get("/metrics")
     assert response.status_code == 200
     mock_sync.assert_not_called()
+
+
+@patch("backend.app.services.alertmanager_push_service.sync_breaches")
+def test_metrics_syncs_when_celery_and_redis_enabled(mock_sync, ops_client, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_PUSH_CELERY_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    from backend.app.db.session import get_session_factory
+    from backend.app.services.fleet_service import add_satellite, create_fleet
+
+    factory = get_session_factory()
+    assert factory is not None
+    db_sess = factory()
+    try:
+        fleet = create_fleet(db_sess, name="Metrics Dual Push Fleet")
+        sat = add_satellite(db_sess, fleet.id, name=None, norad_id=None, tle=DEMO_SAT)
+        ingest_screening_results(
+            db_sess,
+            run_id=uuid.uuid4(),
+            fleet_id=fleet.id,
+            results=[_make_result()],
+            satellite_by_norad={sat.norad_id: sat.id},
+        )
+    finally:
+        db_sess.close()
+
+    alertmanager_push_service.reset_breach_state_for_tests()
+    response = ops_client.get("/metrics")
+    assert response.status_code == 200
+    mock_sync.assert_called_once()

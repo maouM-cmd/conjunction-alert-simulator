@@ -1,10 +1,12 @@
-"""Shared breach state for Alertmanager push (Phase 10V)."""
+"""Shared breach state for Alertmanager push (Phase 10V / 10X)."""
 
 from __future__ import annotations
 
 import os
+import uuid
+from datetime import datetime, timezone
 
-from backend.app.db.session import get_redis_url
+from backend.app.db.session import get_redis_url, get_session_factory, is_database_configured
 
 REDIS_KEY_PREFIX = "cas:am:breach:"
 
@@ -21,6 +23,10 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 def breach_redis_state_enabled() -> bool:
     return _env_bool("ALERTMANAGER_PUSH_REDIS_STATE_ENABLED", default=False)
+
+
+def breach_db_state_enabled() -> bool:
+    return _env_bool("ALERTMANAGER_PUSH_DB_STATE_ENABLED", default=False)
 
 
 def _redis_key(fleet_id: str, alertname: str) -> str:
@@ -50,6 +56,78 @@ def _use_redis() -> bool:
     return breach_redis_state_enabled() and _get_redis() is not None
 
 
+def _use_db() -> bool:
+    return breach_db_state_enabled() and is_database_configured() and get_session_factory() is not None
+
+
+def _parse_fleet_id(fleet_id: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(fleet_id)
+    except ValueError:
+        return None
+
+
+def _get_db_state(fleet_id: str, alertname: str) -> bool:
+    factory = get_session_factory()
+    if factory is None:
+        return False
+    fid = _parse_fleet_id(fleet_id)
+    if fid is None:
+        return False
+    from backend.app.db.models import FleetAlertBreachState
+
+    db = factory()
+    try:
+        row = db.get(FleetAlertBreachState, (fid, alertname))
+        if row is None:
+            return False
+        return row.is_breaching
+    finally:
+        db.close()
+
+
+def _set_db_state(fleet_id: str, alertname: str, is_breaching: bool) -> None:
+    factory = get_session_factory()
+    if factory is None:
+        return
+    fid = _parse_fleet_id(fleet_id)
+    if fid is None:
+        return
+    from backend.app.db.models import FleetAlertBreachState
+
+    db = factory()
+    try:
+        row = db.get(FleetAlertBreachState, (fid, alertname))
+        if row is None:
+            row = FleetAlertBreachState(
+                fleet_id=fid,
+                alertname=alertname,
+                is_breaching=is_breaching,
+            )
+            db.add(row)
+        else:
+            row.is_breaching = is_breaching
+            row.updated_at = datetime.now(timezone.utc)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _clear_db_state() -> None:
+    factory = get_session_factory()
+    if factory is None:
+        return
+    from backend.app.db.models import FleetAlertBreachState
+
+    db = factory()
+    try:
+        for row in db.query(FleetAlertBreachState).all():
+            db.delete(row)
+        db.commit()
+    finally:
+        db.close()
+
+
 def get_breach_state(fleet_id: str, alertname: str) -> bool:
     if _use_redis():
         client = _get_redis()
@@ -58,6 +136,8 @@ def get_breach_state(fleet_id: str, alertname: str) -> bool:
         if raw is None:
             return False
         return raw == "1"
+    if _use_db():
+        return _get_db_state(fleet_id, alertname)
     return _memory_state.get((fleet_id, alertname), False)
 
 
@@ -66,6 +146,9 @@ def set_breach_state(fleet_id: str, alertname: str, is_breaching: bool) -> None:
         client = _get_redis()
         assert client is not None
         client.set(_redis_key(fleet_id, alertname), "1" if is_breaching else "0")
+        return
+    if _use_db():
+        _set_db_state(fleet_id, alertname, is_breaching)
         return
     _memory_state[(fleet_id, alertname)] = is_breaching
 
@@ -81,6 +164,8 @@ def reset_breach_state_for_tests() -> None:
         except Exception:
             pass
     _redis_client = None
+    if breach_db_state_enabled():
+        _clear_db_state()
 
 
 def reset_redis_client_for_tests() -> None:

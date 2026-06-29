@@ -68,7 +68,7 @@ def _collect_db_metrics() -> None:
         cas_screening_overdue_fleets.set(overdue)
 
         if fleet_alert_metrics_service.fleet_alert_metrics_enabled():
-            sync_breaches = not alertmanager_push_service.alertmanager_push_celery_enabled()
+            sync_breaches = alertmanager_push_service.should_sync_breaches_on_metrics_scrape()
             fleet_metrics_sync_service.collect_and_export_fleet_metrics(
                 db,
                 sync_breaches=sync_breaches,

@@ -49,6 +49,12 @@ def alertmanager_push_celery_configured() -> bool:
     )
 
 
+def should_sync_breaches_on_metrics_scrape() -> bool:
+    if not alertmanager_push_celery_enabled():
+        return True
+    return breach_state_store.breach_redis_state_enabled()
+
+
 def push_celery_interval_sec() -> float:
     raw = os.environ.get("ALERTMANAGER_PUSH_CELERY_INTERVAL_SEC", "").strip()
     if not raw:
