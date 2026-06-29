@@ -184,7 +184,8 @@ cas_screening_overdue_fleets > 0
 `ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
 `ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。  
 `ALERT_WEBHOOK_FORMAT=smtp` で SMTP メール（`SMTP_HOST` + `SMTP_FROM` + `SMTP_TO`、任意 `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_USE_TLS`）。  
-`ALERT_WEBHOOK_FORMAT=pagerduty` で PagerDuty Events API v2（`PAGERDUTY_ROUTING_KEY`、`ALERT_WEBHOOK_URL` 不要）（Phase 10L）。
+`ALERT_WEBHOOK_FORMAT=pagerduty` で PagerDuty Events API v2（`PAGERDUTY_ROUTING_KEY`、`ALERT_WEBHOOK_URL` 不要）（Phase 10L）。  
+`PAGERDUTY_LIFECYCLE_ENABLED=true` 時は `dedup_key=cas-alert-{alert_id}` で trigger / acknowledge / resolve を連動（Phase 10O）。新規 screening アラートは per-alert trigger、Ops `acknowledged` / `closed` / `false_positive` で lifecycle イベント送信。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー

@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.22.0] - 2026-06-28
+
+Phase 10O — PagerDuty acknowledge / resolve lifecycle。
+
+### Added
+
+- **Phase 10O:** `PAGERDUTY_LIFECYCLE_ENABLED` — PagerDuty Events API v2 acknowledge / resolve
+- 安定 `dedup_key=cas-alert-{alert_id}`（新規 trigger、escalation、mitigation 統一）
+- `notify_new_alerts` per-alert trigger（lifecycle ON 時）
+- `transition_alert` → `acknowledged` / `closed` / `false_positive` で PD lifecycle 連動
+- env: `PAGERDUTY_LIFECYCLE_ENABLED`（default false）
+
 ## [1.21.0] - 2026-06-28
 
 Phase 10N — fleet 別 API SLO。

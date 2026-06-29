@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10O — 次着手
+## Phase 10P — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（PagerDuty resolve/ack 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM、PagerDuty 双方向 webhook 等）。
+
+## Phase 10O — 完了
+
+PagerDuty acknowledge / resolve lifecycle — 安定 dedup_key、per-alert trigger、Ops 状態遷移連動。v1.22.0 ship 済み。
 
 ## Phase 10N — 完了
 

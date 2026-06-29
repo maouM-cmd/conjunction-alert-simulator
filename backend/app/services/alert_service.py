@@ -204,6 +204,9 @@ def transition_alert(
     )
     db.commit()
     db.refresh(alert)
+    from backend.app.services.webhook_notifier import notify_pagerduty_lifecycle_for_status
+
+    notify_pagerduty_lifecycle_for_status(alert, new_status)
     return alert
 
 

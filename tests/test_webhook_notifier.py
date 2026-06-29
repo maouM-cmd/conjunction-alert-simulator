@@ -432,7 +432,7 @@ def test_notify_pc_escalation_pagerduty_critical(mock_client_cls):
         assert result.sent is True
         body = mock_client.post.call_args.kwargs["json"]
         assert body["payload"]["severity"] == "critical"
-        assert body["dedup_key"] == f"cas-escalation-{alert_id}"
+        assert body["dedup_key"] == f"cas-alert-{alert_id}"
 
 
 @patch("backend.app.services.webhook_notifier.httpx.Client")

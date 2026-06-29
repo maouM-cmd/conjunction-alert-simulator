@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import uuid
 from dataclasses import dataclass
 from email.message import EmailMessage
+from typing import Literal
 
 import httpx
 
@@ -23,6 +25,7 @@ SLACK_TEXT_MAX_LEN = 4096
 SLACK_API_POST_MESSAGE = "https://slack.com/api/chat.postMessage"
 PAGERDUTY_EVENTS_URL = "https://events.pagerduty.com/v2/enqueue"
 PAGERDUTY_SOURCE = "conjunction-alert-simulator"
+PagerDutyEventAction = Literal["trigger", "acknowledge", "resolve"]
 VALID_WEBHOOK_FORMATS = ("generic", "slack", "slack_bot", "smtp", "pagerduty")
 
 
@@ -92,6 +95,15 @@ def _smtp_use_tls() -> bool:
 def _pagerduty_routing_key() -> str | None:
     key = os.environ.get("PAGERDUTY_ROUTING_KEY", "").strip()
     return key or None
+
+
+def pagerduty_lifecycle_enabled() -> bool:
+    raw = os.environ.get("PAGERDUTY_LIFECYCLE_ENABLED", "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def pagerduty_dedup_key(alert_id: uuid.UUID) -> str:
+    return f"cas-alert-{alert_id}"
 
 
 def _webhook_format() -> str:
@@ -264,11 +276,12 @@ def _build_pagerduty_enqueue(
     custom_details: dict,
     *,
     dedup_key: str | None = None,
+    event_action: PagerDutyEventAction = "trigger",
 ) -> dict:
     routing_key = _pagerduty_routing_key()
     body: dict = {
         "routing_key": routing_key or "",
-        "event_action": "trigger",
+        "event_action": event_action,
         "payload": {
             "summary": summary[:1024],
             "severity": severity,
@@ -446,6 +459,132 @@ def _send_smtp(subject: str, body: str, alert_count: int) -> WebhookResult:
         )
 
 
+def _merge_webhook_results(results: list[WebhookResult], alert_count: int) -> WebhookResult:
+    if not results:
+        return WebhookResult(
+            sent=False,
+            alert_count=alert_count,
+            degraded=False,
+            message="通知対象イベントがありません。",
+        )
+    sent = any(result.sent for result in results)
+    degraded = any(result.degraded for result in results)
+    messages = [result.message for result in results if result.message]
+    return WebhookResult(
+        sent=sent,
+        alert_count=alert_count,
+        degraded=degraded,
+        message=messages[-1] if messages else "PagerDuty Events API 完了。",
+    )
+
+
+def _alert_to_parsed_pair(alert) -> tuple[ParsedTle, ConjunctionEvent] | None:
+    from backend.app.db.models import ConjunctionAlert
+
+    if not isinstance(alert, ConjunctionAlert):
+        return None
+    satellite = alert.satellite
+    if satellite is None:
+        return None
+    sat = ParsedTle(
+        name=satellite.name,
+        line1="1 00000U          00000.00000000  .00000000  00000+0  00000+0 0  9999",
+        line2="2 00000   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000000000",
+        norad_id=satellite.norad_id,
+    )
+    event = ConjunctionEvent(
+        debris_norad_id=alert.debris_norad_id,
+        debris_name=alert.debris_name,
+        debris_tle="",
+        tca=alert.tca,
+        miss_distance_km=alert.miss_distance_km,
+        relative_velocity_kms=0.0,
+        risk_level=alert.risk_level,
+        pc=alert.pc,
+    )
+    return sat, event
+
+
+def _notify_pagerduty_per_alert_triggers(alerts: list) -> WebhookResult:
+    results: list[WebhookResult] = []
+    count = 0
+    for alert in alerts:
+        pair = _alert_to_parsed_pair(alert)
+        if pair is None:
+            continue
+        sat, event = pair
+        severity = _max_severity_from_risk_levels([event.risk_level])
+        details = _build_generic_payload(sat, [event])
+        details["alert_id"] = str(alert.id)
+        payload = _build_pagerduty_enqueue(
+            f"CAS new alert — {sat.name} vs {event.debris_name}",
+            severity,
+            details,
+            dedup_key=pagerduty_dedup_key(alert.id),
+            event_action="trigger",
+        )
+        results.append(_post_pagerduty(payload, 1))
+        count += 1
+    return _merge_webhook_results(results, count)
+
+
+def notify_pagerduty_lifecycle(alert, event_action: PagerDutyEventAction) -> WebhookResult:
+    """Send PagerDuty acknowledge/resolve for a persisted alert (Phase 10O)."""
+    from backend.app.db.models import ConjunctionAlert
+
+    if _webhook_format() != "pagerduty" or not pagerduty_lifecycle_enabled():
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="PagerDuty lifecycle は無効です。",
+        )
+    if not _is_delivery_configured():
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message=_delivery_not_configured_message(),
+        )
+    if not isinstance(alert, ConjunctionAlert):
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="通知対象が不正です。",
+        )
+
+    satellite = alert.satellite
+    sat_name = satellite.name if satellite else "UNKNOWN"
+    summary = (
+        f"CAS alert {event_action} — {sat_name} vs {alert.debris_name} "
+        f"(status={alert.status})"
+    )
+    payload = _build_pagerduty_enqueue(
+        summary,
+        "info",
+        {
+            "alert_id": str(alert.id),
+            "status": alert.status,
+            "event_action": event_action,
+        },
+        dedup_key=pagerduty_dedup_key(alert.id),
+        event_action=event_action,
+    )
+    return _post_pagerduty(payload, 1)
+
+
+def notify_pagerduty_lifecycle_for_status(alert, new_status: str) -> None:
+    if new_status == "acknowledged":
+        result = notify_pagerduty_lifecycle(alert, "acknowledge")
+    elif new_status in ("closed", "false_positive"):
+        result = notify_pagerduty_lifecycle(alert, "resolve")
+    else:
+        return
+    if not result.sent and result.degraded:
+        logger.warning("PagerDuty lifecycle 送信失敗: %s", result.message)
+
+
 def _post_pagerduty(payload: dict, alert_count: int) -> WebhookResult:
     routing_key = _pagerduty_routing_key()
     if not routing_key:
@@ -615,28 +754,9 @@ def notify_new_alerts(alerts: list) -> WebhookResult:
 
     batch_alerts: list[tuple[ParsedTle, ConjunctionEvent]] = []
     for alert in alerts:
-        if not isinstance(alert, ConjunctionAlert):
-            continue
-        satellite = alert.satellite
-        if satellite is None:
-            continue
-        sat = ParsedTle(
-            name=satellite.name,
-            line1="1 00000U          00000.00000000  .00000000  00000+0  00000+0 0  9999",
-            line2="2 00000   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000000000",
-            norad_id=satellite.norad_id,
-        )
-        event = ConjunctionEvent(
-            debris_norad_id=alert.debris_norad_id,
-            debris_name=alert.debris_name,
-            debris_tle="",
-            tca=alert.tca,
-            miss_distance_km=alert.miss_distance_km,
-            relative_velocity_kms=0.0,
-            risk_level=alert.risk_level,
-            pc=alert.pc,
-        )
-        batch_alerts.append((sat, event))
+        pair = _alert_to_parsed_pair(alert)
+        if pair is not None:
+            batch_alerts.append(pair)
 
     if not batch_alerts:
         return WebhookResult(
@@ -645,6 +765,9 @@ def notify_new_alerts(alerts: list) -> WebhookResult:
             degraded=False,
             message="通知対象イベントがありません。",
         )
+
+    if _webhook_format() == "pagerduty" and pagerduty_lifecycle_enabled():
+        return _notify_pagerduty_per_alert_triggers(alerts)
 
     payload = _serialize_payload(
         None,
@@ -716,7 +839,7 @@ def notify_pc_escalation(alert, refinement) -> WebhookResult:
                 "tca": alert.tca.isoformat(),
                 "message": line,
             },
-            dedup_key=f"cas-escalation-{alert.id}",
+            dedup_key=pagerduty_dedup_key(alert.id),
         )
     else:
         payload = {
@@ -801,7 +924,7 @@ def notify_mitigation_best(alert, best_preview) -> WebhookResult:
                 "tca": alert.tca.isoformat(),
                 "message": line,
             },
-            dedup_key=f"cas-mitigation-best-{alert.id}",
+            dedup_key=pagerduty_dedup_key(alert.id),
         )
     else:
         payload = {
@@ -889,7 +1012,7 @@ def notify_mitigation_plan_auto(alert, preview) -> WebhookResult:
                 "tca": alert.tca.isoformat(),
                 "message": line,
             },
-            dedup_key=f"cas-mitigation-plan-{alert.id}",
+            dedup_key=pagerduty_dedup_key(alert.id),
         )
     else:
         payload = {
