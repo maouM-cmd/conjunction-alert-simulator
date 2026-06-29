@@ -1,7 +1,8 @@
-"""Alert-linked maneuver preview (Phase 10A / 10C)."""
+"""Alert-linked maneuver preview (Phase 10A / 10C / 10F)."""
 
 from __future__ import annotations
 
+import os
 import uuid
 
 from sqlalchemy import select
@@ -10,6 +11,16 @@ from sqlalchemy.orm import Session, joinedload
 from backend.app.db.models import AlertMitigationPreview, ConjunctionAlert
 from backend.app.services.analysis import run_maneuver_preview
 from backend.app.services.tle_fetcher import find_tle_by_norad_id
+from backend.app.services.webhook_notifier import DEFAULT_PC_THRESHOLD
+
+TRIGGER_MANUAL = "manual"
+TRIGGER_SCREENING_AUTO = "screening_auto"
+
+DEFAULT_SWEEP_DIRECTION = "prograde"
+DEFAULT_SWEEP_MIN_MS = 0.01
+DEFAULT_SWEEP_MAX_MS = 0.10
+DEFAULT_SWEEP_STEP_MS = 0.01
+DEFAULT_SWEEP_MAX_TRIALS = 20
 
 
 class MitigationServiceError(Exception):
@@ -22,6 +33,63 @@ class NotFoundError(MitigationServiceError):
 
 class ValidationError(MitigationServiceError):
     pass
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes", "on")
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return max(float(raw), 0.0)
+    except ValueError:
+        return default
+
+
+def auto_mitigation_sweep_enabled() -> bool:
+    return _env_bool("AUTO_MITIGATION_SWEEP_ENABLED", default=False)
+
+
+def auto_mitigation_sweep_on_escalation_only() -> bool:
+    return _env_bool("AUTO_MITIGATION_SWEEP_ON_ESCALATION_ONLY", default=True)
+
+
+def auto_mitigation_sweep_pc_min() -> float:
+    return _env_float("AUTO_MITIGATION_SWEEP_PC_MIN", DEFAULT_PC_THRESHOLD)
+
+
+def should_auto_mitigation_sweep(
+    *,
+    escalated: bool,
+    pc_refined: float | None,
+) -> bool:
+    if not auto_mitigation_sweep_enabled():
+        return False
+    if auto_mitigation_sweep_on_escalation_only():
+        return escalated
+    if pc_refined is None:
+        return False
+    return pc_refined >= auto_mitigation_sweep_pc_min()
+
+
+def enqueue_auto_mitigation_sweep(
+    alert_id: uuid.UUID,
+    *,
+    escalated: bool,
+    pc_refined: float | None,
+) -> bool:
+    if not should_auto_mitigation_sweep(escalated=escalated, pc_refined=pc_refined):
+        return False
+    from backend.app.tasks.mitigation_tasks import mitigation_sweep_task
+
+    mitigation_sweep_task.delay(str(alert_id))
+    return True
 
 
 def _load_alert_context(db: Session, alert_id: uuid.UUID) -> tuple[ConjunctionAlert, str]:
@@ -55,6 +123,7 @@ def _build_preview_row(
     satellite_tle: str,
     debris_tle: str,
     api_key_id: uuid.UUID | None,
+    trigger_source: str = TRIGGER_MANUAL,
 ) -> AlertMitigationPreview:
     before, after = run_maneuver_preview(
         satellite_tle,
@@ -73,6 +142,7 @@ def _build_preview_row(
         after_tca=after.tca,
         after_miss_distance_km=after.miss_distance_km,
         relative_velocity_kms=before.relative_velocity_kms,
+        trigger_source=trigger_source,
         api_key_id=api_key_id,
     )
 
@@ -128,6 +198,7 @@ def run_alert_mitigation_preview(
     duration_days: float = 7.0,
     step_minutes: int = 1,
     api_key_id: uuid.UUID | None = None,
+    trigger_source: str = TRIGGER_MANUAL,
 ) -> AlertMitigationPreview:
     alert, debris_tle = _load_alert_context(db, alert_id)
     sat = alert.satellite
@@ -142,6 +213,7 @@ def run_alert_mitigation_preview(
         satellite_tle=sat.tle,
         debris_tle=debris_tle,
         api_key_id=api_key_id,
+        trigger_source=trigger_source,
     )
     db.add(preview)
     db.flush()
@@ -161,6 +233,7 @@ def run_alert_mitigation_preview(
             "delta_v_ms": delta_v_ms,
             "before_miss_km": preview.before_miss_distance_km,
             "after_miss_km": preview.after_miss_distance_km,
+            "trigger_source": trigger_source,
         },
     )
     db.commit()
@@ -172,14 +245,15 @@ def run_alert_mitigation_sweep(
     db: Session,
     alert_id: uuid.UUID,
     *,
-    direction: str = "prograde",
-    delta_v_min_ms: float = 0.01,
-    delta_v_max_ms: float = 0.10,
-    delta_v_step_ms: float = 0.01,
-    max_trials: int = 20,
+    direction: str = DEFAULT_SWEEP_DIRECTION,
+    delta_v_min_ms: float = DEFAULT_SWEEP_MIN_MS,
+    delta_v_max_ms: float = DEFAULT_SWEEP_MAX_MS,
+    delta_v_step_ms: float = DEFAULT_SWEEP_STEP_MS,
+    max_trials: int = DEFAULT_SWEEP_MAX_TRIALS,
     duration_days: float = 7.0,
     step_minutes: int = 1,
     api_key_id: uuid.UUID | None = None,
+    trigger_source: str = TRIGGER_MANUAL,
 ) -> tuple[list[AlertMitigationPreview], AlertMitigationPreview | None]:
     alert, debris_tle = _load_alert_context(db, alert_id)
     sat = alert.satellite
@@ -203,6 +277,7 @@ def run_alert_mitigation_sweep(
             satellite_tle=sat.tle,
             debris_tle=debris_tle,
             api_key_id=api_key_id,
+            trigger_source=trigger_source,
         )
         db.add(preview)
         previews.append(preview)
@@ -212,10 +287,15 @@ def run_alert_mitigation_sweep(
 
     from backend.app.services import audit_service
 
+    audit_action = (
+        "alert.mitigation_sweep_auto"
+        if trigger_source == TRIGGER_SCREENING_AUTO
+        else "alert.mitigation_sweep"
+    )
     audit_service.log_audit(
         db,
         fleet_id=alert.fleet_id,
-        action="alert.mitigation_sweep",
+        action=audit_action,
         resource_type="alert",
         resource_id=alert.id,
         api_key_id=api_key_id,
@@ -226,12 +306,35 @@ def run_alert_mitigation_sweep(
             "delta_v_max_ms": delta_v_max_ms,
             "delta_v_step_ms": delta_v_step_ms,
             "direction": direction,
+            "trigger_source": trigger_source,
         },
     )
     db.commit()
     for preview in previews:
         db.refresh(preview)
     return previews, best
+
+
+def maybe_notify_mitigation_best(
+    db: Session,
+    alert_id: uuid.UUID,
+    best: AlertMitigationPreview | None,
+) -> bool:
+    if best is None:
+        return False
+
+    alert = db.execute(
+        select(ConjunctionAlert)
+        .options(joinedload(ConjunctionAlert.satellite))
+        .where(ConjunctionAlert.id == alert_id)
+    ).scalar_one_or_none()
+    if alert is None:
+        return False
+
+    from backend.app.services.webhook_notifier import notify_mitigation_best
+
+    result = notify_mitigation_best(alert, best)
+    return result.sent
 
 
 def transition_alert_with_preview(

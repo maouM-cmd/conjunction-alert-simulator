@@ -459,6 +459,7 @@ class MitigationPreviewOut(BaseModel):
     after_tca: datetime
     after_miss_distance_km: float
     relative_velocity_kms: float | None
+    trigger_source: str
     api_key_id: str | None
     created_at: datetime
 

@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10F — 次着手
+## Phase 10G — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、COLA 自動試算、99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、API 99.9% SLA、`mitigation_planned` 自動遷移 等）。
+
+## Phase 10F — 完了
+
+エスカレーション後の自動 COLA Δv スイープ、best 通知、mitigation `trigger_source`、Ops auto バッジ。v1.13.0 ship 済み。
 
 ## Phase 10E — 完了
 

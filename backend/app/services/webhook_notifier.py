@@ -615,6 +615,73 @@ def notify_pc_escalation(alert, refinement) -> WebhookResult:
     return _post_payload(payload, 1)
 
 
+def notify_mitigation_best(alert, best_preview) -> WebhookResult:
+    """POST best mitigation preview from auto sweep (Phase 10F)."""
+    from backend.app.db.models import AlertMitigationPreview, ConjunctionAlert
+
+    if not _is_delivery_configured():
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message=_delivery_not_configured_message(),
+        )
+    if not isinstance(alert, ConjunctionAlert) or not isinstance(
+        best_preview, AlertMitigationPreview
+    ):
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="通知対象が不正です。",
+        )
+
+    satellite = alert.satellite
+    if satellite is None:
+        return WebhookResult(
+            sent=False,
+            alert_count=0,
+            degraded=False,
+            message="衛星情報がありません。",
+        )
+
+    line = (
+        f"COLA BEST: {satellite.name} (NORAD {satellite.norad_id}) vs "
+        f"{alert.debris_name} (NORAD {alert.debris_norad_id}): "
+        f"Δv {best_preview.delta_v_ms} m/s ({best_preview.direction}), "
+        f"miss {best_preview.before_miss_distance_km:.3f}→"
+        f"{best_preview.after_miss_distance_km:.3f} km / "
+        f"TCA={alert.tca.isoformat()}"
+    )
+
+    fmt = _webhook_format()
+    if fmt in ("slack", "slack_bot"):
+        payload = {"text": f"*CAS Mitigation Best*\n{line}"}
+    elif fmt == "smtp":
+        payload = {
+            "subject": f"CAS Mitigation Best — {satellite.name}",
+            "text": line,
+        }
+    else:
+        payload = {
+            "source": "cas",
+            "mitigation_best": True,
+            "alert_id": str(alert.id),
+            "satellite": {"name": satellite.name, "norad_id": satellite.norad_id},
+            "debris": {"name": alert.debris_name, "norad_id": alert.debris_norad_id},
+            "preview_id": str(best_preview.id),
+            "direction": best_preview.direction,
+            "delta_v_ms": best_preview.delta_v_ms,
+            "before_miss_distance_km": best_preview.before_miss_distance_km,
+            "after_miss_distance_km": best_preview.after_miss_distance_km,
+            "trigger_source": best_preview.trigger_source,
+            "tca": alert.tca.isoformat(),
+            "message": line,
+        }
+
+    return _post_payload(payload, 1)
+
+
 def send_test_webhook() -> WebhookResult:
     """Send a test ping to the configured alert delivery."""
     if not _is_delivery_configured():

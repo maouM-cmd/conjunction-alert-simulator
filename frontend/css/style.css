@@ -382,6 +382,13 @@ label.checkbox-row input[type="checkbox"] {
   font-weight: 600;
 }
 
+.ops-mitigation-auto {
+  font-size: 0.62rem;
+  color: #90caf9;
+  font-weight: 600;
+  margin-left: 0.15rem;
+}
+
 .ops-pc-refine-btn {
   margin-top: 0.15rem;
 }

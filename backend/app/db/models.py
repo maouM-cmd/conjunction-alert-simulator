@@ -196,6 +196,7 @@ class AlertMitigationPreview(Base):
     after_tca: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     after_miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
     relative_velocity_kms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    trigger_source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
     api_key_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
     )

@@ -235,6 +235,17 @@ function formatSlaLine(slaItem) {
   return `Screening lag: ${lag} — <span class="ops-sla-overdue">OVERDUE</span>`;
 }
 
+function formatMitigationPreviewLabel(preview, { prefix = "最新" } = {}) {
+  const autoBadge =
+    preview.trigger_source === "screening_auto"
+      ? ' <span class="ops-mitigation-auto">auto</span>'
+      : "";
+  return (
+    `${prefix}: Δv ${preview.delta_v_ms} m/s (${preview.direction}): ` +
+    `miss ${preview.before_miss_distance_km.toFixed(3)} → ${preview.after_miss_distance_km.toFixed(3)} km${autoBadge}`
+  );
+}
+
 function showMitigationResult(actions, result, { best = false } = {}) {
   let resultDiv = actions.querySelector(".ops-mitigation-result-live");
   if (!resultDiv) {
@@ -244,7 +255,7 @@ function showMitigationResult(actions, result, { best = false } = {}) {
   }
   resultDiv.classList.toggle("ops-mitigation-best", best);
   const prefix = best ? "best" : "試算";
-  resultDiv.textContent = `${prefix}: Δv ${result.delta_v_ms} m/s (${result.direction}): miss ${result.before_miss_distance_km.toFixed(3)} → ${result.after_miss_distance_km.toFixed(3)} km`;
+  resultDiv.innerHTML = formatMitigationPreviewLabel(result, { prefix });
 }
 
 async function refreshOpsDashboard() {
@@ -405,7 +416,7 @@ async function refreshOpsDashboard() {
         const p = a.latest_mitigation_preview;
         const latestDiv = document.createElement("div");
         latestDiv.className = "ops-mitigation-result";
-        latestDiv.textContent = `最新: Δv ${p.delta_v_ms} m/s (${p.direction}): miss ${p.before_miss_distance_km.toFixed(3)} → ${p.after_miss_distance_km.toFixed(3)} km`;
+        latestDiv.innerHTML = formatMitigationPreviewLabel(p);
         actions.appendChild(latestDiv);
       }
       const mitBtn = document.createElement("button");

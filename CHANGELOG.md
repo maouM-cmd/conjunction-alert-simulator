@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.13.0] - 2026-06-28
+
+Phase 10F — Screening Auto COLA Sweep。
+
+### Added
+
+- **Phase 10F:** 10E エスカレーション後の自動 Δv スイープ（Celery）
+- `alert_mitigation_previews.trigger_source` — `manual` / `screening_auto`（Alembic 009）
+- `mitigation_sweep_task` — worker 非同期 COLA スイープ
+- `notify_mitigation_best` — best preview 追加通知
+- `MitigationPreviewOut.trigger_source` + Ops UI auto バッジ
+- 監査: `alert.mitigation_sweep_auto`
+- env: `AUTO_MITIGATION_SWEEP_ENABLED`, `AUTO_MITIGATION_SWEEP_ON_ESCALATION_ONLY`, `AUTO_MITIGATION_SWEEP_PC_MIN`
+
 ## [1.12.0] - 2026-06-28
 
 Phase 10E — Screening Auto Pc Refine & Escalation。

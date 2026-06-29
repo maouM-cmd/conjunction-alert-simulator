@@ -31,6 +31,13 @@ def refine_alert_pc_task(alert_id: str) -> dict:
             trigger_source=pc_refinement_service.TRIGGER_SCREENING_AUTO,
         )
         escalated = pc_refinement_service.maybe_escalate_after_refine(db, refinement)
+        from backend.app.services import mitigation_service
+
+        sweep_enqueued = mitigation_service.enqueue_auto_mitigation_sweep(
+            uuid.UUID(alert_id),
+            escalated=escalated,
+            pc_refined=refinement.pc_refined,
+        )
         return {
             "alert_id": alert_id,
             "refinement_id": str(refinement.id),
@@ -38,6 +45,7 @@ def refine_alert_pc_task(alert_id: str) -> dict:
             "pc_method": refinement.pc_method,
             "trigger_source": refinement.trigger_source,
             "escalated": escalated,
+            "mitigation_sweep_enqueued": sweep_enqueued,
         }
     except pc_refinement_service.PcRefinementServiceError as exc:
         logger.warning("Auto Pc refine failed for alert %s: %s", alert_id, exc)

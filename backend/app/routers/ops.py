@@ -80,6 +80,7 @@ def _preview_out(preview: AlertMitigationPreview) -> MitigationPreviewOut:
         after_tca=preview.after_tca,
         after_miss_distance_km=preview.after_miss_distance_km,
         relative_velocity_kms=preview.relative_velocity_kms,
+        trigger_source=preview.trigger_source,
         api_key_id=str(preview.api_key_id) if preview.api_key_id else None,
         created_at=preview.created_at,
     )
@@ -307,6 +308,7 @@ def create_mitigation_preview(
             duration_days=body.duration_days,
             step_minutes=body.step_minutes,
             api_key_id=principal.api_key.id if principal.api_key else None,
+            trigger_source=mitigation_service.TRIGGER_MANUAL,
         )
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
@@ -365,6 +367,7 @@ def create_mitigation_sweep(
             duration_days=body.duration_days,
             step_minutes=body.step_minutes,
             api_key_id=principal.api_key.id if principal.api_key else None,
+            trigger_source=mitigation_service.TRIGGER_MANUAL,
         )
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
