@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal
+from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal, principal_scoped_fleet_id
 from backend.app.db.models import AlertMitigationPreview, AlertPcRefinement, AuditLog, ConjunctionAlert
 from backend.app.db.session import require_db
 from backend.app.models.schemas import (
@@ -186,8 +186,11 @@ def list_sla(
             items = [sla_service.compute_fleet_sla(db, fid)]
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-    elif principal.api_key is not None and not principal.is_admin:
-        items = [sla_service.compute_fleet_sla(db, principal.api_key.fleet_id)]
+    elif not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=401, detail="API Key が必要です。")
+        items = [sla_service.compute_fleet_sla(db, scoped)]
     else:
         items = sla_service.list_fleet_sla_summaries(db)
 

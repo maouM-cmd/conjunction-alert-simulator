@@ -89,7 +89,25 @@ const els = {
   opsAlertTable: document.getElementById("ops-alert-table"),
   opsAlertTableBody: document.getElementById("ops-alert-table-body"),
   opsApiKeyInput: document.getElementById("ops-api-key"),
+  opsAuthBar: document.getElementById("ops-auth-bar"),
+  opsAuthStatus: document.getElementById("ops-auth-status"),
+  btnOpsSsoLogin: document.getElementById("btn-ops-sso-login"),
+  btnOpsSsoLogout: document.getElementById("btn-ops-sso-logout"),
 };
+
+let opsOidcEnabled = false;
+let opsAuthMe = { authenticated: false };
+
+function opsFetchOptions(extraHeaders = {}, { ops = false } = {}) {
+  const options = {};
+  if (ops) {
+    options.headers = getOpsApiHeaders(extraHeaders);
+    options.credentials = "include";
+  } else if (Object.keys(extraHeaders).length) {
+    options.headers = extraHeaders;
+  }
+  return options;
+}
 
 function getOpsApiHeaders(extra = {}) {
   const headers = { ...extra };
@@ -108,6 +126,51 @@ function saveOpsApiKeyFromInput() {
   } else {
     localStorage.removeItem("casApiKey");
   }
+}
+
+async function refreshOpsAuthStatus() {
+  if (!els.opsAuthBar) return;
+  try {
+    const config = await apiGet("/api/v1/auth/oidc/config");
+    opsOidcEnabled = Boolean(config.enabled);
+    els.opsAuthBar.classList.toggle("hidden", !opsOidcEnabled);
+    if (!opsOidcEnabled) {
+      return;
+    }
+    opsAuthMe = await apiGet("/api/v1/auth/me", { ops: true });
+    if (opsAuthMe.authenticated) {
+      const role = opsAuthMe.is_admin
+        ? "admin"
+        : opsAuthMe.fleet_id
+          ? `fleet ${opsAuthMe.fleet_id}`
+          : "user";
+      els.opsAuthStatus.textContent = `ログイン: ${opsAuthMe.email} (${role})`;
+      els.btnOpsSsoLogin.classList.add("hidden");
+      els.btnOpsSsoLogout.classList.remove("hidden");
+      if (!opsAuthMe.is_admin && opsAuthMe.fleet_id) {
+        els.opsFleetSelect.value = opsAuthMe.fleet_id;
+      }
+    } else {
+      els.opsAuthStatus.textContent = "SSO 未ログイン";
+      els.btnOpsSsoLogin.classList.remove("hidden");
+      els.btnOpsSsoLogout.classList.add("hidden");
+    }
+  } catch (err) {
+    els.opsAuthStatus.textContent = err.message;
+  }
+}
+
+function ensureOpsAuthenticated() {
+  if (!opsOidcEnabled) {
+    return true;
+  }
+  if (opsAuthMe.authenticated) {
+    return true;
+  }
+  const hasApiKey =
+    localStorage.getItem("casApiKey") ||
+    (els.opsApiKeyInput && els.opsApiKeyInput.value.trim());
+  return Boolean(hasApiKey);
 }
 
 let selectedConjunction = null;
@@ -155,9 +218,7 @@ async function waitForBackend(maxSec = 60, intervalMs = 2000) {
 }
 
 async function apiGet(path, { ops = false } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: ops ? getOpsApiHeaders() : undefined,
-  });
+  const res = await fetch(`${API_BASE}${path}`, opsFetchOptions({}, { ops }));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = data.detail;
@@ -180,6 +241,7 @@ async function apiPatch(path, body, { ops = false } = {}) {
     method: "PATCH",
     headers,
     body: JSON.stringify(body),
+    credentials: ops ? "include" : "same-origin",
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -280,6 +342,10 @@ function showMitigationResult(actions, result, { best = false } = {}) {
 
 async function refreshOpsDashboard() {
   const fleetId = els.opsFleetSelect.value;
+  if (!ensureOpsAuthenticated()) {
+    setOpsStatus("SSO ログインまたは API Key を設定してください。", true);
+    return;
+  }
   if (!fleetId) {
     setOpsStatus("艦隊を選択してください。", true);
     return;
@@ -543,6 +609,7 @@ async function apiPost(path, body, { ops = false } = {}) {
         method: "POST",
         headers,
         body: JSON.stringify(body),
+        credentials: ops ? "include" : "same-origin",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -641,7 +708,7 @@ function switchMode(mode) {
     els.alertSatTle.value = els.tleInput.value.trim() || ISS_SAMPLE;
   }
   if (mode === "ops") {
-    loadOpsFleets();
+    refreshOpsAuthStatus().then(() => loadOpsFleets());
   }
 }
 
@@ -1241,6 +1308,23 @@ function initEventListeners() {
     }
   });
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
+  if (els.btnOpsSsoLogin) {
+    els.btnOpsSsoLogin.addEventListener("click", () => {
+      window.location.href = `${API_BASE}/api/v1/auth/oidc/login`;
+    });
+  }
+  if (els.btnOpsSsoLogout) {
+    els.btnOpsSsoLogout.addEventListener("click", async () => {
+      try {
+        await apiPost("/api/v1/auth/logout", {}, { ops: true });
+        opsAuthMe = { authenticated: false };
+        await refreshOpsAuthStatus();
+        setOpsStatus("ログアウトしました。");
+      } catch (err) {
+        setOpsStatus(err.message, true);
+      }
+    });
+  }
   if (els.opsApiKeyInput) {
     const savedKey = localStorage.getItem("casApiKey");
     if (savedKey) {
@@ -1303,6 +1387,10 @@ async function init() {
       els.batchAutoSpacetrackCdm.disabled = true;
       els.batchAutoSpacetrackCdmWrap.title = "Space-Track 認証（.env）が必要です。";
     }
+  }
+  const tabParam = new URLSearchParams(window.location.search).get("tab");
+  if (tabParam === "ops") {
+    switchMode("ops");
   }
 }
 

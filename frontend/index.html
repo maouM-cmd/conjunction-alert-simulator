@@ -170,6 +170,11 @@
       <section id="panel-ops" class="mode-panel hidden">
         <h2>運用 Ops — アラート triage</h2>
         <p class="meta">PostgreSQL + Fleet 登録が必要（docker compose）。</p>
+        <div id="ops-auth-bar" class="ops-auth-bar hidden">
+          <span id="ops-auth-status" class="ops-auth-status"></span>
+          <button id="btn-ops-sso-login" type="button" class="ops-auth-btn hidden">SSO ログイン</button>
+          <button id="btn-ops-sso-logout" type="button" class="ops-auth-btn hidden">ログアウト</button>
+        </div>
         <label>
           API Key（任意）
           <input id="ops-api-key" type="password" autocomplete="off" placeholder="CAS_API_KEY_REQUIRED=true 時" />

@@ -57,7 +57,7 @@ cas_screening_overdue_fleets 0.0
 cas_http_requests_total{method="GET",status_class="2xx"} 42.0
 cas_api_availability_ratio 0.9995
 cas_api_slo_ok 1.0
-cas_info{version="1.15.0"} 1.0
+cas_info{version="1.16.0"} 1.0
 ```
 
 | メトリクス | 説明 |
@@ -873,6 +873,38 @@ prefix 一覧（平文は返さない）。
 ### DELETE /api/v1/fleets/{fleet_id}/api-keys/{key_id}
 
 **204** — 論理 revoke。
+
+---
+
+## OIDC SSO（Phase 10I）
+
+**デフォルト:** `OPS_OIDC_ENABLED=false`
+
+| エンドポイント | 説明 |
+|---------------|------|
+| `GET /api/v1/auth/oidc/config` | `{ enabled, login_path }` |
+| `GET /api/v1/auth/oidc/login` | IdP へリダイレクト |
+| `GET /api/v1/auth/oidc/callback` | code 交換 → `cas_ops_session` cookie → `/app/?tab=ops` |
+| `POST /api/v1/auth/logout` | セッション cookie 削除 |
+| `GET /api/v1/auth/me` | `{ authenticated, email, is_admin, fleet_id }` |
+
+**権限:** `OPS_OIDC_ADMIN_EMAILS` → admin。`OPS_OIDC_FLEET_MAPPINGS` JSON → 艦隊スコープ。`CAS_API_KEY_REQUIRED=true` 時、cookie または `X-API-Key` で ops/fleets/screening 認可。
+
+**監査:** `auth.oidc_login`
+
+**env:**
+
+| 変数 | default | 備考 |
+|------|---------|------|
+| `OPS_OIDC_ENABLED` | `false` | |
+| `OPS_OIDC_ISSUER` | — | |
+| `OPS_OIDC_CLIENT_ID` | — | |
+| `OPS_OIDC_CLIENT_SECRET` | — | |
+| `OPS_OIDC_REDIRECT_URI` | — | |
+| `OPS_OIDC_ADMIN_EMAILS` | — | カンマ区切り |
+| `OPS_OIDC_FLEET_MAPPINGS` | `{}` | JSON |
+| `OPS_SESSION_SECRET` | — | 未設定時 OIDC 無効 |
+| `OPS_SESSION_TTL_HOURS` | `8` | |
 
 ---
 

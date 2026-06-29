@@ -431,6 +431,27 @@ label.checkbox-row input[type="checkbox"] {
   letter-spacing: 0.03em;
 }
 
+.ops-auth-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: #1e2433;
+  border-radius: 4px;
+}
+
+.ops-auth-status {
+  font-size: 0.78rem;
+  color: #c5cae9;
+}
+
+.ops-auth-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+}
+
 .ops-sla-ok {
   color: #b8e0b8;
   font-weight: 600;

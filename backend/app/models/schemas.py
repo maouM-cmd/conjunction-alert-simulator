@@ -579,6 +579,18 @@ class SlaSummaryOut(BaseModel):
     api_request_count: int = 0
 
 
+class OidcConfigOut(BaseModel):
+    enabled: bool
+    login_path: str | None = None
+
+
+class AuthMeOut(BaseModel):
+    authenticated: bool
+    email: str | None = None
+    is_admin: bool = False
+    fleet_id: str | None = None
+
+
 class ApiKeyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
 

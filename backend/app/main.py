@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.middleware.http_metrics import HttpMetricsMiddleware
-from backend.app.routers import alerts, batch, cdm, conjunctions, fleets, health, maneuver, metrics, ops, orbit, screening
+from backend.app.routers import alerts, auth, batch, cdm, conjunctions, fleets, health, maneuver, metrics, ops, orbit, screening
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -21,7 +21,7 @@ SAMPLES_DIR = PROJECT_ROOT / "samples"
 app = FastAPI(
     title="Conjunction Alert Simulator",
     description="衛星 TLE からデブリ接近を検出し、3D 可視化と回避試算を行う API",
-    version="1.15.0",
+    version="1.16.0",
 )
 
 app.add_middleware(HttpMetricsMiddleware)
@@ -35,6 +35,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(metrics.router)
+app.include_router(auth.router)
 app.include_router(fleets.router)
 app.include_router(screening.router)
 app.include_router(ops.router)

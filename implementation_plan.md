@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10I — 次着手
+## Phase 10J — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO/OIDC 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SLO DB 永続化、共分散伝播強化 等）。
+
+## Phase 10I — 完了
+
+Ops UI OIDC SSO — 管理者 + 艦隊メールマッピング、HttpOnly セッション、API Key 併用。v1.16.0 ship 済み。
 
 ## Phase 10H — 完了
 

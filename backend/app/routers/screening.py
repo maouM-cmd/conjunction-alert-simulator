@@ -8,7 +8,12 @@ from collections.abc import Generator
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal
+from backend.app.auth.api_key import (
+    AuthPrincipal,
+    check_fleet_access,
+    get_auth_principal,
+    principal_scoped_fleet_id,
+)
 from backend.app.db.models import ScreeningRun, ScreeningSchedule
 from backend.app.db.session import get_session_factory, require_screening
 from backend.app.models.schemas import (
@@ -94,8 +99,10 @@ def _run_out(run: ScreeningRun) -> ScreeningRunOut:
 def _resolve_fleet_filter(
     principal: AuthPrincipal, fleet_id: str | None
 ) -> uuid.UUID | None:
-    if is_api_key_required() and principal.api_key is not None:
-        return principal.api_key.fleet_id
+    if is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is not None:
+            return scoped
     return _parse_uuid(fleet_id, "fleet_id") if fleet_id else None
 
 
@@ -135,7 +142,7 @@ def list_schedules(
     fleet_id: str | None = None,
 ) -> list[ScreeningScheduleOut]:
     fid = _resolve_fleet_filter(principal, fleet_id)
-    if is_api_key_required() and principal.api_key is not None and fleet_id:
+    if is_api_key_required() and principal_scoped_fleet_id(principal) is not None and fleet_id:
         requested = _parse_uuid(fleet_id, "fleet_id")
         check_fleet_access(principal, requested)
     schedules = screening_service.list_schedules(db, fleet_id=fid)
@@ -224,7 +231,7 @@ def list_runs(
     offset: int = Query(default=0, ge=0),
 ) -> ScreeningRunListOut:
     fid = _resolve_fleet_filter(principal, fleet_id)
-    if is_api_key_required() and principal.api_key is not None and fleet_id:
+    if is_api_key_required() and principal_scoped_fleet_id(principal) is not None and fleet_id:
         requested = _parse_uuid(fleet_id, "fleet_id")
         check_fleet_access(principal, requested)
     items, total = screening_service.list_runs(

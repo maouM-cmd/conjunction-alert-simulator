@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.16.0] - 2026-06-28
+
+Phase 10I — Ops UI OIDC SSO（Admin + Fleet）。
+
+### Added
+
+- **Phase 10I:** OIDC Authorization Code + PKCE、HttpOnly セッション cookie
+- `GET /api/v1/auth/oidc/*`, `/auth/me`, `/auth/logout`
+- 管理者 `OPS_OIDC_ADMIN_EMAILS` + 艦隊 `OPS_OIDC_FLEET_MAPPINGS`
+- `AuthPrincipal` OIDC 拡張 — API Key 併用
+- Ops UI: SSO ログイン / ログアウト / 認証状態表示
+- 監査: `auth.oidc_login`
+- 依存: `authlib`
+
 ## [1.15.0] - 2026-06-28
 
 Phase 10H — API 99.9% SLO Dashboard。

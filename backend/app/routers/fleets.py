@@ -12,6 +12,7 @@ from backend.app.auth.api_key import (
     authorize_key_management,
     check_fleet_access,
     get_auth_principal,
+    principal_scoped_fleet_id,
     require_admin_principal,
 )
 from backend.app.db.models import Fleet, Satellite
@@ -99,8 +100,11 @@ def list_fleets(
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> list[FleetOut]:
-    if is_api_key_required() and principal.api_key is not None:
-        fleet = fleet_service.get_fleet(db, principal.api_key.fleet_id)
+    if is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=401, detail="API Key が必要です。")
+        fleet = fleet_service.get_fleet(db, scoped)
         return [
             _fleet_out(
                 fleet,
