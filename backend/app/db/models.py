@@ -277,3 +277,17 @@ class ApiSloHourlyBucket(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
+
+
+class ApiSloFleetHourlyBucket(Base):
+    __tablename__ = "api_slo_fleet_hourly_buckets"
+
+    fleet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("fleets.id", ondelete="CASCADE"), primary_key=True
+    )
+    hour_epoch: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    request_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    errors_5xx: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )

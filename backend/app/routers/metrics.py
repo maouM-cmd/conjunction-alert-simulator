@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import func, select
@@ -12,6 +14,8 @@ from backend.app.metrics_registry import (
     cas_api_availability_ratio,
     cas_api_slo_ok,
     cas_celery_queue_depth,
+    cas_fleet_api_availability_ratio,
+    cas_fleet_api_slo_ok,
     cas_info,
     cas_open_alerts,
     cas_screening_lag_seconds,
@@ -19,7 +23,12 @@ from backend.app.metrics_registry import (
     cas_screening_runs,
     registry,
 )
-from backend.app.services import api_availability_service, sla_service, slo_persistence_service
+from backend.app.services import (
+    api_availability_service,
+    fleet_api_availability_service,
+    sla_service,
+    slo_persistence_service,
+)
 from backend.app.version import APP_VERSION
 
 router = APIRouter(tags=["metrics"])
@@ -80,6 +89,44 @@ def _collect_api_slo_metrics() -> None:
     else:
         cas_api_availability_ratio.set(summary.availability_ratio)
         cas_api_slo_ok.set(1.0 if summary.slo_ok else 0.0)
+
+    if not fleet_api_availability_service.fleet_api_slo_enabled():
+        return
+
+    fleet_ids: set[str] = set()
+    for fleet_id in fleet_api_availability_service.list_fleet_ids_with_memory_samples():
+        fleet_ids.add(str(fleet_id))
+
+    factory = get_session_factory()
+    if factory is not None and slo_persistence_service.slo_api_persist_enabled():
+        db = factory()
+        try:
+            window_seconds = int(api_availability_service.api_rolling_window_hours() * 3600.0)
+            now_epoch = int(__import__("time").time())
+            since_epoch = now_epoch - (now_epoch % 3600) - window_seconds
+            for fleet_id in slo_persistence_service.list_distinct_fleet_ids(db, since_epoch):
+                fleet_ids.add(str(fleet_id))
+        finally:
+            db.close()
+
+    cas_fleet_api_availability_ratio.clear()
+    cas_fleet_api_slo_ok.clear()
+    for fleet_id_str in fleet_ids:
+        fleet_summary = fleet_api_availability_service.compute_fleet_api_availability(
+            uuid.UUID(fleet_id_str)
+        )
+        if fleet_summary is None:
+            continue
+        if fleet_summary.availability_ratio is None:
+            cas_fleet_api_availability_ratio.labels(fleet_id=fleet_id_str).set(1.0)
+            cas_fleet_api_slo_ok.labels(fleet_id=fleet_id_str).set(1.0)
+        else:
+            cas_fleet_api_availability_ratio.labels(fleet_id=fleet_id_str).set(
+                fleet_summary.availability_ratio
+            )
+            cas_fleet_api_slo_ok.labels(fleet_id=fleet_id_str).set(
+                1.0 if fleet_summary.slo_ok else 0.0
+            )
 
 
 @router.get("/metrics")

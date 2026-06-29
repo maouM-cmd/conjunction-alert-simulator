@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import ApiSloHourlyBucket
+from backend.app.db.models import ApiSloFleetHourlyBucket, ApiSloHourlyBucket
 from backend.app.services.api_availability_service import (
     ApiAvailabilitySummary,
     api_rolling_window_hours,
     api_slo_target_percent,
-    api_slo_target_ratio,
     replace_memory_buckets,
+    summary_from_totals,
 )
 
 _BUCKET_SECONDS = 3600
@@ -96,32 +97,7 @@ def fetch_buckets(db: Session, since_epoch: int) -> dict[int, tuple[int, int]]:
 
 
 def _summary_from_totals(total: int, errors_5xx: int) -> ApiAvailabilitySummary:
-    target_percent = api_slo_target_percent()
-    target_ratio = api_slo_target_ratio()
-    window_hours = api_rolling_window_hours()
-
-    if total == 0:
-        return ApiAvailabilitySummary(
-            availability_ratio=None,
-            availability_percent=None,
-            slo_target_percent=target_percent,
-            slo_ok=True,
-            sample_window_hours=window_hours,
-            request_count=0,
-            errors_5xx=0,
-        )
-
-    ratio = (total - errors_5xx) / total
-    percent = ratio * 100.0
-    return ApiAvailabilitySummary(
-        availability_ratio=ratio,
-        availability_percent=percent,
-        slo_target_percent=target_percent,
-        slo_ok=ratio >= target_ratio,
-        sample_window_hours=window_hours,
-        request_count=total,
-        errors_5xx=errors_5xx,
-    )
+    return summary_from_totals(total, errors_5xx)
 
 
 def compute_availability_from_db(db: Session) -> ApiAvailabilitySummary:
@@ -211,12 +187,119 @@ def prune_old_buckets(db: Session) -> int:
     result = db.execute(
         delete(ApiSloHourlyBucket).where(ApiSloHourlyBucket.hour_epoch < cutoff_epoch)
     )
+    fleet_result = db.execute(
+        delete(ApiSloFleetHourlyBucket).where(ApiSloFleetHourlyBucket.hour_epoch < cutoff_epoch)
+    )
     db.commit()
-    return int(result.rowcount or 0)
+    return int((result.rowcount or 0) + (fleet_result.rowcount or 0))
 
 
 def clear_buckets_for_tests(db: Session) -> None:
     db.execute(delete(ApiSloHourlyBucket))
+    db.execute(delete(ApiSloFleetHourlyBucket))
+    db.commit()
+
+
+def upsert_fleet_hourly_bucket(
+    db: Session,
+    fleet_id: uuid.UUID,
+    hour_epoch: int,
+    *,
+    inc_total: int = 0,
+    inc_5xx: int = 0,
+) -> None:
+    now = datetime.now(timezone.utc)
+    row = db.get(ApiSloFleetHourlyBucket, (fleet_id, hour_epoch))
+    if row is None:
+        db.add(
+            ApiSloFleetHourlyBucket(
+                fleet_id=fleet_id,
+                hour_epoch=hour_epoch,
+                request_total=inc_total,
+                errors_5xx=inc_5xx,
+                updated_at=now,
+            )
+        )
+    else:
+        row.request_total += inc_total
+        row.errors_5xx += inc_5xx
+        row.updated_at = now
+    db.commit()
+
+
+def fetch_fleet_buckets(
+    db: Session,
+    fleet_id: uuid.UUID,
+    since_epoch: int,
+) -> dict[int, tuple[int, int]]:
+    rows = db.execute(
+        select(
+            ApiSloFleetHourlyBucket.hour_epoch,
+            ApiSloFleetHourlyBucket.request_total,
+            ApiSloFleetHourlyBucket.errors_5xx,
+        ).where(
+            ApiSloFleetHourlyBucket.fleet_id == fleet_id,
+            ApiSloFleetHourlyBucket.hour_epoch >= since_epoch,
+        )
+    ).all()
+    return {int(row[0]): (int(row[1]), int(row[2])) for row in rows}
+
+
+def compute_fleet_availability_from_db(
+    db: Session,
+    fleet_id: uuid.UUID,
+) -> ApiAvailabilitySummary:
+    since_epoch = _window_since_epoch()
+    buckets = fetch_fleet_buckets(db, fleet_id, since_epoch)
+    total = sum(values[0] for values in buckets.values())
+    errors_5xx = sum(values[1] for values in buckets.values())
+    return _summary_from_totals(total, errors_5xx)
+
+
+def fetch_fleet_daily_history(
+    db: Session,
+    fleet_id: uuid.UUID,
+    days: int,
+) -> list[ApiSloDaySummary]:
+    now = datetime.now(timezone.utc)
+    start_day = (now - timedelta(days=days - 1)).date()
+    start_epoch = int(
+        datetime(start_day.year, start_day.month, start_day.day, tzinfo=timezone.utc).timestamp()
+    )
+    buckets = fetch_fleet_buckets(db, fleet_id, start_epoch)
+    rolled = rollup_daily(buckets)
+    rolled_by_day = {item.day: item for item in rolled}
+
+    items: list[ApiSloDaySummary] = []
+    for offset in range(days):
+        day = start_day + timedelta(days=offset)
+        items.append(
+            rolled_by_day.get(
+                day,
+                ApiSloDaySummary(
+                    day=day,
+                    availability_ratio=None,
+                    availability_percent=None,
+                    request_count=0,
+                    errors_5xx=0,
+                    slo_ok=True,
+                ),
+            )
+        )
+    return items
+
+
+def list_distinct_fleet_ids(db: Session, since_epoch: int) -> list[uuid.UUID]:
+    rows = db.execute(
+        select(ApiSloFleetHourlyBucket.fleet_id)
+        .where(ApiSloFleetHourlyBucket.hour_epoch >= since_epoch)
+        .distinct()
+    ).all()
+    return [row[0] for row in rows]
+
+
+def clear_fleet_buckets_for_tests(db: Session) -> None:
+    db.execute(delete(ApiSloFleetHourlyBucket))
     db.commit()
 
 

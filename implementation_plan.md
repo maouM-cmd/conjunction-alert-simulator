@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10N — 次着手
+## Phase 10O — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（fleet 別 API SLO 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（PagerDuty resolve/ack 等）。
+
+## Phase 10N — 完了
+
+fleet 別 API SLO — 艦隊スコープ API 可用性計測、Ops fleet 表示、DB 永続化、Prometheus per-fleet。v1.21.0 ship 済み。
 
 ## Phase 10M — 完了
 

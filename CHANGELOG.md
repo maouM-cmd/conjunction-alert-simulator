@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.21.0] - 2026-06-28
+
+Phase 10N — fleet 別 API SLO。
+
+### Added
+
+- **Phase 10N:** fleet スコープ API Key / OIDC セッション単位の API 可用性計測
+- `api_slo_fleet_context`, `fleet_api_availability_service`
+- DB `api_slo_fleet_hourly_buckets` + write-through（10J 連携）
+- `FleetSlaOut` fleet API フィールド、`GET /ops/sla/api-history?fleet_id=`
+- Prometheus `cas_fleet_api_availability_ratio`, `cas_fleet_api_slo_ok`
+- Ops UI fleet API SLO + 7d トレンド
+- env: `SLA_FLEET_API_SLO_ENABLED`（default false）
+
 ## [1.20.0] - 2026-06-28
 
 Phase 10M — CDM σ TCA シフト。

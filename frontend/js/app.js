@@ -305,7 +305,16 @@ function formatSlaLine(slaItem) {
   return `Screening lag: ${lag} — <span class="ops-sla-overdue">OVERDUE</span>`;
 }
 
-function formatApiSloLine(slaResponse) {
+function formatApiSloLine(slaResponse, slaItem = null) {
+  const fleetCount = slaItem?.fleet_api_request_count ?? 0;
+  if (fleetCount > 0) {
+    const pct = slaItem.fleet_api_availability_percent.toFixed(2);
+    const target = slaResponse?.api_slo_target_percent ?? 99.9;
+    if (slaItem.fleet_api_slo_ok) {
+      return `Fleet API availability: ${pct}% (target ${target}%) — <span class="ops-slo-ok">OK</span>`;
+    }
+    return `Fleet API availability: ${pct}% (target ${target}%) — <span class="ops-slo-breach">BREACH</span>`;
+  }
   if (!slaResponse || slaResponse.api_request_count === 0) {
     return `API availability: <span class="ops-sla-na">N/A（サンプルなし）</span>`;
   }
@@ -317,20 +326,22 @@ function formatApiSloLine(slaResponse) {
   return `API availability: ${pct}% (target ${target}%) — <span class="ops-slo-breach">BREACH</span>`;
 }
 
-function formatApiSloHistoryLine(history) {
+function formatApiSloHistoryLine(history, slaItem = null) {
+  const fleetCount = slaItem?.fleet_api_request_count ?? 0;
+  const label = fleetCount > 0 ? "Fleet 7d trend" : "7d trend";
   if (!history || !history.items || !history.items.length) {
     return "";
   }
   const sampled = history.items.filter((item) => item.request_count > 0);
   if (!sampled.length) {
-    return `<div class="ops-slo-history">7d trend: <span class="ops-sla-na">N/A</span></div>`;
+    return `<div class="ops-slo-history">${label}: <span class="ops-sla-na">N/A</span></div>`;
   }
   const avg =
     sampled.reduce((sum, item) => sum + item.availability_percent, 0) / sampled.length;
   const breaches = sampled.filter((item) => !item.slo_ok).length;
   const statusClass = breaches === 0 ? "ops-slo-ok" : "ops-slo-breach";
   const statusLabel = breaches === 0 ? "OK" : `${breaches}d BREACH`;
-  return `<div class="ops-slo-history">7d: ${avg.toFixed(2)}% avg — <span class="${statusClass}">${statusLabel}</span></div>`;
+  return `<div class="ops-slo-history">${label}: ${avg.toFixed(2)}% avg — <span class="${statusClass}">${statusLabel}</span></div>`;
 }
 
 function formatMitigationPreviewLabel(preview, { prefix = "最新" } = {}) {
@@ -370,7 +381,7 @@ async function refreshOpsDashboard() {
     const [summary, sla, apiHistory] = await Promise.all([
       apiGet(`/api/v1/ops/fleets/${fleetId}/summary`, { ops: true }),
       apiGet(`/api/v1/ops/sla?fleet_id=${fleetId}`, { ops: true }),
-      apiGet(`/api/v1/ops/sla/api-history?days=7`, { ops: true }),
+      apiGet(`/api/v1/ops/sla/api-history?days=7&fleet_id=${fleetId}`, { ops: true }),
     ]);
     const slaItem = sla.items && sla.items.length ? sla.items[0] : null;
     els.opsSummary.innerHTML = `
@@ -381,8 +392,8 @@ async function refreshOpsDashboard() {
       closed: ${summary.closed_count}<br/>
       最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}<br/>
       ${formatSlaLine(slaItem)}<br/>
-      ${formatApiSloLine(sla)}<br/>
-      ${formatApiSloHistoryLine(apiHistory)}
+      ${formatApiSloLine(sla, slaItem)}<br/>
+      ${formatApiSloHistoryLine(apiHistory, slaItem)}
     `;
     const statusQ = els.opsStatusFilter.value;
     const path = statusQ

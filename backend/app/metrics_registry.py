@@ -50,6 +50,18 @@ cas_api_slo_ok = Gauge(
     "1 if API availability meets SLA target, else 0",
     registry=registry,
 )
+cas_fleet_api_availability_ratio = Gauge(
+    "cas_fleet_api_availability_ratio",
+    "Per-fleet rolling-window API availability ratio (Phase 10N)",
+    ["fleet_id"],
+    registry=registry,
+)
+cas_fleet_api_slo_ok = Gauge(
+    "cas_fleet_api_slo_ok",
+    "1 if fleet API availability meets SLA target, else 0 (Phase 10N)",
+    ["fleet_id"],
+    registry=registry,
+)
 
 
 def status_class(status_code: int) -> str:

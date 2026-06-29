@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 import threading
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass
 
 _BUCKET_SECONDS = 3600
+BUCKET_SECONDS = _BUCKET_SECONDS
 
 
 @dataclass(frozen=True)
@@ -89,9 +91,12 @@ def _record_memory(status_code: int) -> None:
         _buckets[-1] = (epoch, total + 1, errors + (1 if is_5xx else 0))
 
 
-def record_http_status(status_code: int) -> None:
+def record_http_status(status_code: int, fleet_id: uuid.UUID | None = None) -> None:
     from backend.app.db.session import get_session_factory, is_database_configured
-    from backend.app.services import slo_persistence_service
+    from backend.app.services import fleet_api_availability_service, slo_persistence_service
+
+    if fleet_id is not None:
+        fleet_api_availability_service.record_fleet_http_status(fleet_id, status_code)
 
     if slo_persistence_service.slo_api_persist_enabled() and is_database_configured():
         factory = get_session_factory()
@@ -118,7 +123,9 @@ def record_http_status(status_code: int) -> None:
 def reset_availability_for_tests() -> None:
     with _lock:
         _buckets.clear()
-    from backend.app.services import slo_persistence_service
+    from backend.app.services import fleet_api_availability_service, slo_persistence_service
+
+    fleet_api_availability_service.reset_fleet_availability_for_tests()
 
     slo_persistence_service.reset_hydration_for_tests()
     from backend.app.db.session import get_session_factory
@@ -132,16 +139,10 @@ def reset_availability_for_tests() -> None:
             db.close()
 
 
-def _compute_from_memory() -> ApiAvailabilitySummary:
+def summary_from_totals(total: int, errors_5xx: int) -> ApiAvailabilitySummary:
     target_percent = api_slo_target_percent()
     target_ratio = target_percent / 100.0
     window_hours = api_rolling_window_hours()
-    window_seconds = window_hours * 3600.0
-
-    with _lock:
-        _prune_buckets(window_seconds)
-        total = sum(b[1] for b in _buckets)
-        errors_5xx = sum(b[2] for b in _buckets)
 
     if total == 0:
         return ApiAvailabilitySummary(
@@ -167,6 +168,18 @@ def _compute_from_memory() -> ApiAvailabilitySummary:
         request_count=total,
         errors_5xx=errors_5xx,
     )
+
+
+def _compute_from_memory() -> ApiAvailabilitySummary:
+    window_hours = api_rolling_window_hours()
+    window_seconds = window_hours * 3600.0
+
+    with _lock:
+        _prune_buckets(window_seconds)
+        total = sum(b[1] for b in _buckets)
+        errors_5xx = sum(b[2] for b in _buckets)
+
+    return summary_from_totals(total, errors_5xx)
 
 
 def compute_api_availability() -> ApiAvailabilitySummary:

@@ -833,7 +833,9 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 }
 ```
 
-**Phase 10H 拡張:** 上記 API SLO フィールドは fleet 非依存（global）。5xx のみエラー、4xx は success。サンプル 0 時 `api_availability_ratio=null`, `api_slo_ok=true`。
+**Phase 10H 拡張:** トップレベル API SLO フィールドは fleet 非依存（global）。5xx のみエラー、4xx は success。サンプル 0 時 `api_availability_ratio=null`, `api_slo_ok=true`。
+
+**Phase 10N 拡張:** 各 `items[]` に fleet API SLO フィールド（`fleet_api_availability_*`, `fleet_api_slo_ok`, `fleet_api_request_count`）。`SLA_FLEET_API_SLO_ENABLED=true` かつ fleet スコープ API Key リクエストで計上。
 
 - `fleet_id` 指定時: 当該艦隊 1 件（schedule なしでも返す）
 - 未指定 + fleet API Key: 自艦隊のみ
@@ -847,9 +849,11 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 
 **env（Phase 10K）:** `COV_PROPAGATION_ENABLED`（default false）, `COV_PROP_R_GROWTH_PER_DAY`（default 0.10）, `COV_PROP_T_GROWTH_PER_DAY`（default 0.05）, `COV_PROP_N_GROWTH_PER_DAY`（default 0.05）
 
-### GET /api/v1/ops/sla/api-history（Phase 10J）
+**env（Phase 10N）:** `SLA_FLEET_API_SLO_ENABLED`（default false）
 
-クエリ: `days`（1〜90、default 30）。UTC 日次 API 可用性 rollup。fleet スコープ不要（global API SLO）。
+### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
+
+クエリ: `days`（1〜90、default 30）、`fleet_id`（optional、Phase 10N）。UTC 日次 API 可用性 rollup。`fleet_id` 未指定時は global API SLO。
 
 認証: 管理者または認証 OFF（`CAS_API_KEY_REQUIRED=false`）。
 

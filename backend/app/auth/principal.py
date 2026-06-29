@@ -6,7 +6,7 @@ import secrets
 import uuid
 from typing import NamedTuple
 
-from fastapi import Cookie, Depends, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import ApiKey
@@ -43,7 +43,13 @@ def _principal_from_session(
     )
 
 
+def _finalize_principal(request: Request, principal: AuthPrincipal) -> AuthPrincipal:
+    request.state.fleet_id_for_api_slo = principal_scoped_fleet_id(principal)
+    return principal
+
+
 def get_auth_principal(
+    request: Request,
     db: Session = Depends(require_db),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     cas_ops_session: str | None = Cookie(default=None, alias="cas_ops_session"),
@@ -51,18 +57,18 @@ def get_auth_principal(
     if not is_api_key_required():
         session_principal = _principal_from_session(cas_ops_session)
         if session_principal is not None:
-            return session_principal
-        return AuthPrincipal(None, False)
+            return _finalize_principal(request, session_principal)
+        return _finalize_principal(request, AuthPrincipal(None, False))
     if is_admin_key(x_api_key):
-        return AuthPrincipal(None, True)
+        return _finalize_principal(request, AuthPrincipal(None, True))
     if x_api_key:
         record = api_key_service.verify_api_key(db, x_api_key)
         if record is None:
             raise HTTPException(status_code=401, detail="無効な API Key です。")
-        return AuthPrincipal(record, False)
+        return _finalize_principal(request, AuthPrincipal(record, False))
     session_principal = _principal_from_session(cas_ops_session)
     if session_principal is not None:
-        return session_principal
+        return _finalize_principal(request, session_principal)
     raise HTTPException(status_code=401, detail="API Key が必要です。")
 
 

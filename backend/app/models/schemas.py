@@ -565,6 +565,11 @@ class FleetSlaOut(BaseModel):
     screening_lag_hours: float | None
     screening_sla_ok: bool
     screening_sla_target_hours: float
+    fleet_api_availability_ratio: float | None = None
+    fleet_api_availability_percent: float | None = None
+    fleet_api_slo_ok: bool | None = None
+    fleet_api_request_count: int | None = None
+    fleet_api_errors_5xx: int | None = None
 
 
 class SlaSummaryOut(BaseModel):

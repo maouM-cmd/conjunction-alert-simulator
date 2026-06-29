@@ -36,6 +36,7 @@ from backend.app.services import (
     alert_service,
     api_availability_service,
     audit_service,
+    fleet_api_availability_service,
     mitigation_service,
     pc_refinement_service,
     sla_service,
@@ -164,6 +165,7 @@ def _audit_out(entry: AuditLog) -> AuditLogOut:
 
 
 def _fleet_sla_out(summary: sla_service.FleetSlaSummary) -> FleetSlaOut:
+    fleet_api = fleet_api_availability_service.compute_fleet_api_availability(summary.fleet_id)
     return FleetSlaOut(
         fleet_id=str(summary.fleet_id),
         fleet_name=summary.fleet_name,
@@ -173,6 +175,11 @@ def _fleet_sla_out(summary: sla_service.FleetSlaSummary) -> FleetSlaOut:
         screening_lag_hours=summary.screening_lag_hours,
         screening_sla_ok=summary.screening_sla_ok,
         screening_sla_target_hours=summary.screening_sla_target_hours,
+        fleet_api_availability_ratio=fleet_api.availability_ratio if fleet_api else None,
+        fleet_api_availability_percent=fleet_api.availability_percent if fleet_api else None,
+        fleet_api_slo_ok=fleet_api.slo_ok if fleet_api else None,
+        fleet_api_request_count=fleet_api.request_count if fleet_api else None,
+        fleet_api_errors_5xx=fleet_api.errors_5xx if fleet_api else None,
     )
 
 
@@ -216,6 +223,7 @@ def list_sla(
 @router.get("/sla/api-history", response_model=ApiSloHistoryOut)
 def api_sla_history(
     days: int = Query(30, ge=1, le=90),
+    fleet_id: str | None = None,
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> ApiSloHistoryOut:
@@ -223,7 +231,47 @@ def api_sla_history(
         raise HTTPException(status_code=403, detail="管理者権限が必要です。")
 
     target_percent = api_availability_service.api_slo_target_percent()
-    if slo_persistence_service.slo_api_persist_enabled():
+    scoped_fleet: uuid.UUID | None = None
+    if fleet_id is not None:
+        scoped_fleet = _parse_uuid(fleet_id, "fleet_id")
+        check_fleet_access(principal, scoped_fleet)
+
+    if scoped_fleet is not None and fleet_api_availability_service.fleet_api_slo_enabled():
+        if slo_persistence_service.slo_api_persist_enabled():
+            items = slo_persistence_service.fetch_fleet_daily_history(db, scoped_fleet, days)
+        else:
+            from datetime import date, datetime, timedelta, timezone
+
+            now = datetime.now(timezone.utc)
+            start_day = (now - timedelta(days=days - 1)).date()
+            buckets: dict[int, tuple[int, int]] = {}
+            window_seconds = int(api_availability_service.api_rolling_window_hours() * 3600.0)
+            now_epoch = int(now.timestamp())
+            cutoff = now_epoch - (now_epoch % 3600) - window_seconds
+            for hour_epoch, request_total, errors_5xx in fleet_api_availability_service.load_fleet_memory_buckets(
+                scoped_fleet
+            ):
+                if hour_epoch >= cutoff:
+                    buckets[hour_epoch] = (request_total, errors_5xx)
+            rolled = slo_persistence_service.rollup_daily(buckets, target_percent=target_percent)
+            rolled_by_day = {item.day: item for item in rolled}
+            items = []
+            for offset in range(days):
+                day = start_day + timedelta(days=offset)
+                items.append(
+                    rolled_by_day.get(
+                        day,
+                        slo_persistence_service.ApiSloDaySummary(
+                            day=day,
+                            availability_ratio=None,
+                            availability_percent=None,
+                            request_count=0,
+                            errors_5xx=0,
+                            slo_ok=True,
+                        ),
+                    )
+                )
+    elif slo_persistence_service.slo_api_persist_enabled():
         items = slo_persistence_service.fetch_daily_history(db, days)
     else:
         from datetime import date, datetime, timedelta, timezone
