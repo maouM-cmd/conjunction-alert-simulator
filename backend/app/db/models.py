@@ -305,3 +305,20 @@ class FleetAlertBreachState(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
+
+
+class FleetAlertBreachHistory(Base):
+    __tablename__ = "fleet_alert_breach_history"
+    __table_args__ = (Index("ix_fleet_alert_breach_history_fleet_created", "fleet_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fleet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("fleets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    alertname: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_breaching: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    is_sticky: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    fleet: Mapped[Fleet] = relationship("Fleet")

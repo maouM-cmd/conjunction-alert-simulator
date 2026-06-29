@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.36.0] - 2026-06-28
+
+Phase 10AC — breaching-only フィルタ + breach 変更履歴。
+
+### Added
+
+- **Phase 10AC:** `fleet_alert_breach_history` — breach 状態遷移の時系列記録
+- `ALERTMANAGER_BREACH_HISTORY_ENABLED` — opt-in 履歴記録
+- `GET breach-states?breaching_only=true` — breaching 行のみフィルタ
+- `GET /ops/prometheus/alertmanager/breach-states/history` — JSON / CSV export
+- `breach_history_service` — `sync` / `manual` / `sticky_clear` 記録
+- Alembic `013_fleet_alert_breach_history`
+- Ops UI — breaching のみチェックボックス、履歴テーブル、CSV ダウンロード
+
 ## [1.35.0] - 2026-06-28
 
 Phase 10AB — breach sticky 上書き。

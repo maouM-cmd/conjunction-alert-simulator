@@ -629,6 +629,22 @@ class FleetBreachStateStickyClearedOut(BaseModel):
     message: str
 
 
+class FleetBreachHistoryOut(BaseModel):
+    alertname: str
+    is_breaching: bool
+    source: str
+    is_sticky: bool
+    created_at: datetime
+
+
+class FleetBreachHistoryListOut(BaseModel):
+    fleet_id: str
+    items: list[FleetBreachHistoryOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int

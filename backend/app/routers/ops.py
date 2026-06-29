@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal, principal_scoped_fleet_id
@@ -37,6 +40,8 @@ from backend.app.models.schemas import (
     FleetBreachStateOut,
     FleetBreachStateStickyClearedOut,
     FleetBreachStateUpdate,
+    FleetBreachHistoryListOut,
+    FleetBreachHistoryOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -55,6 +60,7 @@ from backend.app.services import (
     alertmanager_silence_service,
     api_availability_service,
     breach_state_store,
+    breach_history_service,
     audit_service,
     fleet_alert_metrics_service,
     fleet_api_availability_service,
@@ -723,6 +729,14 @@ def _fleet_breach_state_list_out(fleet_id: uuid.UUID) -> FleetBreachStateListOut
     )
 
 
+def _filter_breaching_only_entry(items: list[FleetBreachStateEntryOut]) -> list[FleetBreachStateEntryOut]:
+    return [item for item in items if item.is_breaching]
+
+
+def _filter_breaching_only_state(items: list[FleetBreachStateOut]) -> list[FleetBreachStateOut]:
+    return [item for item in items if item.is_breaching]
+
+
 @router.post("/prometheus/alertmanager/silences", response_model=AlertmanagerSilenceCreatedOut)
 def create_alertmanager_silence(
     body: AlertmanagerSilenceCreate,
@@ -752,6 +766,7 @@ def create_alertmanager_silence(
 )
 def list_fleet_breach_states(
     fleet_id: str | None = None,
+    breaching_only: bool = False,
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> FleetBreachStateListOut | FleetBreachStateMultiListOut:
@@ -764,25 +779,95 @@ def list_fleet_breach_states(
         if not principal.is_admin:
             raise HTTPException(status_code=403, detail="管理者権限が必要です。")
         rows = breach_state_store.list_all_fleet_breach_states(db)
+        items = [
+            FleetBreachStateEntryOut(
+                fleet_id=row.fleet_id,
+                fleet_name=row.fleet_name,
+                alertname=row.alertname,
+                is_breaching=row.is_breaching,
+                is_sticky=row.is_sticky,
+            )
+            for row in rows
+        ]
+        if breaching_only:
+            items = _filter_breaching_only_entry(items)
         return FleetBreachStateMultiListOut(
             backend=breach_state_store.breach_state_backend(),
             manual_override_enabled=breach_state_store.breach_manual_override_enabled(),
             sticky_override_enabled=breach_state_store.breach_sticky_override_enabled(),
-            items=[
-                FleetBreachStateEntryOut(
-                    fleet_id=row.fleet_id,
-                    fleet_name=row.fleet_name,
-                    alertname=row.alertname,
-                    is_breaching=row.is_breaching,
-                    is_sticky=row.is_sticky,
-                )
-                for row in rows
-            ],
-            total=len(rows),
+            items=items,
+            total=len(items),
         )
 
     fid = _resolve_fleet_for_am_silence(principal, fleet_id)
-    return _fleet_breach_state_list_out(fid)
+    out = _fleet_breach_state_list_out(fid)
+    if breaching_only:
+        filtered = _filter_breaching_only_state(out.items)
+        return out.model_copy(update={"items": filtered, "total": len(filtered)})
+    return out
+
+
+@router.get(
+    "/prometheus/alertmanager/breach-states/history",
+    response_model=FleetBreachHistoryListOut,
+)
+def list_fleet_breach_history(
+    fleet_id: str = Query(...),
+    alertname: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    format: str = Query("json", pattern="^(json|csv)$"),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+):
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+    if not breach_history_service.breach_history_enabled():
+        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    if alertname is not None and not breach_state_store.is_valid_fleet_alertname(alertname):
+        raise HTTPException(status_code=422, detail="alertname が不正です。")
+
+    rows, total = breach_history_service.list_history(
+        db,
+        fid,
+        alertname=alertname,
+        limit=limit,
+        offset=offset,
+    )
+
+    if format == "csv":
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["created_at", "fleet_id", "alertname", "is_breaching", "source", "is_sticky"])
+        for row in rows:
+            writer.writerow([
+                row.created_at.isoformat(),
+                str(row.fleet_id),
+                row.alertname,
+                row.is_breaching,
+                row.source,
+                row.is_sticky,
+            ])
+        return Response(content=buffer.getvalue(), media_type="text/csv")
+
+    return FleetBreachHistoryListOut(
+        fleet_id=str(fid),
+        items=[
+            FleetBreachHistoryOut(
+                alertname=row.alertname,
+                is_breaching=row.is_breaching,
+                source=row.source,
+                is_sticky=row.is_sticky,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.put(
@@ -805,6 +890,18 @@ def update_fleet_breach_state(
     breach_state_store.set_breach_state(str(fid), body.alertname, body.is_breaching)
     if breach_state_store.breach_sticky_override_enabled():
         breach_state_store.set_sticky_override(str(fid), body.alertname, body.sticky)
+    is_sticky = (
+        body.sticky
+        if breach_state_store.breach_sticky_override_enabled()
+        else breach_state_store.is_sticky_override(str(fid), body.alertname)
+    )
+    breach_history_service.record_transition(
+        fid,
+        body.alertname,
+        body.is_breaching,
+        "manual",
+        is_sticky=is_sticky,
+    )
     audit_service.log_audit(
         db,
         fleet_id=fid,
@@ -843,7 +940,15 @@ def clear_fleet_breach_sticky(
         raise HTTPException(status_code=422, detail="alertname が不正です。")
 
     fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    current_breaching = breach_state_store.get_breach_state(str(fid), alertname)
     breach_state_store.clear_sticky_override(str(fid), alertname)
+    breach_history_service.record_transition(
+        fid,
+        alertname,
+        current_breaching,
+        "sticky_clear",
+        is_sticky=False,
+    )
     audit_service.log_audit(
         db,
         fleet_id=fid,

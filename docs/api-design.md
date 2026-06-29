@@ -1036,11 +1036,15 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 | Celery ON + DB ON | `/metrics` scrape と beat の両方から `sync_breaches`（DB 共有で重複 fire 防止） |
 | `shared_breach_state_enabled` | Redis ON **または** DB ON で metrics dual push 有効 |
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10Z / 10AA）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states（Phase 10Z / 10AA / 10AC）
 
-クエリ: `fleet_id`（optional）。艦隊スコープ認可。
+クエリ: `fleet_id`（optional）、`breaching_only`（optional、default false）。艦隊スコープ認可。
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true`。
+
+| クエリ | 説明 |
+|--------|------|
+| `breaching_only=true` | `is_breaching=true` の行のみ（Phase 10AC）。`total` はフィルタ後 |
 
 | `fleet_id` | 認可 | 応答 |
 |----------|------|------|
@@ -1107,6 +1111,39 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 監査: `alert.breach_state_sticky_cleared`
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
+
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC）
+
+クエリ: `fleet_id`（必須）、`alertname`（optional）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
+
+前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_HISTORY_ENABLED=true`（無効時 503）。
+
+JSON 応答 `FleetBreachHistoryListOut`:
+
+```json
+{
+  "fleet_id": "uuid",
+  "items": [
+    {
+      "alertname": "CASFleetOpenAlertsHigh",
+      "is_breaching": true,
+      "source": "sync",
+      "is_sticky": false,
+      "created_at": "2026-06-28T12:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+CSV: `text/csv` — ヘッダ `created_at,fleet_id,alertname,is_breaching,source,is_sticky`。
+
+| env | 挙動 |
+|-----|------|
+| `ALERTMANAGER_BREACH_HISTORY_ENABLED=true` | `sync_breaches` / 手動 PUT / sticky 解除で履歴記録 |
+| OFF（default） | 履歴 API 503、記録 no-op |
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

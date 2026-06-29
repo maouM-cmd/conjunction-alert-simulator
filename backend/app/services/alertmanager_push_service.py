@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from backend.app.services import breach_state_store, fleet_alert_metrics_service
+from backend.app.services import breach_state_store, breach_history_service, fleet_alert_metrics_service
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +205,13 @@ def sync_breaches(
             if is_breaching == previous:
                 continue
             breach_state_store.set_breach_state(fleet_id_str, alertname, is_breaching)
+            breach_history_service.record_transition(
+                fleet_id,
+                alertname,
+                is_breaching,
+                "sync",
+                is_sticky=breach_state_store.is_sticky_override(fleet_id_str, alertname),
+            )
             to_push.append(
                 build_alert_payload(
                     alertname=alertname,

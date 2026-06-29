@@ -101,6 +101,12 @@ const els = {
   opsBreachStatesAllSection: document.getElementById("ops-breach-states-all-section"),
   opsBreachStatesAllStatus: document.getElementById("ops-breach-states-all-status"),
   opsBreachStatesAllTableBody: document.getElementById("ops-breach-states-all-table-body"),
+  opsBreachStatesBreachingOnly: document.getElementById("ops-breach-states-breaching-only"),
+  opsBreachStatesAllBreachingOnly: document.getElementById("ops-breach-states-all-breaching-only"),
+  opsBreachHistorySection: document.getElementById("ops-breach-history-section"),
+  opsBreachHistoryStatus: document.getElementById("ops-breach-history-status"),
+  opsBreachHistoryTableBody: document.getElementById("ops-breach-history-table-body"),
+  btnOpsBreachHistoryCsv: document.getElementById("btn-ops-breach-history-csv"),
   opsSilencesStatus: document.getElementById("ops-silences-status"),
   opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
   opsSilenceHours: document.getElementById("ops-silence-hours"),
@@ -467,6 +473,7 @@ async function setOpsBreachState(fleetId, alertname, isBreaching, sticky = true)
     if (opsAuthMe.is_admin) {
       await refreshOpsBreachStatesAll();
     }
+    await refreshOpsBreachHistory();
     setOpsStatus(`breach 状態を ${label} に設定しました。`);
   } catch (err) {
     setOpsStatus(err.message, true);
@@ -519,10 +526,15 @@ async function clearOpsBreachSticky(fleetId, alertname) {
     if (opsAuthMe.is_admin) {
       await refreshOpsBreachStatesAll();
     }
+    await refreshOpsBreachHistory();
     setOpsStatus("sticky 上書きを解除しました。");
   } catch (err) {
     setOpsStatus(err.message, true);
   }
+}
+
+function breachStatesQuerySuffix({ breachingOnly = false } = {}) {
+  return breachingOnly ? "&breaching_only=true" : "";
 }
 
 async function refreshOpsBreachStates() {
@@ -530,12 +542,14 @@ async function refreshOpsBreachStates() {
   if (!fleetId || !els.opsBreachStatesSection) {
     els.opsBreachStatesSection?.classList.add("hidden");
     els.opsBreachStatesAllSection?.classList.add("hidden");
+    els.opsBreachHistorySection?.classList.add("hidden");
     return;
   }
   els.opsBreachStatesSection.classList.remove("hidden");
+  const breachingOnly = Boolean(els.opsBreachStatesBreachingOnly?.checked);
   try {
     const listing = await apiGet(
-      `/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id=${fleetId}`,
+      `/api/v1/ops/prometheus/alertmanager/breach-states?fleet_id=${fleetId}${breachStatesQuerySuffix({ breachingOnly })}`,
       { ops: true }
     );
     const overrideOn = listing.manual_override_enabled === true;
@@ -571,9 +585,10 @@ async function refreshOpsBreachStatesAll() {
     return;
   }
   els.opsBreachStatesAllSection.classList.remove("hidden");
+  const breachingOnly = Boolean(els.opsBreachStatesAllBreachingOnly?.checked);
   try {
     const listing = await apiGet(
-      "/api/v1/ops/prometheus/alertmanager/breach-states",
+      `/api/v1/ops/prometheus/alertmanager/breach-states${breachingOnly ? "?breaching_only=true" : ""}`,
       { ops: true }
     );
     els.opsBreachStatesAllStatus.textContent = `store: ${formatBreachStateBackend(listing.backend)} / ${listing.total} 行`;
@@ -596,6 +611,72 @@ async function refreshOpsBreachStatesAll() {
       return;
     }
     els.opsBreachStatesAllStatus.textContent = err.message;
+  }
+}
+
+async function refreshOpsBreachHistory() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId || !els.opsBreachHistorySection) {
+    els.opsBreachHistorySection?.classList.add("hidden");
+    return;
+  }
+  els.opsBreachHistorySection.classList.remove("hidden");
+  try {
+    const listing = await apiGet(
+      `/api/v1/ops/prometheus/alertmanager/breach-states/history?fleet_id=${fleetId}&limit=50`,
+      { ops: true }
+    );
+    els.opsBreachHistoryStatus.textContent = `${listing.total} 件の履歴（直近 ${listing.items.length} 件表示）`;
+    els.opsBreachHistoryTableBody.innerHTML = "";
+    for (const item of listing.items) {
+      const tr = document.createElement("tr");
+      const stateClass = item.is_breaching ? "ops-breach-active" : "ops-breach-ok";
+      tr.innerHTML = `
+        <td>${formatTime(item.created_at)}</td>
+        <td>${item.alertname}</td>
+        <td class="${stateClass}">${formatBreachStateLabel(item.is_breaching)}</td>
+        <td>${item.source}</td>
+        <td>${item.is_sticky ? "yes" : "—"}</td>
+      `;
+      els.opsBreachHistoryTableBody.appendChild(tr);
+    }
+  } catch (err) {
+    if (err.message.includes("履歴は無効")) {
+      els.opsBreachHistoryStatus.textContent = "breach 履歴は無効です。";
+      els.opsBreachHistoryTableBody.innerHTML = "";
+      return;
+    }
+    els.opsBreachHistoryStatus.textContent = err.message;
+  }
+}
+
+async function downloadOpsBreachHistoryCsv() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId) {
+    return;
+  }
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/v1/ops/prometheus/alertmanager/breach-states/history?fleet_id=${fleetId}&format=csv`,
+      {
+        headers: getOpsApiHeaders(),
+        credentials: "include",
+      }
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `breach-history-${fleetId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpsStatus("CSV をダウンロードしました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
   }
 }
 
@@ -736,6 +817,7 @@ async function refreshOpsDashboard() {
   if (!fleetId) {
     els.opsSilencesSection?.classList.add("hidden");
     els.opsBreachStatesSection?.classList.add("hidden");
+    els.opsBreachHistorySection?.classList.add("hidden");
     if (opsAuthMe.is_admin) {
       await refreshOpsBreachStatesAll();
       setOpsStatus("艦隊を選択するか、全艦隊 breach 状態を確認してください。");
@@ -986,6 +1068,7 @@ async function refreshOpsDashboard() {
     await Promise.all([
       refreshOpsBreachStates(),
       refreshOpsBreachStatesAll(),
+      refreshOpsBreachHistory(),
       refreshOpsSilences(),
     ]);
   } catch (err) {
@@ -1711,9 +1794,19 @@ function initEventListeners() {
     } else {
       els.opsSilencesSection?.classList.add("hidden");
       els.opsBreachStatesSection?.classList.add("hidden");
-    els.opsBreachStatesAllSection?.classList.add("hidden");
+      els.opsBreachStatesAllSection?.classList.add("hidden");
+      els.opsBreachHistorySection?.classList.add("hidden");
     }
   });
+  if (els.opsBreachStatesBreachingOnly) {
+    els.opsBreachStatesBreachingOnly.addEventListener("change", refreshOpsBreachStates);
+  }
+  if (els.opsBreachStatesAllBreachingOnly) {
+    els.opsBreachStatesAllBreachingOnly.addEventListener("change", refreshOpsBreachStatesAll);
+  }
+  if (els.btnOpsBreachHistoryCsv) {
+    els.btnOpsBreachHistoryCsv.addEventListener("click", downloadOpsBreachHistoryCsv);
+  }
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
   if (els.btnOpsSilenceCreate) {
     els.btnOpsSilenceCreate.addEventListener("click", createOpsSilence);

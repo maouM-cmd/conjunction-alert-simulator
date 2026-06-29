@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AC — 次着手
+## Phase 10AD — 次着手
 
-商用運用ロードマップ Phase 10+（breach 履歴テーブル、breaching-only フィルタ等）。
+商用運用ロードマップ Phase 10+（管理者横断 breach 履歴、履歴 retention purge 等）。
+
+## Phase 10AC — 完了
+
+breaching-only フィルタ + breach 変更履歴テーブル + history API（CSV 含む）。v1.36.0 ship 済み。
 
 ## Phase 10AB — 完了
 

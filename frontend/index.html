@@ -204,6 +204,10 @@
         <section id="ops-breach-states-section" class="ops-breach-states-section hidden">
           <h3>Alertmanager Breach 状態</h3>
           <p id="ops-breach-states-status" class="meta"></p>
+          <label class="ops-breach-filter">
+            <input id="ops-breach-states-breaching-only" type="checkbox" />
+            breaching のみ
+          </label>
           <table id="ops-breach-states-table" class="ops-breach-states-table">
             <thead>
               <tr>
@@ -218,6 +222,10 @@
         <section id="ops-breach-states-all-section" class="ops-breach-states-all-section hidden">
           <h3>全艦隊 Breach 状態（管理者）</h3>
           <p id="ops-breach-states-all-status" class="meta"></p>
+          <label class="ops-breach-filter">
+            <input id="ops-breach-states-all-breaching-only" type="checkbox" />
+            breaching のみ
+          </label>
           <table id="ops-breach-states-all-table" class="ops-breach-states-table">
             <thead>
               <tr>
@@ -227,6 +235,25 @@
               </tr>
             </thead>
             <tbody id="ops-breach-states-all-table-body"></tbody>
+          </table>
+        </section>
+        <section id="ops-breach-history-section" class="ops-breach-history-section hidden">
+          <h3>Breach 履歴</h3>
+          <p id="ops-breach-history-status" class="meta"></p>
+          <div class="button-row">
+            <button id="btn-ops-breach-history-csv" type="button">CSV ダウンロード</button>
+          </div>
+          <table id="ops-breach-history-table" class="ops-breach-states-table">
+            <thead>
+              <tr>
+                <th>時刻</th>
+                <th>alertname</th>
+                <th>状態</th>
+                <th>source</th>
+                <th>sticky</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-history-table-body"></tbody>
           </table>
         </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">

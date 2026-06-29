@@ -546,6 +546,27 @@ label.checkbox-row input[type="checkbox"] {
   color: #f0c674;
 }
 
+.ops-breach-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.ops-breach-history-section {
+  margin: 0.75rem 0;
+  padding: 0.6rem;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1a1a24;
+}
+
+.ops-breach-history-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
 .ops-breach-states-all-section {
   margin: 0.75rem 0;
   padding: 0.6rem;
