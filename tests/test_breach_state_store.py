@@ -683,3 +683,180 @@ def test_breach_history_off_sync_no_rows(mock_push, ops_client, monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["total"] == 0
+
+
+def test_breach_history_admin_list_all(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet_a = create_fleet(db, name="History Fleet A")
+        fleet_b = create_fleet(db, name="History Fleet B")
+        db.commit()
+        fleet_a_id = fleet_a.id
+        fleet_b_id = fleet_b.id
+    finally:
+        db.close()
+
+    breach_history_service.record_transition(
+        fleet_a_id, "CASFleetOpenAlertsHigh", True, "manual", is_sticky=False
+    )
+    breach_history_service.record_transition(
+        fleet_b_id, "CASFleetHighRiskOpenAlerts", False, "sync", is_sticky=False
+    )
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "fleet_id" not in data
+    assert data["total"] >= 2
+    fleet_ids = {item["fleet_id"] for item in data["items"]}
+    assert str(fleet_a_id) in fleet_ids
+    assert str(fleet_b_id) in fleet_ids
+    names = {item["fleet_name"] for item in data["items"]}
+    assert "History Fleet A" in names
+    assert "History Fleet B" in names
+
+
+def test_breach_history_admin_list_forbidden_for_fleet_key(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services import api_key_service
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="History Fleet Key")
+        db.commit()
+        fleet_id = fleet.id
+        _, plain = api_key_service.create_api_key(db, fleet_id=fleet_id, name="hist-key")
+        db.commit()
+    finally:
+        db.close()
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history",
+        headers={"X-API-Key": plain},
+    )
+    assert response.status_code == 403
+
+
+def test_purge_old_breach_history(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_RETENTION_DAYS", "90")
+
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.db.models import FleetAlertBreachHistory
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Purge History Fleet")
+        db.commit()
+        old_row = FleetAlertBreachHistory(
+            fleet_id=fleet.id,
+            alertname="CASFleetOpenAlertsHigh",
+            is_breaching=True,
+            source="sync",
+            is_sticky=False,
+            created_at=datetime.now(timezone.utc) - timedelta(days=100),
+        )
+        new_row = FleetAlertBreachHistory(
+            fleet_id=fleet.id,
+            alertname="CASFleetHighRiskOpenAlerts",
+            is_breaching=False,
+            source="manual",
+            is_sticky=False,
+        )
+        db.add(old_row)
+        db.add(new_row)
+        db.commit()
+
+        deleted = breach_history_service.purge_old_breach_history(db)
+        assert deleted == 1
+        remaining = db.query(FleetAlertBreachHistory).all()
+        assert len(remaining) == 1
+        assert remaining[0].alertname == "CASFleetHighRiskOpenAlerts"
+    finally:
+        db.close()
+
+
+def test_purge_old_breach_history_disabled(ops_client, monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", raising=False)
+
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        deleted = breach_history_service.purge_old_breach_history(db)
+        assert deleted == 0
+    finally:
+        db.close()
+
+
+def test_breach_history_admin_csv_export(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="CSV History Fleet")
+        db.commit()
+        fleet_id = fleet.id
+    finally:
+        db.close()
+
+    breach_history_service.record_transition(
+        fleet_id, "CASFleetOpenAlertsHigh", True, "manual", is_sticky=False
+    )
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history?format=csv",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert "text/csv" in response.headers.get("content-type", "")
+    lines = [line.strip() for line in response.text.strip().split("\n")]
+    assert lines[0] == "created_at,fleet_id,fleet_name,alertname,is_breaching,source,is_sticky"
+    assert "CSV History Fleet" in lines[1]
+
+
+def test_purge_old_breach_history_celery_task(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+
+    from backend.app.tasks.celery_app import configure_celery_eager
+    from backend.app.tasks.alertmanager_tasks import purge_old_breach_history as purge_task
+
+    configure_celery_eager()
+    result = purge_task()
+    assert result["status"] == "ok"
+    assert "deleted" in result

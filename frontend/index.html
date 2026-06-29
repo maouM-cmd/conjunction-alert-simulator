@@ -256,6 +256,26 @@
             <tbody id="ops-breach-history-table-body"></tbody>
           </table>
         </section>
+        <section id="ops-breach-history-all-section" class="ops-breach-history-all-section hidden">
+          <h3>全艦隊 Breach 履歴（管理者）</h3>
+          <p id="ops-breach-history-all-status" class="meta"></p>
+          <div class="button-row">
+            <button id="btn-ops-breach-history-all-csv" type="button">CSV ダウンロード</button>
+          </div>
+          <table id="ops-breach-history-all-table" class="ops-breach-states-table">
+            <thead>
+              <tr>
+                <th>時刻</th>
+                <th>艦隊</th>
+                <th>alertname</th>
+                <th>状態</th>
+                <th>source</th>
+                <th>sticky</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-history-all-table-body"></tbody>
+          </table>
+        </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">
           <h3>Alertmanager Silences</h3>
           <p id="ops-silences-status" class="meta"></p>

@@ -645,6 +645,18 @@ class FleetBreachHistoryListOut(BaseModel):
     offset: int
 
 
+class FleetBreachHistoryEntryOut(FleetBreachHistoryOut):
+    fleet_id: str
+    fleet_name: str
+
+
+class FleetBreachHistoryMultiListOut(BaseModel):
+    items: list[FleetBreachHistoryEntryOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int

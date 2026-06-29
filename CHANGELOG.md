@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.37.0] - 2026-06-28
+
+Phase 10AD — 管理者横断 breach 履歴 + retention purge。
+
+### Added
+
+- **Phase 10AD:** `GET breach-states/history` — `fleet_id` 省略で管理者横断一覧
+- `FleetBreachHistoryMultiListOut` / `FleetBreachHistoryEntryOut` — fleet_name 付き履歴
+- `list_all_history` / `purge_old_breach_history` — retention purge（default 90 日）
+- `ALERTMANAGER_BREACH_HISTORY_RETENTION_DAYS` — 履歴保持日数
+- Celery `purge_old_breach_history` — 日次 beat タスク
+- Ops UI — 全艦隊 breach 履歴テーブル + CSV ダウンロード
+
 ## [1.36.0] - 2026-06-28
 
 Phase 10AC — breaching-only フィルタ + breach 変更履歴。

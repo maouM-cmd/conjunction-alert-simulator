@@ -42,6 +42,8 @@ from backend.app.models.schemas import (
     FleetBreachStateUpdate,
     FleetBreachHistoryListOut,
     FleetBreachHistoryOut,
+    FleetBreachHistoryEntryOut,
+    FleetBreachHistoryMultiListOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -809,10 +811,10 @@ def list_fleet_breach_states(
 
 @router.get(
     "/prometheus/alertmanager/breach-states/history",
-    response_model=FleetBreachHistoryListOut,
+    response_model=FleetBreachHistoryListOut | FleetBreachHistoryMultiListOut,
 )
 def list_fleet_breach_history(
-    fleet_id: str = Query(...),
+    fleet_id: str | None = None,
     alertname: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
@@ -825,10 +827,61 @@ def list_fleet_breach_history(
     if not breach_history_service.breach_history_enabled():
         raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
 
-    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
     if alertname is not None and not breach_state_store.is_valid_fleet_alertname(alertname):
         raise HTTPException(status_code=422, detail="alertname が不正です。")
 
+    if fleet_id is None:
+        if is_api_key_required() and not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+        rows, total = breach_history_service.list_all_history(
+            db,
+            alertname=alertname,
+            limit=limit,
+            offset=offset,
+        )
+
+        if format == "csv":
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerow([
+                "created_at", "fleet_id", "fleet_name", "alertname",
+                "is_breaching", "source", "is_sticky",
+            ])
+            for row in rows:
+                fleet_name = row.fleet.name if row.fleet is not None else str(row.fleet_id)
+                writer.writerow([
+                    row.created_at.isoformat(),
+                    str(row.fleet_id),
+                    fleet_name,
+                    row.alertname,
+                    row.is_breaching,
+                    row.source,
+                    row.is_sticky,
+                ])
+            return Response(content=buffer.getvalue(), media_type="text/csv")
+
+        return FleetBreachHistoryMultiListOut(
+            items=[
+                FleetBreachHistoryEntryOut(
+                    fleet_id=str(row.fleet_id),
+                    fleet_name=row.fleet.name if row.fleet is not None else str(row.fleet_id),
+                    alertname=row.alertname,
+                    is_breaching=row.is_breaching,
+                    source=row.source,
+                    is_sticky=row.is_sticky,
+                    created_at=row.created_at,
+                )
+                for row in rows
+            ],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
     rows, total = breach_history_service.list_history(
         db,
         fid,

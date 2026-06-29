@@ -33,3 +33,18 @@ def sync_fleet_alert_breaches() -> dict[str, str]:
         db.close()
 
     return {"status": "ok"}
+
+
+@celery_app.task(name="backend.app.tasks.alertmanager_tasks.purge_old_breach_history")
+def purge_old_breach_history() -> dict:
+    from backend.app.services import breach_history_service
+
+    if not breach_history_service.breach_history_enabled():
+        return {"status": "skipped", "reason": "breach history not enabled"}
+
+    db = _session()
+    try:
+        deleted = breach_history_service.purge_old_breach_history(db)
+        return {"status": "ok", "deleted": deleted}
+    finally:
+        db.close()

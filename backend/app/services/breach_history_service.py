@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session, joinedload
 
 from backend.app.db.session import get_session_factory, is_database_configured
 
@@ -22,6 +23,14 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 def breach_history_enabled() -> bool:
     return _env_bool("ALERTMANAGER_BREACH_HISTORY_ENABLED", default=False)
+
+
+def breach_history_retention_days() -> int:
+    raw = os.getenv("ALERTMANAGER_BREACH_HISTORY_RETENTION_DAYS", "90").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 90
 
 
 def record_transition(
@@ -80,6 +89,41 @@ def list_history(
         base.order_by(FleetAlertBreachHistory.created_at.desc()).limit(limit).offset(offset)
     ).scalars().all()
     return list(rows), int(total)
+
+
+def list_all_history(
+    db: Session,
+    *,
+    alertname: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> tuple[list, int]:
+    from backend.app.db.models import FleetAlertBreachHistory
+
+    base = select(FleetAlertBreachHistory).options(joinedload(FleetAlertBreachHistory.fleet))
+    if alertname is not None:
+        base = base.where(FleetAlertBreachHistory.alertname == alertname)
+
+    count_stmt = select(func.count()).select_from(base.subquery())
+    total = db.execute(count_stmt).scalar_one()
+
+    rows = db.execute(
+        base.order_by(FleetAlertBreachHistory.created_at.desc()).limit(limit).offset(offset)
+    ).scalars().unique().all()
+    return list(rows), int(total)
+
+
+def purge_old_breach_history(db: Session) -> int:
+    if not breach_history_enabled():
+        return 0
+    from backend.app.db.models import FleetAlertBreachHistory
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=breach_history_retention_days())
+    result = db.execute(
+        delete(FleetAlertBreachHistory).where(FleetAlertBreachHistory.created_at < cutoff)
+    )
+    db.commit()
+    return int(result.rowcount or 0)
 
 
 def clear_history_for_tests() -> None:

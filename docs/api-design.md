@@ -1112,13 +1112,18 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD）
 
-クエリ: `fleet_id`（必須）、`alertname`（optional）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
+クエリ: `fleet_id`（optional）、`alertname`（optional）、`limit`（1〜500、default 100）、`offset`（default 0）、`format`（`json` | `csv`、default `json`）。
 
 前提: `ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_BREACH_HISTORY_ENABLED=true`（無効時 503）。
 
-JSON 応答 `FleetBreachHistoryListOut`:
+| `fleet_id` | 認可 | 応答 |
+|----------|------|------|
+| 指定あり | fleet スコープ | `FleetBreachHistoryListOut` |
+| 省略 | 管理者のみ | `FleetBreachHistoryMultiListOut`（Phase 10AD） |
+
+単艦隊 JSON 応答 `FleetBreachHistoryListOut`:
 
 ```json
 {
@@ -1138,12 +1143,13 @@ JSON 応答 `FleetBreachHistoryListOut`:
 }
 ```
 
-CSV: `text/csv` — ヘッダ `created_at,fleet_id,alertname,is_breaching,source,is_sticky`。
+CSV: 単艦隊 `created_at,fleet_id,alertname,is_breaching,source,is_sticky` / 横断 `created_at,fleet_id,fleet_name,alertname,is_breaching,source,is_sticky`。
 
 | env | 挙動 |
 |-----|------|
 | `ALERTMANAGER_BREACH_HISTORY_ENABLED=true` | `sync_breaches` / 手動 PUT / sticky 解除で履歴記録 |
-| OFF（default） | 履歴 API 503、記録 no-op |
+| `ALERTMANAGER_BREACH_HISTORY_RETENTION_DAYS` | default 90。Celery `purge_old_breach_history` が日次 purge（Phase 10AD） |
+| OFF（default） | 履歴 API 503、記録・purge no-op |
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

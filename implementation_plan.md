@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AD — 次着手
+## Phase 10AE — 次着手
 
-商用運用ロードマップ Phase 10+（管理者横断 breach 履歴、履歴 retention purge 等）。
+商用運用ロードマップ Phase 10+（breaching-only Prometheus 連携、履歴フィルタ等）。
+
+## Phase 10AD — 完了
+
+管理者横断 breach 履歴 + retention purge Celery タスク。v1.37.0 ship 済み。
 
 ## Phase 10AC — 完了
 

@@ -43,6 +43,10 @@ celery_app.conf.update(
             "task": "backend.app.tasks.alertmanager_tasks.sync_fleet_alert_breaches",
             "schedule": push_celery_interval_sec(),
         },
+        "purge-old-breach-history": {
+            "task": "backend.app.tasks.alertmanager_tasks.purge_old_breach_history",
+            "schedule": 86400.0,
+        },
     },
 )
 
