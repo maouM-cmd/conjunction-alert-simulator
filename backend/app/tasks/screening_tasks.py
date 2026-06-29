@@ -125,3 +125,15 @@ def run_screening_chunk(self, run_id: str) -> dict:
 
 
 run_screening_chunk.on_failure = mark_dead_letter_on_final_failure
+
+
+@celery_app.task(name="backend.app.tasks.screening_tasks.purge_old_audit_logs")
+def purge_old_audit_logs() -> dict:
+    from backend.app.services import audit_service
+
+    db = _session()
+    try:
+        deleted = audit_service.purge_old_audit_logs(db)
+        return {"deleted": deleted}
+    finally:
+        db.close()

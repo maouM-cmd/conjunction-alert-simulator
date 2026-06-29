@@ -7,16 +7,19 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import ConjunctionAlert
+from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal
+from backend.app.db.models import AuditLog, ConjunctionAlert
 from backend.app.db.session import require_db
 from backend.app.models.schemas import (
     AlertStatus,
     AlertTransition,
+    AuditLogListOut,
+    AuditLogOut,
     ConjunctionAlertListOut,
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
 )
-from backend.app.services import alert_service
+from backend.app.services import alert_service, audit_service
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
 
@@ -58,9 +61,27 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
     )
 
 
+def _audit_out(entry: AuditLog) -> AuditLogOut:
+    return AuditLogOut(
+        id=str(entry.id),
+        fleet_id=str(entry.fleet_id) if entry.fleet_id else None,
+        action=entry.action,
+        resource_type=entry.resource_type,
+        resource_id=str(entry.resource_id) if entry.resource_id else None,
+        api_key_id=str(entry.api_key_id) if entry.api_key_id else None,
+        detail=entry.detail or {},
+        created_at=entry.created_at,
+    )
+
+
 @router.get("/fleets/{fleet_id}/summary", response_model=FleetOpsSummaryOut)
-def fleet_ops_summary(fleet_id: str, db: Session = Depends(require_db)) -> FleetOpsSummaryOut:
+def fleet_ops_summary(
+    fleet_id: str,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetOpsSummaryOut:
     fid = _parse_uuid(fleet_id, "fleet_id")
+    check_fleet_access(principal, fid)
     try:
         summary = alert_service.get_fleet_summary(db, fid)
     except alert_service.AlertServiceError as exc:
@@ -82,12 +103,16 @@ def fleet_ops_summary(fleet_id: str, db: Session = Depends(require_db)) -> Fleet
 @router.get("/alerts", response_model=ConjunctionAlertListOut)
 def list_alerts(
     db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
     fleet_id: str | None = None,
     status: AlertStatus | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> ConjunctionAlertListOut:
-    fid = _parse_uuid(fleet_id, "fleet_id") if fleet_id else None
+    if fleet_id is None:
+        raise HTTPException(status_code=400, detail="fleet_id は必須です。")
+    fid = _parse_uuid(fleet_id, "fleet_id")
+    check_fleet_access(principal, fid)
     items, total = alert_service.list_alerts(
         db, fleet_id=fid, status=status, limit=limit, offset=offset
     )
@@ -100,24 +125,57 @@ def list_alerts(
 
 
 @router.get("/alerts/{alert_id}", response_model=ConjunctionAlertOut)
-def get_alert(alert_id: str, db: Session = Depends(require_db)) -> ConjunctionAlertOut:
+def get_alert(
+    alert_id: str,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> ConjunctionAlertOut:
     aid = _parse_uuid(alert_id, "alert_id")
     try:
         alert = alert_service.get_alert(db, aid)
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
+    check_fleet_access(principal, alert.fleet_id)
     return _alert_out(alert)
 
 
 @router.patch("/alerts/{alert_id}", response_model=ConjunctionAlertOut)
 def transition_alert(
-    alert_id: str, body: AlertTransition, db: Session = Depends(require_db)
+    alert_id: str,
+    body: AlertTransition,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> ConjunctionAlertOut:
     aid = _parse_uuid(alert_id, "alert_id")
     try:
+        existing = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, existing.fleet_id)
         alert = alert_service.transition_alert(
-            db, aid, new_status=body.status, comment=body.comment
+            db,
+            aid,
+            new_status=body.status,
+            comment=body.comment,
+            api_key_id=principal.api_key.id if principal.api_key else None,
         )
     except alert_service.AlertServiceError as exc:
         raise _handle_service_error(exc) from exc
     return _alert_out(alert)
+
+
+@router.get("/audit", response_model=AuditLogListOut)
+def list_audit(
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+    fleet_id: str = Query(...),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> AuditLogListOut:
+    fid = _parse_uuid(fleet_id, "fleet_id")
+    check_fleet_access(principal, fid)
+    items, total = audit_service.list_audit_logs(db, fleet_id=fid, limit=limit, offset=offset)
+    return AuditLogListOut(
+        items=[_audit_out(e) for e in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

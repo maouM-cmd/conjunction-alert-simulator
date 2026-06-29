@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from backend.app.models.schemas import HealthResponse
 from backend.app.services import spacetrack_fetcher
+from backend.app.services.health_checks import aggregate_status, run_health_checks
 from backend.app.services.tle_fetcher import cache_age_hours, get_active_provider_label, is_cache_stale
 from backend.app.services.webhook_notifier import (
     get_alert_delivery_format,
@@ -15,7 +16,10 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+    checks = run_health_checks()
     return HealthResponse(
+        status=aggregate_status(checks),
+        checks=checks,
         tle_cache_age_hours=cache_age_hours(),
         tle_cache_stale=is_cache_stale(),
         tle_provider=get_active_provider_label(),

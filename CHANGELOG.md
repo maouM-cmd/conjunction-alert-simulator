@@ -4,6 +4,25 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.0] - 2026-06-28
+
+Phase 9E — Platform Baseline（認証・監査・readiness）。
+
+### Added
+
+- **Phase 9E:** fleet スコープ API Key（`X-API-Key`、`CAS_API_KEY_REQUIRED` デフォルト false）
+- `api_keys` / `audit_logs` テーブル（Alembic 005）
+- キー管理: `POST/GET/DELETE /api/v1/fleets/{id}/api-keys`
+- 監査: alert 遷移、TLE 更新、schedule CRUD → `GET /api/v1/ops/audit`
+- Beat タスク `purge_old_audit_logs`（`AUDIT_LOG_RETENTION_DAYS=90`）
+- `/health` 拡張: `checks.postgres` / `checks.redis` / `checks.worker`、`status`: ok | degraded
+- Ops UI: 任意 API Key 入力（localStorage）
+
+### Changed
+
+- fleet / screening / ops API は `CAS_API_KEY_REQUIRED=true` 時に保護
+- ad-hoc 解析 API は公開維持（NFR-C-6）
+
 ## [1.6.0] - 2026-06-28
 
 Phase 9D — Scale-Out（1,000+ 衛星）。

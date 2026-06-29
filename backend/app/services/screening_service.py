@@ -76,6 +76,7 @@ def create_schedule(
     auto_spacetrack_cdm: bool = False,
     spacetrack_cdm_pc_min: float | None = None,
     notify_on_complete: bool = False,
+    api_key_id: uuid.UUID | None = None,
 ) -> ScreeningSchedule:
     fleet_service.get_fleet(db, fleet_id)
     if auto_spacetrack_cdm and not use_advanced_pc:
@@ -94,6 +95,18 @@ def create_schedule(
         notify_on_complete=notify_on_complete,
     )
     db.add(schedule)
+    db.flush()
+    from backend.app.services import audit_service
+
+    audit_service.log_audit(
+        db,
+        fleet_id=fleet_id,
+        action="schedule.create",
+        resource_type="schedule",
+        resource_id=schedule.id,
+        api_key_id=api_key_id,
+        detail={"name": name, "cron_expression": schedule.cron_expression},
+    )
     db.commit()
     db.refresh(schedule)
     return schedule
@@ -116,6 +129,8 @@ def get_schedule(db: Session, schedule_id: uuid.UUID) -> ScreeningSchedule:
 def update_schedule(
     db: Session,
     schedule_id: uuid.UUID,
+    *,
+    api_key_id: uuid.UUID | None = None,
     **fields,
 ) -> ScreeningSchedule:
     schedule = get_schedule(db, schedule_id)
@@ -125,19 +140,43 @@ def update_schedule(
         "use_advanced_pc", schedule.use_advanced_pc
     ):
         raise ValidationError("auto_spacetrack_cdm=true の場合は use_advanced_pc=true が必要です。")
-    for key, value in fields.items():
-        if value is not None and hasattr(schedule, key):
-            setattr(schedule, key, value)
+    changes = {k: v for k, v in fields.items() if v is not None and hasattr(schedule, k)}
+    for key, value in changes.items():
+        setattr(schedule, key, value)
     schedule.updated_at = _utcnow()
+    from backend.app.services import audit_service
+
+    audit_service.log_audit(
+        db,
+        fleet_id=schedule.fleet_id,
+        action="schedule.update",
+        resource_type="schedule",
+        resource_id=schedule.id,
+        api_key_id=api_key_id,
+        detail={"changes": list(changes.keys())},
+    )
     db.commit()
     db.refresh(schedule)
     return schedule
 
 
-def delete_schedule(db: Session, schedule_id: uuid.UUID) -> None:
+def delete_schedule(
+    db: Session, schedule_id: uuid.UUID, *, api_key_id: uuid.UUID | None = None
+) -> None:
     schedule = get_schedule(db, schedule_id)
     schedule.active = False
     schedule.updated_at = _utcnow()
+    from backend.app.services import audit_service
+
+    audit_service.log_audit(
+        db,
+        fleet_id=schedule.fleet_id,
+        action="schedule.delete",
+        resource_type="schedule",
+        resource_id=schedule.id,
+        api_key_id=api_key_id,
+        detail={"name": schedule.name},
+    )
     db.commit()
 
 

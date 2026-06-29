@@ -29,6 +29,10 @@ celery_app.conf.update(
             "task": "backend.app.tasks.screening_tasks.poll_due_schedules",
             "schedule": 60.0,
         },
+        "purge-old-audit-logs": {
+            "task": "backend.app.tasks.screening_tasks.purge_old_audit_logs",
+            "schedule": 86400.0,
+        },
     },
 )
 

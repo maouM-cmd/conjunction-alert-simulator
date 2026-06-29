@@ -216,14 +216,17 @@ def update_satellite(
     *,
     name: str | None = None,
     tle: str | None = None,
+    api_key_id: uuid.UUID | None = None,
 ) -> Satellite:
     satellite = get_satellite(db, satellite_id)
     fleet = get_fleet(db, satellite.fleet_id)
+    tle_changed = False
     if name is not None:
         satellite.name = name
     if tle is not None:
         normalized = _normalize_tle(tle)
         if normalized != satellite.tle:
+            tle_changed = True
             db.add(
                 TleRevision(
                     satellite_id=satellite.id,
@@ -236,6 +239,18 @@ def update_satellite(
             db.flush()
             _trim_revisions(db, satellite.id)
     _touch_fleet(db, fleet)
+    if tle_changed:
+        from backend.app.services import audit_service
+
+        audit_service.log_audit(
+            db,
+            fleet_id=satellite.fleet_id,
+            action="satellite.tle_update",
+            resource_type="satellite",
+            resource_id=satellite.id,
+            api_key_id=api_key_id,
+            detail={"norad_id": satellite.norad_id, "name": satellite.name},
+        )
     db.commit()
     db.refresh(satellite)
     return satellite

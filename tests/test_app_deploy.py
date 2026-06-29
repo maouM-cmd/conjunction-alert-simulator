@@ -16,7 +16,8 @@ def test_health_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
+    assert data["status"] in ("ok", "degraded")
+    assert "checks" in data
     assert "spacetrack_configured" in data
     assert "spacetrack_cdm_available" in data
     assert "alert_delivery_configured" in data

@@ -88,7 +88,27 @@ const els = {
   opsStatusMsg: document.getElementById("ops-status-msg"),
   opsAlertTable: document.getElementById("ops-alert-table"),
   opsAlertTableBody: document.getElementById("ops-alert-table-body"),
+  opsApiKeyInput: document.getElementById("ops-api-key"),
 };
+
+function getOpsApiHeaders(extra = {}) {
+  const headers = { ...extra };
+  const key = localStorage.getItem("casApiKey") || (els.opsApiKeyInput && els.opsApiKeyInput.value.trim());
+  if (key) {
+    headers["X-API-Key"] = key;
+  }
+  return headers;
+}
+
+function saveOpsApiKeyFromInput() {
+  if (!els.opsApiKeyInput) return;
+  const key = els.opsApiKeyInput.value.trim();
+  if (key) {
+    localStorage.setItem("casApiKey", key);
+  } else {
+    localStorage.removeItem("casApiKey");
+  }
+}
 
 let selectedConjunction = null;
 let lastSatelliteTle = "";
@@ -134,8 +154,10 @@ async function waitForBackend(maxSec = 60, intervalMs = 2000) {
   return null;
 }
 
-async function apiGet(path) {
-  const res = await fetch(`${API_BASE}${path}`);
+async function apiGet(path, { ops = false } = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: ops ? getOpsApiHeaders() : undefined,
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = data.detail;
@@ -150,10 +172,13 @@ async function apiGet(path) {
   return data;
 }
 
-async function apiPatch(path, body) {
+async function apiPatch(path, body, { ops = false } = {}) {
+  const headers = ops
+    ? getOpsApiHeaders({ "Content-Type": "application/json" })
+    : { "Content-Type": "application/json" };
   const res = await fetch(`${API_BASE}${path}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -167,7 +192,7 @@ async function apiPatch(path, body) {
 
 async function loadOpsFleets() {
   try {
-    const fleets = await apiGet("/api/v1/fleets");
+    const fleets = await apiGet("/api/v1/fleets", { ops: true });
     const current = els.opsFleetSelect.value;
     els.opsFleetSelect.innerHTML = '<option value="">— 艦隊を選択 —</option>';
     for (const f of fleets) {
@@ -201,7 +226,7 @@ async function refreshOpsDashboard() {
     return;
   }
   try {
-    const summary = await apiGet(`/api/v1/ops/fleets/${fleetId}/summary`);
+    const summary = await apiGet(`/api/v1/ops/fleets/${fleetId}/summary`, { ops: true });
     els.opsSummary.innerHTML = `
       <strong>${summary.fleet_name}</strong><br/>
       open: ${summary.open_count} /
@@ -214,7 +239,7 @@ async function refreshOpsDashboard() {
     const path = statusQ
       ? `/api/v1/ops/alerts?fleet_id=${fleetId}&status=${statusQ}`
       : `/api/v1/ops/alerts?fleet_id=${fleetId}`;
-    const listing = await apiGet(path);
+    const listing = await apiGet(path, { ops: true });
     els.opsAlertTableBody.innerHTML = "";
     for (const a of listing.items) {
       const tr = document.createElement("tr");
@@ -254,10 +279,14 @@ async function refreshOpsDashboard() {
         btn.textContent = t.label;
         btn.addEventListener("click", async () => {
           try {
-            await apiPatch(`/api/v1/ops/alerts/${a.id}`, {
-              status: t.status,
-              comment: commentInput.value || null,
-            });
+            await apiPatch(
+              `/api/v1/ops/alerts/${a.id}`,
+              {
+                status: t.status,
+                comment: commentInput.value || null,
+              },
+              { ops: true }
+            );
             await refreshOpsDashboard();
             setOpsStatus(`${t.label} しました。`);
           } catch (err) {
@@ -949,6 +978,13 @@ function initEventListeners() {
     }
   });
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
+  if (els.opsApiKeyInput) {
+    const savedKey = localStorage.getItem("casApiKey");
+    if (savedKey) {
+      els.opsApiKeyInput.value = savedKey;
+    }
+    els.opsApiKeyInput.addEventListener("change", saveOpsApiKeyFromInput);
+  }
 
   els.btnLoadSample.addEventListener("click", () => {
     els.tleInput.value = ISS_SAMPLE;

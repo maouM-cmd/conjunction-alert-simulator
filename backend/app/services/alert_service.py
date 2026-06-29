@@ -170,6 +170,7 @@ def transition_alert(
     *,
     new_status: str,
     comment: str | None = None,
+    api_key_id: uuid.UUID | None = None,
 ) -> ConjunctionAlert:
     alert = get_alert(db, alert_id)
     allowed = ALLOWED_TRANSITIONS.get(alert.status, set())
@@ -177,10 +178,22 @@ def transition_alert(
         raise ValidationError(
             f"状態 {alert.status} から {new_status} への遷移は許可されていません。"
         )
+    old_status = alert.status
     alert.status = new_status
     if comment is not None:
         alert.comment = comment
     alert.updated_at = _utcnow()
+    from backend.app.services import audit_service
+
+    audit_service.log_audit(
+        db,
+        fleet_id=alert.fleet_id,
+        action="alert.transition",
+        resource_type="alert",
+        resource_id=alert.id,
+        api_key_id=api_key_id,
+        detail={"from_status": old_status, "to_status": new_status, "comment": comment},
+    )
     db.commit()
     db.refresh(alert)
     return alert

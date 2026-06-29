@@ -137,7 +137,8 @@ class ManeuverPreviewResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status: Literal["ok"] = "ok"
+    status: Literal["ok", "degraded"] = "ok"
+    checks: dict[str, Literal["ok", "error", "skipped"]] = Field(default_factory=dict)
     tle_cache_age_hours: float | None
     tle_cache_stale: bool
     tle_provider: str
@@ -480,3 +481,42 @@ class FleetOpsSummaryOut(BaseModel):
     latest_run_id: str | None
     latest_run_status: str | None
     latest_run_finished_at: datetime | None
+
+
+class ApiKeyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class ApiKeyCreatedOut(BaseModel):
+    id: str
+    fleet_id: str
+    name: str
+    key_prefix: str
+    api_key: str
+    created_at: datetime
+
+
+class ApiKeyOut(BaseModel):
+    id: str
+    fleet_id: str
+    name: str
+    key_prefix: str
+    created_at: datetime
+
+
+class AuditLogOut(BaseModel):
+    id: str
+    fleet_id: str | None
+    action: str
+    resource_type: str
+    resource_id: str | None
+    api_key_id: str | None
+    detail: dict
+    created_at: datetime
+
+
+class AuditLogListOut(BaseModel):
+    items: list[AuditLogOut]
+    total: int
+    limit: int
+    offset: int
