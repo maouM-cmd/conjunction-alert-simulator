@@ -540,3 +540,12 @@ label.checkbox-row input[type="checkbox"] {
   font-size: 0.7rem;
   padding: 0.15rem 0.4rem;
 }
+
+.ops-silences-select-col {
+  width: 2rem;
+  text-align: center;
+}
+
+.ops-silences-select-col input[type="checkbox"] {
+  margin: 0;
+}

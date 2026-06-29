@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.32.0] - 2026-06-28
+
+Phase 10Y — silence 選択 bulk 削除。
+
+### Added
+
+- **Phase 10Y:** `delete_silences_by_ids` — 指定 silence ID 群の一括削除
+- `POST /ops/prometheus/alertmanager/silences/bulk-delete` — fleet スコープ認可付き
+- `AlertmanagerSilenceBulkDelete` スキーマ
+- Ops UI — チェックボックス選択・全選択・「選択した silence を削除」
+
 ## [1.31.0] - 2026-06-28
 
 Phase 10X — breach DB 永続化 + Redis 時 dual push。

@@ -17,6 +17,7 @@ from backend.app.models.schemas import (
     AlertTransition,
     AlertmanagerSilenceCreate,
     AlertmanagerSilenceCreatedOut,
+    AlertmanagerSilenceBulkDelete,
     AlertmanagerSilenceBulkDeletedOut,
     AlertmanagerSilenceDeletedOut,
     AlertmanagerSilenceListOut,
@@ -717,6 +718,48 @@ def create_alertmanager_silence(
     if not result.ok or not result.silence_id:
         raise HTTPException(status_code=503, detail=result.message)
     return AlertmanagerSilenceCreatedOut(silence_id=result.silence_id, message=result.message)
+
+
+@router.post(
+    "/prometheus/alertmanager/silences/bulk-delete",
+    response_model=AlertmanagerSilenceBulkDeletedOut,
+)
+def bulk_delete_alertmanager_silences_by_ids(
+    body: AlertmanagerSilenceBulkDelete,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertmanagerSilenceBulkDeletedOut:
+    if not alertmanager_silence_service.alertmanager_silences_configured():
+        raise HTTPException(status_code=503, detail="Alertmanager silences は無効です。")
+
+    if is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=403, detail="管理者または艦隊 API Key が必要です。")
+
+    authorized_ids: list[str] = []
+    not_found_ids: list[str] = []
+    for silence_id in body.silence_ids:
+        silence = alertmanager_silence_service.get_silence(silence_id)
+        if silence is None:
+            not_found_ids.append(silence_id)
+            continue
+        if silence.fleet_id is not None:
+            _resolve_fleet_for_am_silence(principal, silence.fleet_id)
+        authorized_ids.append(silence_id)
+
+    if not authorized_ids:
+        if not_found_ids:
+            raise HTTPException(status_code=404, detail="silence が見つかりません。")
+        raise HTTPException(status_code=404, detail="削除対象の silence がありません。")
+
+    result = alertmanager_silence_service.delete_silences_by_ids(authorized_ids)
+    if not result.ok:
+        raise HTTPException(status_code=503, detail=result.message)
+    return AlertmanagerSilenceBulkDeletedOut(
+        deleted_count=result.deleted_count,
+        silence_ids=list(result.silence_ids),
+        message=result.message,
+    )
 
 
 @router.get("/prometheus/alertmanager/silences", response_model=AlertmanagerSilenceListOut)

@@ -100,6 +100,8 @@ const els = {
   opsSilenceComment: document.getElementById("ops-silence-comment"),
   btnOpsSilenceCreate: document.getElementById("btn-ops-silence-create"),
   btnOpsSilencesDeleteAll: document.getElementById("btn-ops-silences-delete-all"),
+  btnOpsSilencesDeleteSelected: document.getElementById("btn-ops-silences-delete-selected"),
+  opsSilencesSelectAll: document.getElementById("ops-silences-select-all"),
   opsSilencesTable: document.getElementById("ops-silences-table"),
   opsSilencesTableBody: document.getElementById("ops-silences-table-body"),
 };
@@ -404,6 +406,16 @@ function showMitigationResult(actions, result, { best = false } = {}) {
   resultDiv.innerHTML = formatMitigationPreviewLabel(result, { prefix });
 }
 
+function updateOpsSilencesDeleteSelectedButton() {
+  if (!els.btnOpsSilencesDeleteSelected) {
+    return;
+  }
+  const checked = els.opsSilencesTableBody?.querySelectorAll(
+    "input.ops-silence-select:checked"
+  );
+  els.btnOpsSilencesDeleteSelected.disabled = !checked || checked.length === 0;
+}
+
 async function refreshOpsSilences() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId || !els.opsSilencesSection) {
@@ -418,14 +430,23 @@ async function refreshOpsSilences() {
     );
     els.opsSilencesStatus.textContent = `${listing.total} 件の active silence`;
     els.opsSilencesTableBody.innerHTML = "";
+    if (els.opsSilencesSelectAll) {
+      els.opsSilencesSelectAll.checked = false;
+    }
     for (const item of listing.items) {
       const tr = document.createElement("tr");
+      tr.dataset.silenceId = item.silence_id;
       tr.innerHTML = `
+        <td class="ops-silences-select-col">
+          <input type="checkbox" class="ops-silence-select" value="${item.silence_id}" />
+        </td>
         <td>${item.alertname || "（艦隊全体）"}</td>
         <td>${formatTime(item.ends_at)}</td>
         <td>${item.comment || "—"}</td>
         <td class="ops-silences-actions"></td>
       `;
+      const checkbox = tr.querySelector(".ops-silence-select");
+      checkbox.addEventListener("change", updateOpsSilencesDeleteSelectedButton);
       const actions = tr.querySelector(".ops-silences-actions");
       const delBtn = document.createElement("button");
       delBtn.type = "button";
@@ -435,6 +456,7 @@ async function refreshOpsSilences() {
       els.opsSilencesTableBody.appendChild(tr);
     }
     els.opsSilencesTable.classList.toggle("hidden", listing.items.length === 0);
+    updateOpsSilencesDeleteSelectedButton();
   } catch (err) {
     if (err.message.includes("無効")) {
       els.opsSilencesStatus.textContent = "Alertmanager silences は無効です。";
@@ -488,6 +510,31 @@ async function deleteAllOpsSilences() {
   try {
     const result = await apiDelete(
       `/api/v1/ops/prometheus/alertmanager/silences?fleet_id=${fleetId}`,
+      { ops: true }
+    );
+    await refreshOpsSilences();
+    setOpsStatus(result.message);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+async function deleteSelectedOpsSilences() {
+  const checked = els.opsSilencesTableBody?.querySelectorAll(
+    "input.ops-silence-select:checked"
+  );
+  if (!checked || checked.length === 0) {
+    setOpsStatus("削除する silence を選択してください。", true);
+    return;
+  }
+  const silenceIds = Array.from(checked).map((el) => el.value);
+  if (!confirm(`${silenceIds.length} 件の silence を削除しますか？`)) {
+    return;
+  }
+  try {
+    const result = await apiPost(
+      "/api/v1/ops/prometheus/alertmanager/silences/bulk-delete",
+      { silence_ids: silenceIds },
       { ops: true }
     );
     await refreshOpsSilences();
@@ -1477,6 +1524,18 @@ function initEventListeners() {
   }
   if (els.btnOpsSilencesDeleteAll) {
     els.btnOpsSilencesDeleteAll.addEventListener("click", deleteAllOpsSilences);
+  }
+  if (els.btnOpsSilencesDeleteSelected) {
+    els.btnOpsSilencesDeleteSelected.addEventListener("click", deleteSelectedOpsSilences);
+  }
+  if (els.opsSilencesSelectAll) {
+    els.opsSilencesSelectAll.addEventListener("change", () => {
+      const checked = els.opsSilencesSelectAll.checked;
+      els.opsSilencesTableBody?.querySelectorAll("input.ops-silence-select").forEach((el) => {
+        el.checked = checked;
+      });
+      updateOpsSilencesDeleteSelectedButton();
+    });
   }
   if (els.btnOpsSsoLogin) {
     els.btnOpsSsoLogin.addEventListener("click", () => {

@@ -987,6 +987,22 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 運用 Ops パネルに Alertmanager Silences セクション: 一覧・作成・行削除・艦隊一括削除。`ALERTMANAGER_SILENCES_ENABLED=false` 時は「無効」表示（エラー扱いしない）。
 
+### POST /api/v1/ops/prometheus/alertmanager/silences/bulk-delete（Phase 10Y）
+
+選択した silence ID 群を一括削除。body: `{ "silence_ids": ["id1", "id2"] }`（1〜100 件）。
+
+| コード | 条件 |
+|--------|------|
+| 200 | 削除成功（部分失敗時も deleted_count > 0 なら 200） |
+| 403 | 他艦隊 silence を含む |
+| 404 | 全 ID 未検出 |
+| 422 | `silence_ids` 空 |
+| 503 | silences 無効 / AM エラー |
+
+**Phase 10Y — Ops UI チェックボックス**
+
+silence 一覧にチェックボックス列・全選択・「選択した silence を削除」ボタン（艦隊全削除は 10W 既存）。
+
 **Phase 10U — 自動化**
 
 | env | 挙動 |

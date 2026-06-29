@@ -581,6 +581,10 @@ class AlertmanagerSilenceBulkDeletedOut(BaseModel):
     message: str
 
 
+class AlertmanagerSilenceBulkDelete(BaseModel):
+    silence_ids: list[str] = Field(min_length=1, max_length=100)
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int

@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10Y — 次着手
+## Phase 10Z — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（silence チェックボックス bulk 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（DB 共有 dual push 拡張、breach 状態 UI 等）。
+
+## Phase 10Y — 完了
+
+silence 選択 bulk 削除 API + Ops UI チェックボックス。v1.32.0 ship 済み。
 
 ## Phase 10X — 完了
 

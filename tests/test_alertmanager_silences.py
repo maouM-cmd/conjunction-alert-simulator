@@ -409,3 +409,144 @@ def test_bulk_delete_silence_disabled_returns_503(ops_client, monkeypatch):
         f"/api/v1/ops/prometheus/alertmanager/silences?fleet_id={fleet_id}"
     )
     assert response.status_code == 503
+
+
+def test_delete_silences_by_ids_deletes_all(monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    with patch(
+        "backend.app.services.alertmanager_silence_service.delete_silence",
+        side_effect=lambda sid: alertmanager_silence_service.SilenceResult(
+            ok=True,
+            message="ok",
+            silence_id=sid,
+        ),
+    ) as mock_delete:
+        result = alertmanager_silence_service.delete_silences_by_ids(["s1", "s2"])
+    assert result.ok is True
+    assert result.deleted_count == 2
+    assert mock_delete.call_count == 2
+
+
+def test_delete_silences_by_ids_partial_failure(monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    def _delete(sid: str):
+        if sid == "bad":
+            return alertmanager_silence_service.SilenceResult(ok=False, message="fail")
+        return alertmanager_silence_service.SilenceResult(ok=True, message="ok", silence_id=sid)
+
+    with patch(
+        "backend.app.services.alertmanager_silence_service.delete_silence",
+        side_effect=_delete,
+    ):
+        result = alertmanager_silence_service.delete_silences_by_ids(["good", "bad"])
+    assert result.ok is True
+    assert result.deleted_count == 1
+    assert result.silence_ids == ("good",)
+    assert len(result.errors) == 1
+
+
+def test_bulk_delete_by_ids_endpoint(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = str(uuid.uuid4())
+    silences = {
+        "s1": alertmanager_silence_service.SilenceItem(
+            silence_id="s1",
+            fleet_id=fleet_id,
+            alertname="CASFleetOpenAlertsHigh",
+            starts_at=None,
+            ends_at=None,
+            comment="a",
+        ),
+        "s2": alertmanager_silence_service.SilenceItem(
+            silence_id="s2",
+            fleet_id=fleet_id,
+            alertname=None,
+            starts_at=None,
+            ends_at=None,
+            comment="b",
+        ),
+    }
+
+    def _get_silence(silence_id: str):
+        return silences.get(silence_id)
+
+    with (
+        patch(
+            "backend.app.services.alertmanager_silence_service.get_silence",
+            side_effect=_get_silence,
+        ),
+        patch(
+            "backend.app.services.alertmanager_silence_service.delete_silences_by_ids",
+            return_value=alertmanager_silence_service.BulkSilenceResult(
+                ok=True,
+                message="2 件の silence を削除しました。",
+                deleted_count=2,
+                silence_ids=("s1", "s2"),
+            ),
+        ),
+    ):
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/alertmanager/silences/bulk-delete",
+            json={"silence_ids": ["s1", "s2"]},
+        )
+    assert response.status_code == 200
+    assert response.json()["deleted_count"] == 2
+
+
+def test_bulk_delete_by_ids_other_fleet_forbidden(ops_client, monkeypatch):
+    from tests.test_fleet_api_slo import _create_fleet_with_key
+
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    fleet_a, key_a = _create_fleet_with_key(ops_client, monkeypatch, "Bulk Select Fleet A")
+    fleet_b = str(uuid.uuid4())
+    silence = alertmanager_silence_service.SilenceItem(
+        silence_id="other-silence",
+        fleet_id=fleet_b,
+        alertname="CASFleetOpenAlertsHigh",
+        starts_at=None,
+        ends_at=None,
+        comment="other",
+    )
+    with patch(
+        "backend.app.services.alertmanager_silence_service.get_silence",
+        return_value=silence,
+    ):
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/alertmanager/silences/bulk-delete",
+            json={"silence_ids": ["other-silence"]},
+            headers={"X-API-Key": key_a},
+        )
+    assert response.status_code == 403
+    assert fleet_a != fleet_b
+
+
+def test_bulk_delete_by_ids_empty_returns_422(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    response = ops_client.post(
+        "/api/v1/ops/prometheus/alertmanager/silences/bulk-delete",
+        json={"silence_ids": []},
+    )
+    assert response.status_code == 422
+
+
+def test_bulk_delete_by_ids_disabled_returns_503(ops_client, monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_SILENCES_ENABLED", raising=False)
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    response = ops_client.post(
+        "/api/v1/ops/prometheus/alertmanager/silences/bulk-delete",
+        json={"silence_ids": ["s1"]},
+    )
+    assert response.status_code == 503

@@ -325,6 +325,49 @@ def delete_silences_for_fleet(
     )
 
 
+def delete_silences_by_ids(silence_ids: list[str]) -> BulkSilenceResult:
+    if not alertmanager_silences_configured():
+        return BulkSilenceResult(
+            ok=False,
+            message="Alertmanager silences は無効です。",
+        )
+
+    if not silence_ids:
+        return BulkSilenceResult(
+            ok=True,
+            message="削除対象の silence はありません。",
+            deleted_count=0,
+        )
+
+    deleted_ids: list[str] = []
+    errors: list[str] = []
+    for silence_id in silence_ids:
+        result = delete_silence(silence_id)
+        if result.ok:
+            deleted_ids.append(silence_id)
+        else:
+            errors.append(f"{silence_id}: {result.message}")
+
+    if errors and not deleted_ids:
+        return BulkSilenceResult(
+            ok=False,
+            message="すべての silence 削除に失敗しました。",
+            deleted_count=0,
+            errors=tuple(errors),
+        )
+
+    message = f"{len(deleted_ids)} 件の silence を削除しました。"
+    if errors:
+        message = f"{message}（{len(errors)} 件失敗）"
+    return BulkSilenceResult(
+        ok=True,
+        message=message,
+        deleted_count=len(deleted_ids),
+        silence_ids=tuple(deleted_ids),
+        errors=tuple(errors),
+    )
+
+
 def maybe_auto_silence_on_triage(
     db,
     alert,

@@ -224,11 +224,15 @@
             <button id="btn-ops-silence-create" type="button">作成</button>
           </div>
           <div class="button-row">
+            <button id="btn-ops-silences-delete-selected" type="button" disabled>選択した silence を削除</button>
             <button id="btn-ops-silences-delete-all" type="button">この艦隊の silence をすべて削除</button>
           </div>
           <table id="ops-silences-table" class="ops-silences-table hidden">
             <thead>
               <tr>
+                <th class="ops-silences-select-col">
+                  <input id="ops-silences-select-all" type="checkbox" title="すべて選択" />
+                </th>
                 <th>alertname</th>
                 <th>終了</th>
                 <th>コメント</th>
