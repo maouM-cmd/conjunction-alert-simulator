@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10V — 次着手
+## Phase 10W — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（Redis 共有 breach 状態、silence 削除 API 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（silence 一括削除、Ops UI silence 削除ボタン等）。
+
+## Phase 10V — 完了
+
+Redis 共有 breach 状態 + Alertmanager silence 削除 API。v1.29.0 ship 済み。
 
 ## Phase 10U — 完了
 

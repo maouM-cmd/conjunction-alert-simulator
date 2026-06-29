@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.29.0] - 2026-06-28
+
+Phase 10V — Redis 共有 breach 状態 + Alertmanager silence 削除 API。
+
+### Added
+
+- **Phase 10V:** `breach_state_store` — Redis `cas:am:breach:{fleet_id}:{alertname}` でワーカー間 breach 状態共有
+- `ALERTMANAGER_PUSH_REDIS_STATE_ENABLED`（default false）— opt-in、Redis 不可時は in-memory フォールバック
+- `alertmanager_silence_service.get_silence` / `delete_silence` — `DELETE /api/v2/silence/{id}` 連携
+- `DELETE /ops/prometheus/alertmanager/silences/{silence_id}` — fleet スコープ認可付き削除 API
+- `AlertmanagerSilenceDeletedOut` スキーマ
+
 ## [1.28.0] - 2026-06-28
 
 Phase 10U — triage 自動 silence + Celery 定期 AM push。

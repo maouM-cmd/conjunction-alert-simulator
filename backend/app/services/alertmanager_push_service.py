@@ -11,15 +11,13 @@ from typing import Any
 
 import httpx
 
-from backend.app.services import fleet_alert_metrics_service
+from backend.app.services import breach_state_store, fleet_alert_metrics_service
 
 logger = logging.getLogger(__name__)
 
 PUSH_TIMEOUT_SEC = 10.0
 ALERT_OPEN = "CASFleetOpenAlertsHigh"
 ALERT_HIGH_RISK = "CASFleetHighRiskOpenAlerts"
-
-_last_breach_state: dict[tuple[str, str], bool] = {}
 
 
 @dataclass(frozen=True)
@@ -194,11 +192,11 @@ def sync_breaches(
         ]
 
         for alertname, is_breaching, severity, summary in breach_specs:
-            key = (str(fleet_id), alertname)
-            previous = _last_breach_state.get(key, False)
+            fleet_id_str = str(fleet_id)
+            previous = breach_state_store.get_breach_state(fleet_id_str, alertname)
             if is_breaching == previous:
                 continue
-            _last_breach_state[key] = is_breaching
+            breach_state_store.set_breach_state(fleet_id_str, alertname, is_breaching)
             to_push.append(
                 build_alert_payload(
                     alertname=alertname,
@@ -215,4 +213,4 @@ def sync_breaches(
 
 
 def reset_breach_state_for_tests() -> None:
-    _last_breach_state.clear()
+    breach_state_store.reset_breach_state_for_tests()

@@ -962,6 +962,17 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 クエリ: `fleet_id`（optional）。active silences 一覧。admin は全件、fleet key は自艦隊のみ。
 
+### DELETE /api/v1/ops/prometheus/alertmanager/silences/{silence_id}（Phase 10V）
+
+指定 silence を Alertmanager から削除。admin または認証 OFF。fleet API Key は silence の `fleet_id` matcher が自艦隊の場合のみ（403）。
+
+| コード | 条件 |
+|--------|------|
+| 200 | 削除成功 |
+| 403 | 他艦隊 silence |
+| 404 | silence 未検出 |
+| 503 | silences 無効 / AM エラー |
+
 **Phase 10U — 自動化**
 
 | env | 挙動 |
@@ -972,6 +983,13 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 | `ALERTMANAGER_AUTO_SILENCE_HOURS` | 自動 silence 時間（default 4） |
 
 監査: `alert.alertmanager_auto_silence`（自動 silence 成功時）
+
+**Phase 10V — Redis breach 状態 + silence 削除**
+
+| env | 挙動 |
+|-----|------|
+| `ALERTMANAGER_PUSH_REDIS_STATE_ENABLED=true` | Redis `cas:am:breach:{fleet_id}:{alertname}` で Celery ワーカー間 breach 状態共有（`REDIS_URL` 必須） |
+| default OFF | in-memory フォールバック（既存挙動） |
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

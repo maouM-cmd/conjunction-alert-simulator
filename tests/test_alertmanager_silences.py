@@ -141,3 +141,128 @@ def test_silences_disabled_returns_503(ops_client, monkeypatch):
     monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
     response = ops_client.get("/api/v1/ops/prometheus/alertmanager/silences")
     assert response.status_code == 503
+
+
+@patch("backend.app.services.alertmanager_silence_service.httpx.Client")
+def test_delete_silence_service(mock_client_cls, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.delete.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    result = alertmanager_silence_service.delete_silence("silence-del-1")
+    assert result.ok is True
+    assert result.silence_id == "silence-del-1"
+    mock_client.delete.assert_called_once()
+    assert "silence-del-1" in mock_client.delete.call_args[0][0]
+
+
+@patch("backend.app.services.alertmanager_silence_service.httpx.Client")
+def test_get_silence_by_id(mock_client_cls, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    fleet_id = str(uuid.uuid4())
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "id": "silence-xyz",
+        "matchers": [
+            {"name": "fleet_id", "value": fleet_id},
+            {"name": "alertname", "value": "CASFleetOpenAlertsHigh"},
+        ],
+        "status": {
+            "startsAt": "2026-06-28T00:00:00.000Z",
+            "endsAt": "2026-06-28T04:00:00.000Z",
+        },
+        "comment": "maintenance",
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.get.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    item = alertmanager_silence_service.get_silence("silence-xyz")
+    assert item is not None
+    assert item.silence_id == "silence-xyz"
+    assert item.fleet_id == fleet_id
+
+
+def test_delete_silence_endpoint(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    fleet_id = str(uuid.uuid4())
+    silence = alertmanager_silence_service.SilenceItem(
+        silence_id="silence-del-api",
+        fleet_id=fleet_id,
+        alertname="CASFleetOpenAlertsHigh",
+        starts_at=None,
+        ends_at=None,
+        comment="test",
+    )
+    with (
+        patch(
+            "backend.app.services.alertmanager_silence_service.get_silence",
+            return_value=silence,
+        ),
+        patch(
+            "backend.app.services.alertmanager_silence_service.delete_silence",
+            return_value=alertmanager_silence_service.SilenceResult(
+                ok=True,
+                message="silence を削除しました。",
+                silence_id="silence-del-api",
+            ),
+        ),
+    ):
+        response = ops_client.delete(
+            "/api/v1/ops/prometheus/alertmanager/silences/silence-del-api"
+        )
+    assert response.status_code == 200
+    assert response.json()["silence_id"] == "silence-del-api"
+
+
+def test_delete_silence_other_fleet_forbidden(ops_client, monkeypatch):
+    from tests.test_fleet_api_slo import _create_fleet_with_key
+
+    monkeypatch.setenv("ALERTMANAGER_SILENCES_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+
+    fleet_a, key_a = _create_fleet_with_key(ops_client, monkeypatch, "Silence Fleet A")
+    fleet_b = str(uuid.uuid4())
+    silence = alertmanager_silence_service.SilenceItem(
+        silence_id="silence-other",
+        fleet_id=fleet_b,
+        alertname="CASFleetOpenAlertsHigh",
+        starts_at=None,
+        ends_at=None,
+        comment="other",
+    )
+    with patch(
+        "backend.app.services.alertmanager_silence_service.get_silence",
+        return_value=silence,
+    ):
+        response = ops_client.delete(
+            "/api/v1/ops/prometheus/alertmanager/silences/silence-other",
+            headers={"X-API-Key": key_a},
+        )
+    assert response.status_code == 403
+    assert fleet_a != fleet_b
+
+
+def test_delete_silence_disabled_returns_503(ops_client, monkeypatch):
+    monkeypatch.delenv("ALERTMANAGER_SILENCES_ENABLED", raising=False)
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+    response = ops_client.delete(
+        "/api/v1/ops/prometheus/alertmanager/silences/silence-1"
+    )
+    assert response.status_code == 503

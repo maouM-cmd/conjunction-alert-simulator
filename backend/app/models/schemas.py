@@ -570,6 +570,11 @@ class AlertmanagerSilenceCreatedOut(BaseModel):
     message: str
 
 
+class AlertmanagerSilenceDeletedOut(BaseModel):
+    silence_id: str
+    message: str
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int

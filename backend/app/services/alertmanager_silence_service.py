@@ -208,6 +208,59 @@ def list_silences(fleet_id: uuid.UUID | None = None) -> tuple[list[SilenceItem],
     return items, None
 
 
+def get_silence(silence_id: str) -> SilenceItem | None:
+    if not alertmanager_silences_configured():
+        return None
+
+    url = alertmanager_url()
+    assert url is not None
+    endpoint = f"{url}/api/v2/silence/{silence_id}"
+    auth = _basic_auth()
+    try:
+        with httpx.Client(timeout=REQUEST_TIMEOUT_SEC) as client:
+            response = client.get(endpoint, auth=auth)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            body = response.json()
+    except httpx.HTTPError as exc:
+        logger.warning("Alertmanager silence get failed: %s", exc)
+        items, error = list_silences()
+        if error:
+            return None
+        for item in items:
+            if item.silence_id == silence_id:
+                return item
+        return None
+
+    if isinstance(body, dict):
+        return _silence_payload_from_am(body)
+    return None
+
+
+def delete_silence(silence_id: str) -> SilenceResult:
+    if not alertmanager_silences_configured():
+        return SilenceResult(ok=False, message="Alertmanager silences は無効です。")
+
+    url = alertmanager_url()
+    assert url is not None
+    endpoint = f"{url}/api/v2/silence/{silence_id}"
+    auth = _basic_auth()
+    try:
+        with httpx.Client(timeout=REQUEST_TIMEOUT_SEC) as client:
+            response = client.delete(endpoint, auth=auth)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("Alertmanager silence delete failed: %s", exc)
+        return SilenceResult(ok=False, message=f"silence 削除失敗: {exc}")
+
+    return SilenceResult(
+        ok=True,
+        message="silence を削除しました。",
+        silence_id=silence_id,
+    )
+
+
 def maybe_auto_silence_on_triage(
     db,
     alert,
