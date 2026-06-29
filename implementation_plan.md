@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10H — 次着手
+## Phase 10I — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、API 99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO/OIDC 等）。
+
+## Phase 10H — 完了
+
+API 99.9% SLO ダッシュボード — ローリング可用性、Prometheus Gauge、Ops API/UI 拡張。v1.15.0 ship 済み。
 
 ## Phase 10G — 完了
 

@@ -31,6 +31,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services import (
     alert_service,
+    api_availability_service,
     audit_service,
     mitigation_service,
     pc_refinement_service,
@@ -191,10 +192,17 @@ def list_sla(
         items = sla_service.list_fleet_sla_summaries(db)
 
     overdue = sum(1 for item in items if item.has_active_schedule and not item.screening_sla_ok)
+    api_slo = api_availability_service.compute_api_availability()
     return SlaSummaryOut(
         items=[_fleet_sla_out(item) for item in items],
         overdue_count=overdue,
         screening_sla_target_hours=target_hours,
+        api_availability_ratio=api_slo.availability_ratio,
+        api_availability_percent=api_slo.availability_percent,
+        api_slo_target_percent=api_slo.slo_target_percent,
+        api_slo_ok=api_slo.slo_ok,
+        api_sample_window_hours=api_slo.sample_window_hours,
+        api_request_count=api_slo.request_count,
     )
 
 

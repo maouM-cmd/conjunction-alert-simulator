@@ -234,13 +234,25 @@ function formatSlaLag(hours) {
 
 function formatSlaLine(slaItem) {
   if (!slaItem || !slaItem.has_active_schedule) {
-    return "Screening lag: <span class=\"ops-sla-na\">N/A（schedule なし）</span>";
+    return `Screening lag: <span class="ops-sla-na">N/A（schedule なし）</span>`;
   }
   const lag = formatSlaLag(slaItem.screening_lag_hours);
   if (slaItem.screening_sla_ok) {
     return `Screening lag: ${lag} — <span class="ops-sla-ok">OK</span>`;
   }
   return `Screening lag: ${lag} — <span class="ops-sla-overdue">OVERDUE</span>`;
+}
+
+function formatApiSloLine(slaResponse) {
+  if (!slaResponse || slaResponse.api_request_count === 0) {
+    return `API availability: <span class="ops-sla-na">N/A（サンプルなし）</span>`;
+  }
+  const pct = slaResponse.api_availability_percent.toFixed(2);
+  const target = slaResponse.api_slo_target_percent;
+  if (slaResponse.api_slo_ok) {
+    return `API availability: ${pct}% (target ${target}%) — <span class="ops-slo-ok">OK</span>`;
+  }
+  return `API availability: ${pct}% (target ${target}%) — <span class="ops-slo-breach">BREACH</span>`;
 }
 
 function formatMitigationPreviewLabel(preview, { prefix = "最新" } = {}) {
@@ -285,7 +297,8 @@ async function refreshOpsDashboard() {
       対策計画: ${summary.mitigation_planned_count} /
       closed: ${summary.closed_count}<br/>
       最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}<br/>
-      ${formatSlaLine(slaItem)}
+      ${formatSlaLine(slaItem)}<br/>
+      ${formatApiSloLine(sla)}
     `;
     const statusQ = els.opsStatusFilter.value;
     const path = statusQ

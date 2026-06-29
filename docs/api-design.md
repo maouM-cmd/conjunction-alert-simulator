@@ -55,7 +55,9 @@ cas_celery_queue_depth 0.0
 cas_screening_lag_seconds{fleet_id="..."} 7200.0
 cas_screening_overdue_fleets 0.0
 cas_http_requests_total{method="GET",status_class="2xx"} 42.0
-cas_info{version="1.14.0"} 1.0
+cas_api_availability_ratio 0.9995
+cas_api_slo_ok 1.0
+cas_info{version="1.15.0"} 1.0
 ```
 
 | メトリクス | 説明 |
@@ -66,16 +68,24 @@ cas_info{version="1.14.0"} 1.0
 | `cas_screening_lag_seconds{fleet_id}` | 最終 completed 親 run からの経過秒（Phase 10B） |
 | `cas_screening_overdue_fleets` | lag &gt; `SLA_SCREENING_MAX_LAG_HOURS` の艦隊数 |
 | `cas_http_requests_total{method,status_class}` | HTTP リクエスト Counter（`/metrics` 除外） |
+| `cas_api_availability_ratio` | ローリング窓 API 可用性（1 - 5xx/total）（Phase 10H） |
+| `cas_api_slo_ok` | 1 = SLO 達成、0 = breach（Phase 10H） |
 | `cas_info{version}` | アプリバージョン |
 
-**SLA 監視クエリ例（Phase 10B）:**
+**SLA 監視クエリ例（Phase 10B / 10H）:**
 
 ```promql
-# API 可用性（月次 99.5% 目標）
+# API 可用性（アプリ内ローリング窓 — scrape 時点）
+cas_api_availability_ratio
+
+# API SLO breach アラート
+cas_api_slo_ok == 0
+
+# API 可用性（Prometheus rate ベース — 月次 99.9% 目標）
 1 - (
   sum(rate(cas_http_requests_total{status_class="5xx"}[30d]))
   / sum(rate(cas_http_requests_total[30d]))
-)
+) >= 0.999
 
 # スクリーニング overdue 艦隊
 cas_screening_overdue_fleets > 0
@@ -810,15 +820,25 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
     }
   ],
   "overdue_count": 0,
-  "screening_sla_target_hours": 24.0
+  "screening_sla_target_hours": 24.0,
+  "api_availability_ratio": 0.9995,
+  "api_availability_percent": 99.95,
+  "api_slo_target_percent": 99.9,
+  "api_slo_ok": true,
+  "api_sample_window_hours": 720.0,
+  "api_request_count": 12345
 }
 ```
+
+**Phase 10H 拡張:** 上記 API SLO フィールドは fleet 非依存（global）。5xx のみエラー、4xx は success。サンプル 0 時 `api_availability_ratio=null`, `api_slo_ok=true`。
 
 - `fleet_id` 指定時: 当該艦隊 1 件（schedule なしでも返す）
 - 未指定 + fleet API Key: 自艦隊のみ
 - 未指定 + admin / 認証 OFF: active schedule 艦隊すべて
 
 **env:** `SLA_SCREENING_MAX_LAG_HOURS`（default 24）
+
+**env（Phase 10H）:** `SLA_API_TARGET_PERCENT`（default 99.9）, `SLA_API_ROLLING_WINDOW_HOURS`（default 720）
 
 ### GET /api/v1/ops/audit（Phase 9E）
 

@@ -571,6 +571,12 @@ class SlaSummaryOut(BaseModel):
     items: list[FleetSlaOut]
     overdue_count: int
     screening_sla_target_hours: float
+    api_availability_ratio: float | None = None
+    api_availability_percent: float | None = None
+    api_slo_target_percent: float = 99.9
+    api_slo_ok: bool = True
+    api_sample_window_hours: float = 720.0
+    api_request_count: int = 0
 
 
 class ApiKeyCreate(BaseModel):

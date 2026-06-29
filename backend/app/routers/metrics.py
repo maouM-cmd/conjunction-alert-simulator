@@ -9,6 +9,8 @@ from sqlalchemy import func, select
 from backend.app.db.models import ConjunctionAlert, ScreeningRun
 from backend.app.db.session import get_redis_url, get_session_factory, is_database_configured
 from backend.app.metrics_registry import (
+    cas_api_availability_ratio,
+    cas_api_slo_ok,
     cas_celery_queue_depth,
     cas_info,
     cas_open_alerts,
@@ -17,7 +19,7 @@ from backend.app.metrics_registry import (
     cas_screening_runs,
     registry,
 )
-from backend.app.services import sla_service
+from backend.app.services import api_availability_service, sla_service
 from backend.app.version import APP_VERSION
 
 router = APIRouter(tags=["metrics"])
@@ -67,9 +69,20 @@ def _collect_queue_depth() -> None:
         pass
 
 
+def _collect_api_slo_metrics() -> None:
+    summary = api_availability_service.compute_api_availability()
+    if summary.availability_ratio is None:
+        cas_api_availability_ratio.set(1.0)
+        cas_api_slo_ok.set(1.0)
+    else:
+        cas_api_availability_ratio.set(summary.availability_ratio)
+        cas_api_slo_ok.set(1.0 if summary.slo_ok else 0.0)
+
+
 @router.get("/metrics")
 def metrics() -> Response:
     cas_info.info({"version": APP_VERSION})
+    _collect_api_slo_metrics()
     if is_database_configured():
         _collect_db_metrics()
     _collect_queue_depth()

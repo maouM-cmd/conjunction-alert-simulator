@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.app.metrics_registry import record_http_request
+from backend.app.services import api_availability_service
 
 
 class HttpMetricsMiddleware:
@@ -30,3 +31,4 @@ class HttpMetricsMiddleware:
         await self.app(scope, receive, send_wrapper)
         method = scope.get("method", "GET")
         record_http_request(method, status_code)
+        api_availability_service.record_http_status(status_code)

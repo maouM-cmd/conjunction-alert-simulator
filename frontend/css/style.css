@@ -441,6 +441,16 @@ label.checkbox-row input[type="checkbox"] {
   font-weight: 600;
 }
 
+.ops-slo-ok {
+  color: #b8e0b8;
+  font-weight: 600;
+}
+
+.ops-slo-breach {
+  color: #ffb4b4;
+  font-weight: 700;
+}
+
 .ops-sla-na {
   color: #aaa;
 }

@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.15.0] - 2026-06-28
+
+Phase 10H — API 99.9% SLO Dashboard。
+
+### Added
+
+- **Phase 10H:** ローリング窓 API 可用性 SLO（99.9% 目標）
+- `api_availability_service` — 1h バケット、5xx ベース可用性
+- Prometheus: `cas_api_availability_ratio`, `cas_api_slo_ok`
+- `GET /api/v1/ops/sla` — API SLO フィールド拡張
+- Ops UI: API availability OK/BREACH 表示
+- env: `SLA_API_TARGET_PERCENT`, `SLA_API_ROLLING_WINDOW_HOURS`
+
 ## [1.14.0] - 2026-06-28
 
 Phase 10G — Auto Mitigation Plan Transition。

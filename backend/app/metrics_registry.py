@@ -40,6 +40,16 @@ cas_http_requests_total = Counter(
     ["method", "status_class"],
     registry=registry,
 )
+cas_api_availability_ratio = Gauge(
+    "cas_api_availability_ratio",
+    "Rolling-window API availability ratio (1 - 5xx/total)",
+    registry=registry,
+)
+cas_api_slo_ok = Gauge(
+    "cas_api_slo_ok",
+    "1 if API availability meets SLA target, else 0",
+    registry=registry,
+)
 
 
 def status_class(status_code: int) -> str:
