@@ -57,7 +57,7 @@ cas_screening_overdue_fleets 0.0
 cas_http_requests_total{method="GET",status_class="2xx"} 42.0
 cas_api_availability_ratio 0.9995
 cas_api_slo_ok 1.0
-cas_info{version="1.16.0"} 1.0
+cas_info{version="1.17.0"} 1.0
 ```
 
 | メトリクス | 説明 |
@@ -839,6 +839,33 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 **env:** `SLA_SCREENING_MAX_LAG_HOURS`（default 24）
 
 **env（Phase 10H）:** `SLA_API_TARGET_PERCENT`（default 99.9）, `SLA_API_ROLLING_WINDOW_HOURS`（default 720）
+
+**env（Phase 10J）:** `SLA_API_PERSIST_ENABLED`（default false）, `SLA_API_RETENTION_DAYS`（default 90）
+
+### GET /api/v1/ops/sla/api-history（Phase 10J）
+
+クエリ: `days`（1〜90、default 30）。UTC 日次 API 可用性 rollup。fleet スコープ不要（global API SLO）。
+
+認証: 管理者または認証 OFF（`CAS_API_KEY_REQUIRED=false`）。
+
+```json
+{
+  "days": 7,
+  "target_percent": 99.9,
+  "items": [
+    {
+      "day": "2026-06-28",
+      "availability_ratio": 0.999,
+      "availability_percent": 99.9,
+      "request_count": 1200,
+      "errors_5xx": 1,
+      "slo_ok": true
+    }
+  ]
+}
+```
+
+**DB テーブル（Phase 10J）:** `api_slo_hourly_buckets` — `hour_epoch` PK, `request_total`, `errors_5xx`, `updated_at`
 
 ### GET /api/v1/ops/audit（Phase 9E）
 

@@ -472,6 +472,12 @@ label.checkbox-row input[type="checkbox"] {
   font-weight: 700;
 }
 
+.ops-slo-history {
+  color: #ccc;
+  font-size: 0.92rem;
+  margin-top: 0.15rem;
+}
+
 .ops-sla-na {
   color: #aaa;
 }

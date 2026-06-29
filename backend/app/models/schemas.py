@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -577,6 +577,21 @@ class SlaSummaryOut(BaseModel):
     api_slo_ok: bool = True
     api_sample_window_hours: float = 720.0
     api_request_count: int = 0
+
+
+class ApiSloDayOut(BaseModel):
+    day: date
+    availability_ratio: float | None
+    availability_percent: float | None
+    request_count: int
+    errors_5xx: int
+    slo_ok: bool
+
+
+class ApiSloHistoryOut(BaseModel):
+    days: int
+    target_percent: float
+    items: list[ApiSloDayOut]
 
 
 class OidcConfigOut(BaseModel):

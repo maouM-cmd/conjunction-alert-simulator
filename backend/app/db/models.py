@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -266,3 +266,14 @@ class AuditLog(Base):
 
     fleet: Mapped[Fleet | None] = relationship("Fleet")
     api_key: Mapped[ApiKey | None] = relationship("ApiKey")
+
+
+class ApiSloHourlyBucket(Base):
+    __tablename__ = "api_slo_hourly_buckets"
+
+    hour_epoch: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    request_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    errors_5xx: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )

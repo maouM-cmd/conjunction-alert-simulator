@@ -317,6 +317,22 @@ function formatApiSloLine(slaResponse) {
   return `API availability: ${pct}% (target ${target}%) — <span class="ops-slo-breach">BREACH</span>`;
 }
 
+function formatApiSloHistoryLine(history) {
+  if (!history || !history.items || !history.items.length) {
+    return "";
+  }
+  const sampled = history.items.filter((item) => item.request_count > 0);
+  if (!sampled.length) {
+    return `<div class="ops-slo-history">7d trend: <span class="ops-sla-na">N/A</span></div>`;
+  }
+  const avg =
+    sampled.reduce((sum, item) => sum + item.availability_percent, 0) / sampled.length;
+  const breaches = sampled.filter((item) => !item.slo_ok).length;
+  const statusClass = breaches === 0 ? "ops-slo-ok" : "ops-slo-breach";
+  const statusLabel = breaches === 0 ? "OK" : `${breaches}d BREACH`;
+  return `<div class="ops-slo-history">7d: ${avg.toFixed(2)}% avg — <span class="${statusClass}">${statusLabel}</span></div>`;
+}
+
 function formatMitigationPreviewLabel(preview, { prefix = "最新" } = {}) {
   const autoBadge =
     preview.trigger_source === "screening_auto"
@@ -351,9 +367,10 @@ async function refreshOpsDashboard() {
     return;
   }
   try {
-    const [summary, sla] = await Promise.all([
+    const [summary, sla, apiHistory] = await Promise.all([
       apiGet(`/api/v1/ops/fleets/${fleetId}/summary`, { ops: true }),
       apiGet(`/api/v1/ops/sla?fleet_id=${fleetId}`, { ops: true }),
+      apiGet(`/api/v1/ops/sla/api-history?days=7`, { ops: true }),
     ]);
     const slaItem = sla.items && sla.items.length ? sla.items[0] : null;
     els.opsSummary.innerHTML = `
@@ -364,7 +381,8 @@ async function refreshOpsDashboard() {
       closed: ${summary.closed_count}<br/>
       最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}<br/>
       ${formatSlaLine(slaItem)}<br/>
-      ${formatApiSloLine(sla)}
+      ${formatApiSloLine(sla)}<br/>
+      ${formatApiSloHistoryLine(apiHistory)}
     `;
     const statusQ = els.opsStatusFilter.value;
     const path = statusQ

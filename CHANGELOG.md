@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.17.0] - 2026-06-28
+
+Phase 10J — API SLO DB 永続化。
+
+### Added
+
+- **Phase 10J:** 1h API SLO バケット PostgreSQL 永続化（`api_slo_hourly_buckets`）
+- `slo_persistence_service` — write-through upsert、日次 rollup、retention prune、hydrate
+- `GET /api/v1/ops/sla/api-history?days=30` — 日次 API 可用性履歴
+- Ops UI: 7 日 API SLO トレンド行
+- Alembic `010_api_slo_buckets`
+- env: `SLA_API_PERSIST_ENABLED`（default false）, `SLA_API_RETENTION_DAYS`（default 90）
+
 ## [1.16.0] - 2026-06-28
 
 Phase 10I — Ops UI OIDC SSO（Admin + Fleet）。

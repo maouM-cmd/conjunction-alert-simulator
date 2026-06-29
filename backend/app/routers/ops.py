@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session
 from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal, principal_scoped_fleet_id
 from backend.app.db.models import AlertMitigationPreview, AlertPcRefinement, AuditLog, ConjunctionAlert
 from backend.app.db.session import require_db
+from backend.app.services.auth_config import is_api_key_required
 from backend.app.models.schemas import (
     AlertStatus,
     AlertTransition,
+    ApiSloDayOut,
+    ApiSloHistoryOut,
     AuditLogListOut,
     AuditLogOut,
     ConjunctionAlertListOut,
@@ -36,6 +39,7 @@ from backend.app.services import (
     mitigation_service,
     pc_refinement_service,
     sla_service,
+    slo_persistence_service,
 )
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
@@ -206,6 +210,66 @@ def list_sla(
         api_slo_ok=api_slo.slo_ok,
         api_sample_window_hours=api_slo.sample_window_hours,
         api_request_count=api_slo.request_count,
+    )
+
+
+@router.get("/sla/api-history", response_model=ApiSloHistoryOut)
+def api_sla_history(
+    days: int = Query(30, ge=1, le=90),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> ApiSloHistoryOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    target_percent = api_availability_service.api_slo_target_percent()
+    if slo_persistence_service.slo_api_persist_enabled():
+        items = slo_persistence_service.fetch_daily_history(db, days)
+    else:
+        from datetime import date, datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        start_day = (now - timedelta(days=days - 1)).date()
+        buckets: dict[int, tuple[int, int]] = {}
+        window_seconds = int(api_availability_service.api_rolling_window_hours() * 3600.0)
+        now_epoch = int(now.timestamp())
+        cutoff = now_epoch - (now_epoch % 3600) - window_seconds
+        for hour_epoch, request_total, errors_5xx in api_availability_service.load_memory_buckets():
+            if hour_epoch >= cutoff:
+                buckets[hour_epoch] = (request_total, errors_5xx)
+        rolled = slo_persistence_service.rollup_daily(buckets, target_percent=target_percent)
+        rolled_by_day = {item.day: item for item in rolled}
+        items = []
+        for offset in range(days):
+            day = start_day + timedelta(days=offset)
+            items.append(
+                rolled_by_day.get(
+                    day,
+                    slo_persistence_service.ApiSloDaySummary(
+                        day=day,
+                        availability_ratio=None,
+                        availability_percent=None,
+                        request_count=0,
+                        errors_5xx=0,
+                        slo_ok=True,
+                    ),
+                )
+            )
+
+    return ApiSloHistoryOut(
+        days=days,
+        target_percent=target_percent,
+        items=[
+            ApiSloDayOut(
+                day=item.day,
+                availability_ratio=item.availability_ratio,
+                availability_percent=item.availability_percent,
+                request_count=item.request_count,
+                errors_5xx=item.errors_5xx,
+                slo_ok=item.slo_ok,
+            )
+            for item in items
+        ],
     )
 
 

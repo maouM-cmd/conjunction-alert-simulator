@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10J — 次着手
+## Phase 10K — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SLO DB 永続化、共分散伝播強化 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（共分散伝播強化 等）。
+
+## Phase 10J — 完了
+
+API SLO DB 永続化 — 1h バケット write-through、日次履歴 API、Ops 7d トレンド、retention prune。v1.17.0 ship 済み。
 
 ## Phase 10I — 完了
 

@@ -1,4 +1,4 @@
-"""Rolling-window API availability for SLO (Phase 10H)."""
+"""Rolling-window API availability for SLO (Phase 10H / 10J)."""
 
 from __future__ import annotations
 
@@ -65,7 +65,19 @@ def _get_or_create_bucket(epoch: int) -> tuple[int, int, int]:
     return entry
 
 
-def record_http_status(status_code: int) -> None:
+def replace_memory_buckets(entries: list[tuple[int, int, int]] | tuple) -> None:
+    with _lock:
+        _buckets.clear()
+        for entry in entries:
+            _buckets.append(entry)
+
+
+def load_memory_buckets() -> list[tuple[int, int, int]]:
+    with _lock:
+        return list(_buckets)
+
+
+def _record_memory(status_code: int) -> None:
     is_5xx = status_code >= 500
     epoch = _current_bucket_epoch()
     window_seconds = api_rolling_window_hours() * 3600.0
@@ -77,12 +89,50 @@ def record_http_status(status_code: int) -> None:
         _buckets[-1] = (epoch, total + 1, errors + (1 if is_5xx else 0))
 
 
+def record_http_status(status_code: int) -> None:
+    from backend.app.db.session import get_session_factory, is_database_configured
+    from backend.app.services import slo_persistence_service
+
+    if slo_persistence_service.slo_api_persist_enabled() and is_database_configured():
+        factory = get_session_factory()
+        if factory is not None:
+            db = factory()
+            try:
+                epoch = _current_bucket_epoch()
+                is_5xx = status_code >= 500
+                slo_persistence_service.upsert_hourly_bucket(
+                    db,
+                    epoch,
+                    inc_total=1,
+                    inc_5xx=1 if is_5xx else 0,
+                )
+                return
+            except Exception:
+                pass
+            finally:
+                db.close()
+
+    _record_memory(status_code)
+
+
 def reset_availability_for_tests() -> None:
     with _lock:
         _buckets.clear()
+    from backend.app.services import slo_persistence_service
+
+    slo_persistence_service.reset_hydration_for_tests()
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    if factory is not None:
+        db = factory()
+        try:
+            slo_persistence_service.clear_buckets_for_tests(db)
+        finally:
+            db.close()
 
 
-def compute_api_availability() -> ApiAvailabilitySummary:
+def _compute_from_memory() -> ApiAvailabilitySummary:
     target_percent = api_slo_target_percent()
     target_ratio = target_percent / 100.0
     window_hours = api_rolling_window_hours()
@@ -117,3 +167,21 @@ def compute_api_availability() -> ApiAvailabilitySummary:
         request_count=total,
         errors_5xx=errors_5xx,
     )
+
+
+def compute_api_availability() -> ApiAvailabilitySummary:
+    from backend.app.db.session import get_session_factory, is_database_configured
+    from backend.app.services import slo_persistence_service
+
+    if slo_persistence_service.slo_api_persist_enabled() and is_database_configured():
+        factory = get_session_factory()
+        if factory is not None:
+            db = factory()
+            try:
+                return slo_persistence_service.compute_availability_from_db(db)
+            except Exception:
+                pass
+            finally:
+                db.close()
+
+    return _compute_from_memory()

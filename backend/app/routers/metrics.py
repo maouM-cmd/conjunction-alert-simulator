@@ -19,7 +19,7 @@ from backend.app.metrics_registry import (
     cas_screening_runs,
     registry,
 )
-from backend.app.services import api_availability_service, sla_service
+from backend.app.services import api_availability_service, sla_service, slo_persistence_service
 from backend.app.version import APP_VERSION
 
 router = APIRouter(tags=["metrics"])
@@ -31,6 +31,9 @@ def _collect_db_metrics() -> None:
         return
     db = factory()
     try:
+        if slo_persistence_service.slo_api_persist_enabled():
+            slo_persistence_service.ensure_hydrated_and_pruned(db)
+
         open_count = int(
             db.execute(
                 select(func.count())
