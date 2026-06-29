@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.30.0] - 2026-06-28
+
+Phase 10W — silence 一括削除 + Ops UI silence 管理。
+
+### Added
+
+- **Phase 10W:** `delete_silences_for_fleet` — fleet 単位（+ optional alertname）active silence 一括削除
+- `DELETE /ops/prometheus/alertmanager/silences?fleet_id=` — bulk 削除 API
+- `AlertmanagerSilenceBulkDeletedOut` スキーマ
+- Ops UI — silence 一覧・作成・単体削除・艦隊一括削除
+
 ## [1.29.0] - 2026-06-28
 
 Phase 10V — Redis 共有 breach 状態 + Alertmanager silence 削除 API。

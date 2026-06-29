@@ -17,6 +17,7 @@ from backend.app.models.schemas import (
     AlertTransition,
     AlertmanagerSilenceCreate,
     AlertmanagerSilenceCreatedOut,
+    AlertmanagerSilenceBulkDeletedOut,
     AlertmanagerSilenceDeletedOut,
     AlertmanagerSilenceListOut,
     AlertmanagerSilenceOut,
@@ -740,6 +741,34 @@ def list_alertmanager_silences(
         raise HTTPException(status_code=503, detail=error)
     out = [_silence_out(item) for item in items]
     return AlertmanagerSilenceListOut(items=out, total=len(out))
+
+
+@router.delete(
+    "/prometheus/alertmanager/silences",
+    response_model=AlertmanagerSilenceBulkDeletedOut,
+)
+def bulk_delete_alertmanager_silences(
+    fleet_id: str = Query(...),
+    alertname: str | None = None,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertmanagerSilenceBulkDeletedOut:
+    if not alertmanager_silence_service.alertmanager_silences_configured():
+        raise HTTPException(status_code=503, detail="Alertmanager silences は無効です。")
+
+    if is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=403, detail="管理者または艦隊 API Key が必要です。")
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    result = alertmanager_silence_service.delete_silences_for_fleet(fid, alertname=alertname)
+    if not result.ok:
+        raise HTTPException(status_code=503, detail=result.message)
+    return AlertmanagerSilenceBulkDeletedOut(
+        deleted_count=result.deleted_count,
+        silence_ids=list(result.silence_ids),
+        message=result.message,
+    )
 
 
 @router.delete(

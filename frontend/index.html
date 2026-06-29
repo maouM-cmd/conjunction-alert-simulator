@@ -201,6 +201,43 @@
           <button id="btn-ops-refresh" type="button" class="primary">更新</button>
         </div>
         <div id="ops-summary" class="ops-summary"></div>
+        <section id="ops-silences-section" class="ops-silences-section hidden">
+          <h3>Alertmanager Silences</h3>
+          <p id="ops-silences-status" class="meta"></p>
+          <div class="ops-silences-create">
+            <label>
+              alertname（空=艦隊全体）
+              <select id="ops-silence-alertname">
+                <option value="">— 艦隊全体 —</option>
+                <option value="CASFleetOpenAlertsHigh">CASFleetOpenAlertsHigh</option>
+                <option value="CASFleetHighRiskOpenAlerts">CASFleetHighRiskOpenAlerts</option>
+              </select>
+            </label>
+            <label>
+              時間（時間）
+              <input id="ops-silence-hours" type="number" min="0.25" max="720" step="0.25" value="4" />
+            </label>
+            <label>
+              コメント
+              <input id="ops-silence-comment" type="text" placeholder="maintenance window" />
+            </label>
+            <button id="btn-ops-silence-create" type="button">作成</button>
+          </div>
+          <div class="button-row">
+            <button id="btn-ops-silences-delete-all" type="button">この艦隊の silence をすべて削除</button>
+          </div>
+          <table id="ops-silences-table" class="ops-silences-table hidden">
+            <thead>
+              <tr>
+                <th>alertname</th>
+                <th>終了</th>
+                <th>コメント</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="ops-silences-table-body"></tbody>
+          </table>
+        </section>
         <p id="ops-status-msg" class="status-msg" aria-live="polite"></p>
         <table id="ops-alert-table" class="ops-alert-table hidden">
           <thead>

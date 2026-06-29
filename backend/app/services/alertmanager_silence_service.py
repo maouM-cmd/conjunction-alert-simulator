@@ -39,6 +39,15 @@ class SilenceItem:
     comment: str | None
 
 
+@dataclass(frozen=True)
+class BulkSilenceResult:
+    ok: bool
+    message: str
+    deleted_count: int = 0
+    silence_ids: tuple[str, ...] = ()
+    errors: tuple[str, ...] = ()
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name, "").strip().lower()
     if not raw:
@@ -258,6 +267,61 @@ def delete_silence(silence_id: str) -> SilenceResult:
         ok=True,
         message="silence を削除しました。",
         silence_id=silence_id,
+    )
+
+
+def delete_silences_for_fleet(
+    fleet_id: uuid.UUID,
+    *,
+    alertname: str | None = None,
+) -> BulkSilenceResult:
+    if not alertmanager_silences_configured():
+        return BulkSilenceResult(
+            ok=False,
+            message="Alertmanager silences は無効です。",
+        )
+
+    items, error = list_silences(fleet_id)
+    if error:
+        return BulkSilenceResult(ok=False, message=error, errors=(error,))
+
+    targets = items
+    if alertname:
+        targets = [item for item in items if item.alertname == alertname]
+
+    deleted_ids: list[str] = []
+    errors: list[str] = []
+    for item in targets:
+        result = delete_silence(item.silence_id)
+        if result.ok:
+            deleted_ids.append(item.silence_id)
+        else:
+            errors.append(f"{item.silence_id}: {result.message}")
+
+    if errors and not deleted_ids:
+        return BulkSilenceResult(
+            ok=False,
+            message="すべての silence 削除に失敗しました。",
+            deleted_count=0,
+            errors=tuple(errors),
+        )
+
+    if not targets:
+        return BulkSilenceResult(
+            ok=True,
+            message="削除対象の silence はありません。",
+            deleted_count=0,
+        )
+
+    message = f"{len(deleted_ids)} 件の silence を削除しました。"
+    if errors:
+        message = f"{message}（{len(errors)} 件失敗）"
+    return BulkSilenceResult(
+        ok=True,
+        message=message,
+        deleted_count=len(deleted_ids),
+        silence_ids=tuple(deleted_ids),
+        errors=tuple(errors),
     )
 
 

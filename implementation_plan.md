@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10W — 次着手
+## Phase 10X — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（silence 一括削除、Ops UI silence 削除ボタン等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（breach DB 永続化、metrics + Celery 同時 push 等）。
+
+## Phase 10W — 完了
+
+silence 一括削除 API + Ops UI silence 管理。v1.30.0 ship 済み。
 
 ## Phase 10V — 完了
 

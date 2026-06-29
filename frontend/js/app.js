@@ -93,6 +93,15 @@ const els = {
   opsAuthStatus: document.getElementById("ops-auth-status"),
   btnOpsSsoLogin: document.getElementById("btn-ops-sso-login"),
   btnOpsSsoLogout: document.getElementById("btn-ops-sso-logout"),
+  opsSilencesSection: document.getElementById("ops-silences-section"),
+  opsSilencesStatus: document.getElementById("ops-silences-status"),
+  opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
+  opsSilenceHours: document.getElementById("ops-silence-hours"),
+  opsSilenceComment: document.getElementById("ops-silence-comment"),
+  btnOpsSilenceCreate: document.getElementById("btn-ops-silence-create"),
+  btnOpsSilencesDeleteAll: document.getElementById("btn-ops-silences-delete-all"),
+  opsSilencesTable: document.getElementById("ops-silences-table"),
+  opsSilencesTableBody: document.getElementById("ops-silences-table-body"),
 };
 
 let opsOidcEnabled = false;
@@ -252,6 +261,25 @@ async function apiPatch(path, body, { ops = false } = {}) {
   return data;
 }
 
+async function apiDelete(path, { ops = false } = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    ...opsFetchOptions({}, { ops }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(", ")
+          : `API エラー (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 async function loadOpsFleets() {
   try {
     const fleets = await apiGet("/api/v1/fleets", { ops: true });
@@ -376,6 +404,99 @@ function showMitigationResult(actions, result, { best = false } = {}) {
   resultDiv.innerHTML = formatMitigationPreviewLabel(result, { prefix });
 }
 
+async function refreshOpsSilences() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId || !els.opsSilencesSection) {
+    els.opsSilencesSection?.classList.add("hidden");
+    return;
+  }
+  els.opsSilencesSection.classList.remove("hidden");
+  try {
+    const listing = await apiGet(
+      `/api/v1/ops/prometheus/alertmanager/silences?fleet_id=${fleetId}`,
+      { ops: true }
+    );
+    els.opsSilencesStatus.textContent = `${listing.total} 件の active silence`;
+    els.opsSilencesTableBody.innerHTML = "";
+    for (const item of listing.items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.alertname || "（艦隊全体）"}</td>
+        <td>${formatTime(item.ends_at)}</td>
+        <td>${item.comment || "—"}</td>
+        <td class="ops-silences-actions"></td>
+      `;
+      const actions = tr.querySelector(".ops-silences-actions");
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.textContent = "削除";
+      delBtn.addEventListener("click", () => deleteOpsSilence(item.silence_id));
+      actions.appendChild(delBtn);
+      els.opsSilencesTableBody.appendChild(tr);
+    }
+    els.opsSilencesTable.classList.toggle("hidden", listing.items.length === 0);
+  } catch (err) {
+    if (err.message.includes("無効")) {
+      els.opsSilencesStatus.textContent = "Alertmanager silences は無効です。";
+      els.opsSilencesTable.classList.add("hidden");
+      return;
+    }
+    els.opsSilencesStatus.textContent = err.message;
+  }
+}
+
+async function createOpsSilence() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId) {
+    setOpsStatus("艦隊を選択してください。", true);
+    return;
+  }
+  const alertname = els.opsSilenceAlertname.value || null;
+  const duration_hours = parseFloat(els.opsSilenceHours.value) || 4;
+  const comment = els.opsSilenceComment.value.trim() || null;
+  try {
+    const payload = { fleet_id: fleetId, duration_hours, comment };
+    if (alertname) {
+      payload.alertname = alertname;
+    }
+    await apiPost("/api/v1/ops/prometheus/alertmanager/silences", payload, { ops: true });
+    await refreshOpsSilences();
+    setOpsStatus("silence を作成しました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+async function deleteOpsSilence(silenceId) {
+  try {
+    await apiDelete(`/api/v1/ops/prometheus/alertmanager/silences/${silenceId}`, { ops: true });
+    await refreshOpsSilences();
+    setOpsStatus("silence を削除しました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+async function deleteAllOpsSilences() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId) {
+    return;
+  }
+  if (!confirm("この艦隊の active silence をすべて削除しますか？")) {
+    return;
+  }
+  try {
+    const result = await apiDelete(
+      `/api/v1/ops/prometheus/alertmanager/silences?fleet_id=${fleetId}`,
+      { ops: true }
+    );
+    await refreshOpsSilences();
+    setOpsStatus(result.message);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function refreshOpsDashboard() {
   const fleetId = els.opsFleetSelect.value;
   if (!ensureOpsAuthenticated()) {
@@ -383,6 +504,7 @@ async function refreshOpsDashboard() {
     return;
   }
   if (!fleetId) {
+    els.opsSilencesSection?.classList.add("hidden");
     setOpsStatus("艦隊を選択してください。", true);
     return;
   }
@@ -624,6 +746,7 @@ async function refreshOpsDashboard() {
     }
     els.opsAlertTable.classList.toggle("hidden", listing.items.length === 0);
     setOpsStatus(`${listing.total} 件のアラートを表示中。`);
+    await refreshOpsSilences();
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -1344,9 +1467,17 @@ function initEventListeners() {
   els.opsFleetSelect.addEventListener("change", () => {
     if (els.opsFleetSelect.value) {
       refreshOpsDashboard();
+    } else {
+      els.opsSilencesSection?.classList.add("hidden");
     }
   });
   els.opsStatusFilter.addEventListener("change", refreshOpsDashboard);
+  if (els.btnOpsSilenceCreate) {
+    els.btnOpsSilenceCreate.addEventListener("click", createOpsSilence);
+  }
+  if (els.btnOpsSilencesDeleteAll) {
+    els.btnOpsSilencesDeleteAll.addEventListener("click", deleteAllOpsSilences);
+  }
   if (els.btnOpsSsoLogin) {
     els.btnOpsSsoLogin.addEventListener("click", () => {
       window.location.href = `${API_BASE}/api/v1/auth/oidc/login`;

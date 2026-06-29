@@ -973,6 +973,20 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 | 404 | silence 未検出 |
 | 503 | silences 無効 / AM エラー |
 
+### DELETE /api/v1/ops/prometheus/alertmanager/silences?fleet_id=（Phase 10W）
+
+艦隊単位の active silence 一括削除。クエリ: `fleet_id`（必須）、`alertname`（optional）。
+
+| コード | 条件 |
+|--------|------|
+| 200 | 削除成功（0 件も可） |
+| 403 | 他艦隊へのアクセス |
+| 503 | silences 無効 / AM エラー |
+
+**Phase 10W — Ops UI**
+
+運用 Ops パネルに Alertmanager Silences セクション: 一覧・作成・行削除・艦隊一括削除。`ALERTMANAGER_SILENCES_ENABLED=false` 時は「無効」表示（エラー扱いしない）。
+
 **Phase 10U — 自動化**
 
 | env | 挙動 |
