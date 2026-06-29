@@ -179,6 +179,7 @@ def transition_alert(
     new_status: str,
     comment: str | None = None,
     api_key_id: uuid.UUID | None = None,
+    skip_pagerduty_outbound: bool = False,
 ) -> ConjunctionAlert:
     alert = get_alert(db, alert_id)
     allowed = ALLOWED_TRANSITIONS.get(alert.status, set())
@@ -204,9 +205,10 @@ def transition_alert(
     )
     db.commit()
     db.refresh(alert)
-    from backend.app.services.webhook_notifier import notify_pagerduty_lifecycle_for_status
+    if not skip_pagerduty_outbound:
+        from backend.app.services.webhook_notifier import notify_pagerduty_lifecycle_for_status
 
-    notify_pagerduty_lifecycle_for_status(alert, new_status)
+        notify_pagerduty_lifecycle_for_status(alert, new_status)
     return alert
 
 

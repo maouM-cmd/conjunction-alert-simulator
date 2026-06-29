@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.23.0] - 2026-06-28
+
+Phase 10P — PagerDuty 双方向 webhook（PD→CAS）。
+
+### Added
+
+- **Phase 10P:** `POST /api/v1/integrations/pagerduty/webhook` — PD incident ack/resolve → CAS 状態同期
+- `pagerduty_inbound_service` — 署名検証、`cas-alert-{id}` 逆引き、冪等処理
+- `transition_alert(..., skip_pagerduty_outbound)` — inbound ループ防止
+- 監査 `alert.pagerduty_inbound`
+- env: `PAGERDUTY_INBOUND_SYNC_ENABLED`（default false）、`PAGERDUTY_WEBHOOK_SIGNING_SECRET`
+
 ## [1.22.0] - 2026-06-28
 
 Phase 10O — PagerDuty acknowledge / resolve lifecycle。

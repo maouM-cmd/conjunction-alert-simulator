@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10P — 次着手
+## Phase 10Q — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM、PagerDuty 双方向 webhook 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM、per-fleet Prometheus アラートルール等）。
+
+## Phase 10P — 完了
+
+PagerDuty 双方向 webhook — PD→CAS ack/resolve 同期、署名検証、ループ防止。v1.23.0 ship 済み。
 
 ## Phase 10O — 完了
 

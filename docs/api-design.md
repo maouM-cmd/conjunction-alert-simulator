@@ -185,7 +185,8 @@ cas_screening_overdue_fleets > 0
 `ALERT_WEBHOOK_FORMAT=slack_bot` で Slack Web API `chat.postMessage`（`SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID`）。  
 `ALERT_WEBHOOK_FORMAT=smtp` で SMTP メール（`SMTP_HOST` + `SMTP_FROM` + `SMTP_TO`、任意 `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_USE_TLS`）。  
 `ALERT_WEBHOOK_FORMAT=pagerduty` で PagerDuty Events API v2（`PAGERDUTY_ROUTING_KEY`、`ALERT_WEBHOOK_URL` 不要）（Phase 10L）。  
-`PAGERDUTY_LIFECYCLE_ENABLED=true` 時は `dedup_key=cas-alert-{alert_id}` で trigger / acknowledge / resolve を連動（Phase 10O）。新規 screening アラートは per-alert trigger、Ops `acknowledged` / `closed` / `false_positive` で lifecycle イベント送信。
+`PAGERDUTY_LIFECYCLE_ENABLED=true` 時は `dedup_key=cas-alert-{alert_id}` で trigger / acknowledge / resolve を連動（Phase 10O）。新規 screening アラートは per-alert trigger、Ops `acknowledged` / `closed` / `false_positive` で lifecycle イベント送信。  
+`PAGERDUTY_INBOUND_SYNC_ENABLED=true` 時は `POST /api/v1/integrations/pagerduty/webhook` で PD 側 ack/resolve を CAS に逆同期（Phase 10P）。`PAGERDUTY_WEBHOOK_SIGNING_SECRET` で `X-PagerDuty-Signature` を検証。inbound 経路では 10O outbound を抑止。
 一覧 API の `pc_method_used`: `foster` | `encounter_advanced`（CDM compare の `foster_only` とは別）。
 
 ### エラー
@@ -509,7 +510,34 @@ CAS 接近イベントから CDM KVN テキストを生成。
 }
 ```
 
-最大 25 衛星。ProcessPool 並列実行（2 衛星以上）。
+---
+
+## POST /api/v1/integrations/pagerduty/webhook（Phase 10P）
+
+PagerDuty v3 インシデント webhook。API Key 不要。`X-PagerDuty-Signature`（HMAC-SHA256、raw body）を `PAGERDUTY_WEBHOOK_SIGNING_SECRET` で検証。
+
+| PD `event.event_type` | CAS 遷移 |
+|-----------------------|----------|
+| `incident.acknowledged` | `open` → `acknowledged` |
+| `incident.resolved` | `acknowledged` / `mitigation_planned` → `closed`；`open` のみなら ack → close 連鎖 |
+
+`event.data.dedup_key`（または `incident_key`）が `cas-alert-{alert_id}` 形式であること。
+
+| コード | 条件 |
+|--------|------|
+| 200 | 処理完了（no-op 含む） |
+| 401 | 署名不正 |
+| 503 | `PAGERDUTY_INBOUND_SYNC_ENABLED=false` |
+
+```json
+{
+  "processed": true,
+  "alert_id": "uuid",
+  "status": "acknowledged",
+  "noop": false,
+  "message": "同期しました。"
+}
+```
 
 ### レスポンス 200
 
