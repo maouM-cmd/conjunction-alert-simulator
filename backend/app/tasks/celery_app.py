@@ -7,6 +7,7 @@ import os
 from celery import Celery
 
 from backend.app.db.session import get_redis_url
+from backend.app.services.alertmanager_push_service import push_celery_interval_sec
 
 redis_url = get_redis_url() or "redis://localhost:6379/0"
 
@@ -18,6 +19,7 @@ celery_app = Celery(
         "backend.app.tasks.screening_tasks",
         "backend.app.tasks.pc_refinement_tasks",
         "backend.app.tasks.mitigation_tasks",
+        "backend.app.tasks.alertmanager_tasks",
     ],
 )
 
@@ -36,6 +38,10 @@ celery_app.conf.update(
         "purge-old-audit-logs": {
             "task": "backend.app.tasks.screening_tasks.purge_old_audit_logs",
             "schedule": 86400.0,
+        },
+        "sync-fleet-alert-breaches": {
+            "task": "backend.app.tasks.alertmanager_tasks.sync_fleet_alert_breaches",
+            "schedule": push_celery_interval_sec(),
         },
     },
 )

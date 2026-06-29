@@ -39,6 +39,28 @@ def alertmanager_push_enabled() -> bool:
     return _env_bool("ALERTMANAGER_PUSH_ENABLED", default=False)
 
 
+def alertmanager_push_celery_enabled() -> bool:
+    return _env_bool("ALERTMANAGER_PUSH_CELERY_ENABLED", default=False)
+
+
+def alertmanager_push_celery_configured() -> bool:
+    return (
+        alertmanager_push_celery_enabled()
+        and alertmanager_push_configured()
+        and fleet_alert_metrics_service.fleet_alert_metrics_enabled()
+    )
+
+
+def push_celery_interval_sec() -> float:
+    raw = os.environ.get("ALERTMANAGER_PUSH_CELERY_INTERVAL_SEC", "").strip()
+    if not raw:
+        return 60.0
+    try:
+        return max(float(raw), 10.0)
+    except ValueError:
+        return 60.0
+
+
 def alertmanager_push_configured() -> bool:
     return alertmanager_push_enabled() and bool(alertmanager_url())
 

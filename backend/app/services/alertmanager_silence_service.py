@@ -19,6 +19,7 @@ REQUEST_TIMEOUT_SEC = 10.0
 VALID_ALERTNAMES = frozenset(
     {"CASFleetOpenAlertsHigh", "CASFleetHighRiskOpenAlerts"}
 )
+TRIAGE_AUTO_SILENCE_STATUSES = frozenset({"acknowledged", "false_positive"})
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,20 @@ def default_silence_hours() -> float:
         return max(float(raw), 0.25)
     except ValueError:
         return 4.0
+
+
+def auto_silence_on_triage_enabled() -> bool:
+    return _env_bool("ALERTMANAGER_AUTO_SILENCE_ON_TRIAGE_ENABLED", default=False)
+
+
+def auto_silence_hours() -> float:
+    raw = os.environ.get("ALERTMANAGER_AUTO_SILENCE_HOURS", "").strip()
+    if not raw:
+        return default_silence_hours()
+    try:
+        return max(float(raw), 0.25)
+    except ValueError:
+        return default_silence_hours()
 
 
 def _basic_auth() -> tuple[str, str] | None:
@@ -191,3 +206,45 @@ def list_silences(fleet_id: uuid.UUID | None = None) -> tuple[list[SilenceItem],
             continue
         items.append(item)
     return items, None
+
+
+def maybe_auto_silence_on_triage(
+    db,
+    alert,
+    *,
+    old_status: str,
+    new_status: str,
+    api_key_id: uuid.UUID | None = None,
+) -> SilenceResult | None:
+    if not auto_silence_on_triage_enabled():
+        return None
+    if new_status not in TRIAGE_AUTO_SILENCE_STATUSES:
+        return None
+    if not alertmanager_silences_configured():
+        return None
+
+    result = create_fleet_silence(
+        alert.fleet_id,
+        duration_hours=auto_silence_hours(),
+        comment=f"Auto silence after triage ({old_status} -> {new_status})",
+    )
+    if result.ok and result.silence_id:
+        from backend.app.services import audit_service
+
+        audit_service.log_audit(
+            db,
+            fleet_id=alert.fleet_id,
+            action="alert.alertmanager_auto_silence",
+            resource_type="alert",
+            resource_id=alert.id,
+            api_key_id=api_key_id,
+            detail={
+                "silence_id": result.silence_id,
+                "from_status": old_status,
+                "to_status": new_status,
+            },
+        )
+        db.commit()
+    elif not result.ok:
+        logger.warning("Auto silence on triage failed for alert %s: %s", alert.id, result.message)
+    return result

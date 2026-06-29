@@ -202,6 +202,16 @@ def transition_alert(
         from backend.app.services.webhook_notifier import notify_pagerduty_lifecycle_for_status
 
         notify_pagerduty_lifecycle_for_status(alert, new_status)
+
+    from backend.app.services import alertmanager_silence_service
+
+    alertmanager_silence_service.maybe_auto_silence_on_triage(
+        db,
+        alert,
+        old_status=old_status,
+        new_status=new_status,
+        api_key_id=api_key_id,
+    )
     return alert
 
 

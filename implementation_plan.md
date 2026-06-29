@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10U — 次着手
+## Phase 10V — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（triage 自動 silence、Celery 定期 AM push 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（Redis 共有 breach 状態、silence 削除 API 等）。
+
+## Phase 10U — 完了
+
+triage 自動 silence + Celery 定期 AM breach push。v1.28.0 ship 済み。
 
 ## Phase 10T — 完了
 

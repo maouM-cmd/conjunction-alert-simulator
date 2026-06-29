@@ -962,6 +962,17 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 クエリ: `fleet_id`（optional）。active silences 一覧。admin は全件、fleet key は自艦隊のみ。
 
+**Phase 10U — 自動化**
+
+| env | 挙動 |
+|-----|------|
+| `ALERTMANAGER_PUSH_CELERY_ENABLED=true` | Celery beat `sync_fleet_alert_breaches` が breach push（`/metrics` からは push 除外） |
+| `ALERTMANAGER_PUSH_CELERY_INTERVAL_SEC` | beat 間隔（default 60） |
+| `ALERTMANAGER_AUTO_SILENCE_ON_TRIAGE_ENABLED=true` | `acknowledged` / `false_positive` 遷移時に fleet silence 自動作成 |
+| `ALERTMANAGER_AUTO_SILENCE_HOURS` | 自動 silence 時間（default 4） |
+
+監査: `alert.alertmanager_auto_silence`（自動 silence 成功時）
+
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 
 クエリ: `days`（1〜90、default 30）、`fleet_id`（optional、Phase 10N）。UTC 日次 API 可用性 rollup。`fleet_id` 未指定時は global API SLO。

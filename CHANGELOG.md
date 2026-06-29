@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.28.0] - 2026-06-28
+
+Phase 10U — triage 自動 silence + Celery 定期 AM push。
+
+### Added
+
+- **Phase 10U:** `fleet_metrics_sync_service` — fleet Gauge 収集の共通化
+- Celery beat `sync_fleet_alert_breaches` — Prometheus 非依存の breach push
+- `ALERTMANAGER_AUTO_SILENCE_ON_TRIAGE_ENABLED` — ack/false_positive 時に fleet silence 自動作成
+- env: `ALERTMANAGER_PUSH_CELERY_ENABLED`, `ALERTMANAGER_PUSH_CELERY_INTERVAL_SEC`, `ALERTMANAGER_AUTO_SILENCE_HOURS`
+- 監査 `alert.alertmanager_auto_silence`
+
 ## [1.27.0] - 2026-06-28
 
 Phase 10T — STM `open` 巻き戻し + Alertmanager silences。
