@@ -171,6 +171,12 @@ class ConjunctionAlert(Base):
         order_by="AlertMitigationPreview.created_at.desc()",
         cascade="all, delete-orphan",
     )
+    pc_refinements: Mapped[list[AlertPcRefinement]] = relationship(
+        "AlertPcRefinement",
+        back_populates="alert",
+        order_by="AlertPcRefinement.created_at.desc()",
+        cascade="all, delete-orphan",
+    )
 
 
 class AlertMitigationPreview(Base):
@@ -196,6 +202,30 @@ class AlertMitigationPreview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     alert: Mapped[ConjunctionAlert] = relationship("ConjunctionAlert", back_populates="mitigation_previews")
+    api_key: Mapped[ApiKey | None] = relationship("ApiKey")
+
+
+class AlertPcRefinement(Base):
+    __tablename__ = "alert_pc_refinements"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alert_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conjunction_alerts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    pc_screening: Mapped[float] = mapped_column(Float, nullable=False)
+    pc_refined: Mapped[float] = mapped_column(Float, nullable=False)
+    pc_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    covariance_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    alert: Mapped[ConjunctionAlert] = relationship("ConjunctionAlert", back_populates="pc_refinements")
     api_key: Mapped[ApiKey | None] = relationship("ApiKey")
 
 

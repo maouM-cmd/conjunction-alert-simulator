@@ -4,6 +4,20 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.11.0] - 2026-06-28
+
+Phase 10D — Alert Pc Refinement。
+
+### Added
+
+- **Phase 10D:** 永続化アラートの Pc 再計算（CDM RTN 優先、TLE RTN フォールバック）
+- `alert_pc_refinements` テーブル（Alembic 007）
+- `POST /api/v1/ops/alerts/{id}/pc-refine` — 201
+- `GET /api/v1/ops/alerts/{id}/pc-refinements` — 履歴
+- `ConjunctionAlertOut.latest_pc_refinement` — screening vs refined 併記
+- 監査: `alert.pc_refine`
+- Ops UI: Pc 再計算ボタン + screening → refined 表示
+
 ## [1.10.0] - 2026-06-28
 
 Phase 10C — COLA Sweep & Mitigation Planning。

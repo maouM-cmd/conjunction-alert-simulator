@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10D — 次着手
+## Phase 10E — 次着手
 
 商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SSO、共分散伝播、99.9% SLA 等）。
+
+## Phase 10D — 完了
+
+アラート Pc 再計算（CDM/TLE RTN）、`alert_pc_refinements`、Ops Pc 再計算 UI。v1.11.0 ship 済み。
 
 ## Phase 10C — 完了
 

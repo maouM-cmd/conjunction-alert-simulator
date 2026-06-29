@@ -489,6 +489,23 @@ class MitigationPlanRequest(BaseModel):
     comment: str | None = None
 
 
+class PcRefinementOut(BaseModel):
+    id: str
+    alert_id: str
+    pc_screening: float
+    pc_refined: float
+    pc_method: str
+    covariance_source: str | None
+    miss_distance_km: float
+    api_key_id: str | None
+    created_at: datetime
+
+
+class PcRefinementListOut(BaseModel):
+    items: list[PcRefinementOut]
+    total: int
+
+
 class ConjunctionAlertOut(BaseModel):
     id: str
     fleet_id: str
@@ -507,6 +524,7 @@ class ConjunctionAlertOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     latest_mitigation_preview: MitigationPreviewOut | None = None
+    latest_pc_refinement: PcRefinementOut | None = None
 
 
 class ConjunctionAlertListOut(BaseModel):

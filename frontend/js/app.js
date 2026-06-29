@@ -280,7 +280,7 @@ async function refreshOpsDashboard() {
         <td>${a.satellite_name}<br/><small>NORAD ${a.satellite_norad_id}</small></td>
         <td>${a.debris_name}<br/><small>NORAD ${a.debris_norad_id}</small></td>
         <td>${formatTime(a.tca)}</td>
-        <td>${formatPc(a.pc)}</td>
+        <td>${formatOpsPcHtml(a)}</td>
         <td>${opsStatusBadge(a.status)}</td>
         <td class="ops-actions" data-alert-id="${a.id}"></td>
       `;
@@ -328,6 +328,41 @@ async function refreshOpsDashboard() {
       mitControls.appendChild(sweepMin);
       mitControls.appendChild(sweepMax);
       actions.appendChild(mitControls);
+
+      const pcRefineBtn = document.createElement("button");
+      pcRefineBtn.type = "button";
+      pcRefineBtn.className = "ops-pc-refine-btn";
+      pcRefineBtn.textContent = "Pc 再計算";
+      pcRefineBtn.addEventListener("click", async () => {
+        try {
+          pcRefineBtn.disabled = true;
+          const result = await apiPost(
+            `/api/v1/ops/alerts/${a.id}/pc-refine`,
+            {},
+            { ops: true }
+          );
+          const pcCell = tr.children[3];
+          pcCell.innerHTML = formatOpsPcHtml({
+            ...a,
+            latest_pc_refinement: result,
+          });
+          showPcRefinementResult(actions, result);
+          const methodLabel =
+            result.pc_method === "cdm_rtn" ? "CDM RTN" : "TLE RTN";
+          setOpsStatus(
+            `Pc 再計算完了 — screening ${formatPc(result.pc_screening)} → refined ${formatPc(result.pc_refined)} (${methodLabel})`
+          );
+        } catch (err) {
+          setOpsStatus(err.message, true);
+        } finally {
+          pcRefineBtn.disabled = false;
+        }
+      });
+      actions.appendChild(pcRefineBtn);
+
+      if (a.latest_pc_refinement) {
+        showPcRefinementResult(actions, a.latest_pc_refinement);
+      }
 
       const transitions = {
         open: [
@@ -512,6 +547,30 @@ function formatPc(pc) {
   if (pc >= 0.0001) return pc.toExponential(2);
   if (pc === 0) return "0";
   return pc.toExponential(1);
+}
+
+function formatOpsPcHtml(alert) {
+  const screening = formatPc(alert.pc);
+  const ref = alert.latest_pc_refinement;
+  if (!ref) {
+    return `<span class="ops-pc-screening">${screening}</span>`;
+  }
+  const methodLabel = ref.pc_method === "cdm_rtn" ? "CDM RTN" : "TLE RTN";
+  return (
+    `<span class="ops-pc-screening">${screening}</span>` +
+    `<br/><span class="ops-pc-refinement">→ ${formatPc(ref.pc_refined)} (${methodLabel})</span>`
+  );
+}
+
+function showPcRefinementResult(container, refinement) {
+  const existing = container.querySelector(".ops-pc-refinement-result");
+  if (existing) existing.remove();
+  const div = document.createElement("div");
+  div.className = "ops-pc-refinement-result";
+  const methodLabel =
+    refinement.pc_method === "cdm_rtn" ? "CDM RTN" : "TLE RTN";
+  div.textContent = `Pc refined: ${formatPc(refinement.pc_screening)} → ${formatPc(refinement.pc_refined)} (${methodLabel})`;
+  container.appendChild(div);
 }
 
 function parseConstellationBlocks(text) {

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal
-from backend.app.db.models import AlertMitigationPreview, AuditLog, ConjunctionAlert
+from backend.app.db.models import AlertMitigationPreview, AlertPcRefinement, AuditLog, ConjunctionAlert
 from backend.app.db.session import require_db
 from backend.app.models.schemas import (
     AlertStatus,
@@ -25,9 +25,17 @@ from backend.app.models.schemas import (
     MitigationPlanRequest,
     MitigationSweepOut,
     MitigationSweepRequest,
+    PcRefinementListOut,
+    PcRefinementOut,
     SlaSummaryOut,
 )
-from backend.app.services import alert_service, audit_service, mitigation_service, sla_service
+from backend.app.services import (
+    alert_service,
+    audit_service,
+    mitigation_service,
+    pc_refinement_service,
+    sla_service,
+)
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
 
@@ -55,6 +63,12 @@ def _handle_mitigation_error(exc: mitigation_service.MitigationServiceError) -> 
     return HTTPException(status_code=400, detail=str(exc))
 
 
+def _handle_pc_refinement_error(exc: pc_refinement_service.PcRefinementServiceError) -> HTTPException:
+    if isinstance(exc, pc_refinement_service.NotFoundError):
+        return HTTPException(status_code=404, detail=str(exc))
+    return HTTPException(status_code=400, detail=str(exc))
+
+
 def _preview_out(preview: AlertMitigationPreview) -> MitigationPreviewOut:
     return MitigationPreviewOut(
         id=str(preview.id),
@@ -77,6 +91,26 @@ def _latest_preview_out(alert: ConjunctionAlert) -> MitigationPreviewOut | None:
     return _preview_out(alert.mitigation_previews[0])
 
 
+def _pc_refinement_out(refinement: AlertPcRefinement) -> PcRefinementOut:
+    return PcRefinementOut(
+        id=str(refinement.id),
+        alert_id=str(refinement.alert_id),
+        pc_screening=refinement.pc_screening,
+        pc_refined=refinement.pc_refined,
+        pc_method=refinement.pc_method,
+        covariance_source=refinement.covariance_source,
+        miss_distance_km=refinement.miss_distance_km,
+        api_key_id=str(refinement.api_key_id) if refinement.api_key_id else None,
+        created_at=refinement.created_at,
+    )
+
+
+def _latest_pc_refinement_out(alert: ConjunctionAlert) -> PcRefinementOut | None:
+    if not alert.pc_refinements:
+        return None
+    return _pc_refinement_out(alert.pc_refinements[0])
+
+
 def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
     sat = alert.satellite
     return ConjunctionAlertOut(
@@ -97,6 +131,7 @@ def _alert_out(alert: ConjunctionAlert) -> ConjunctionAlertOut:
         created_at=alert.created_at,
         updated_at=alert.updated_at,
         latest_mitigation_preview=_latest_preview_out(alert),
+        latest_pc_refinement=_latest_pc_refinement_out(alert),
     )
 
 
@@ -361,6 +396,56 @@ def create_mitigation_plan(
         raise _handle_mitigation_error(exc) from exc
     refreshed = alert_service.get_alert(db, updated.id)
     return _alert_out(refreshed)
+
+
+@router.post(
+    "/alerts/{alert_id}/pc-refine",
+    response_model=PcRefinementOut,
+    status_code=201,
+)
+def create_pc_refinement(
+    alert_id: str,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PcRefinementOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        refinement = pc_refinement_service.refine_alert_pc(
+            db,
+            aid,
+            api_key_id=principal.api_key.id if principal.api_key else None,
+        )
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except pc_refinement_service.PcRefinementServiceError as exc:
+        raise _handle_pc_refinement_error(exc) from exc
+    return _pc_refinement_out(refinement)
+
+
+@router.get(
+    "/alerts/{alert_id}/pc-refinements",
+    response_model=PcRefinementListOut,
+)
+def list_pc_refinements(
+    alert_id: str,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PcRefinementListOut:
+    aid = _parse_uuid(alert_id, "alert_id")
+    try:
+        alert = alert_service.get_alert(db, aid)
+        check_fleet_access(principal, alert.fleet_id)
+        items = pc_refinement_service.list_pc_refinements(db, aid)
+    except alert_service.AlertServiceError as exc:
+        raise _handle_service_error(exc) from exc
+    except pc_refinement_service.PcRefinementServiceError as exc:
+        raise _handle_pc_refinement_error(exc) from exc
+    return PcRefinementListOut(
+        items=[_pc_refinement_out(r) for r in items],
+        total=len(items),
+    )
 
 
 @router.get("/audit", response_model=AuditLogListOut)

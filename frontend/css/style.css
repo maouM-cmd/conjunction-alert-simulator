@@ -382,6 +382,27 @@ label.checkbox-row input[type="checkbox"] {
   font-weight: 600;
 }
 
+.ops-pc-refine-btn {
+  margin-top: 0.15rem;
+}
+
+.ops-pc-screening {
+  font-size: 0.75rem;
+}
+
+.ops-pc-refinement {
+  font-size: 0.68rem;
+  color: #c8e6c9;
+  font-weight: 600;
+}
+
+.ops-pc-refinement-result {
+  font-size: 0.68rem;
+  color: #c8e6c9;
+  padding: 0.15rem 0;
+  line-height: 1.35;
+}
+
 .ops-sla-ok {
   color: #b8e0b8;
   font-weight: 600;

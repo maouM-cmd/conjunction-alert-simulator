@@ -129,6 +129,7 @@ def get_alert(db: Session, alert_id: uuid.UUID) -> ConjunctionAlert:
         .options(
             joinedload(ConjunctionAlert.satellite),
             selectinload(ConjunctionAlert.mitigation_previews),
+            selectinload(ConjunctionAlert.pc_refinements),
         )
         .where(ConjunctionAlert.id == alert_id)
     ).scalar_one_or_none()
@@ -154,6 +155,7 @@ def list_alerts(
     list_stmt = select(ConjunctionAlert).options(
         joinedload(ConjunctionAlert.satellite),
         selectinload(ConjunctionAlert.mitigation_previews),
+        selectinload(ConjunctionAlert.pc_refinements),
     )
     if filters:
         count_stmt = count_stmt.where(*filters)
