@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10Q — 次着手
+## Phase 10R — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM、per-fleet Prometheus アラートルール等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（6×6 STM 等）。
+
+## Phase 10Q — 完了
+
+per-fleet Prometheus アラートメトリクス — 艦隊別 Gauge、open breach、alerting rule 雛形 API。v1.24.0 ship 済み。
 
 ## Phase 10P — 完了
 

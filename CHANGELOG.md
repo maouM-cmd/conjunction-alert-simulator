@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.24.0] - 2026-06-28
+
+Phase 10Q — per-fleet Prometheus アラートメトリクス。
+
+### Added
+
+- **Phase 10Q:** 艦隊別アラート件数 Prometheus export
+- `cas_fleet_alerts_total{fleet_id,status}`, `cas_fleet_open_alerts_breach{fleet_id}`
+- `GET /ops/prometheus/fleet-alert-rules` — alerting rule 雛形（yaml/json）
+- `fleet_alert_metrics_service`
+- env: `FLEET_ALERT_METRICS_ENABLED`（default false）、`FLEET_ALERT_OPEN_THRESHOLD`（default 10）
+
 ## [1.23.0] - 2026-06-28
 
 Phase 10P — PagerDuty 双方向 webhook（PD→CAS）。

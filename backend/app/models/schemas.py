@@ -599,6 +599,12 @@ class ApiSloHistoryOut(BaseModel):
     items: list[ApiSloDayOut]
 
 
+class FleetAlertRulesOut(BaseModel):
+    format: str
+    fleet_id: str | None = None
+    content: str
+
+
 class OidcConfigOut(BaseModel):
     enabled: bool
     login_path: str | None = None

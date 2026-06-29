@@ -70,6 +70,10 @@ cas_info{version="1.19.0"} 1.0
 | `cas_http_requests_total{method,status_class}` | HTTP リクエスト Counter（`/metrics` 除外） |
 | `cas_api_availability_ratio` | ローリング窓 API 可用性（1 - 5xx/total）（Phase 10H） |
 | `cas_api_slo_ok` | 1 = SLO 達成、0 = breach（Phase 10H） |
+| `cas_fleet_api_availability_ratio{fleet_id}` | 艦隊別 API 可用性（Phase 10N、`SLA_FLEET_API_SLO_ENABLED`） |
+| `cas_fleet_api_slo_ok{fleet_id}` | 艦隊別 API SLO（Phase 10N） |
+| `cas_fleet_alerts_total{fleet_id,status}` | 艦隊別アラート件数（Phase 10Q、`FLEET_ALERT_METRICS_ENABLED`） |
+| `cas_fleet_open_alerts_breach{fleet_id}` | open 件数が閾値超過時 1（Phase 10Q） |
 | `cas_info{version}` | アプリバージョン |
 
 **SLA 監視クエリ例（Phase 10B / 10H）:**
@@ -879,6 +883,28 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 **env（Phase 10K）:** `COV_PROPAGATION_ENABLED`（default false）, `COV_PROP_R_GROWTH_PER_DAY`（default 0.10）, `COV_PROP_T_GROWTH_PER_DAY`（default 0.05）, `COV_PROP_N_GROWTH_PER_DAY`（default 0.05）
 
 **env（Phase 10N）:** `SLA_FLEET_API_SLO_ENABLED`（default false）
+
+**env（Phase 10Q）:** `FLEET_ALERT_METRICS_ENABLED`（default false）, `FLEET_ALERT_OPEN_THRESHOLD`（default 10）
+
+### GET /api/v1/ops/prometheus/fleet-alert-rules（Phase 10Q）
+
+クエリ: `fleet_id`（optional）、`format`（`yaml` | `json`、default `yaml`）。
+
+`FLEET_ALERT_METRICS_ENABLED=true` 時、Prometheus alerting rule 雛形を返す。`fleet_id` 省略時は admin は全 active 艦隊、fleet スコープ key は自艦隊のみ。
+
+| コード | 条件 |
+|--------|------|
+| 200 | rule 雛形 |
+| 403 | 他艦隊へのアクセス |
+| 503 | metrics 無効 |
+
+```json
+{
+  "format": "yaml",
+  "fleet_id": "uuid-or-null",
+  "content": "groups:\n  - name: cas-fleet-alerts\n    rules:\n      ..."
+}
+```
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

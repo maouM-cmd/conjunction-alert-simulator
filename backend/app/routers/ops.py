@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.auth.api_key import AuthPrincipal, check_fleet_access, get_auth_principal, principal_scoped_fleet_id
-from backend.app.db.models import AlertMitigationPreview, AlertPcRefinement, AuditLog, ConjunctionAlert
+from backend.app.db.models import AlertMitigationPreview, AlertPcRefinement, AuditLog, ConjunctionAlert, Fleet
 from backend.app.db.session import require_db
 from backend.app.services.auth_config import is_api_key_required
 from backend.app.models.schemas import (
@@ -21,6 +21,7 @@ from backend.app.models.schemas import (
     ConjunctionAlertListOut,
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
+    FleetAlertRulesOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -36,6 +37,7 @@ from backend.app.services import (
     alert_service,
     api_availability_service,
     audit_service,
+    fleet_alert_metrics_service,
     fleet_api_availability_service,
     mitigation_service,
     pc_refinement_service,
@@ -582,6 +584,58 @@ def list_pc_refinements(
     return PcRefinementListOut(
         items=[_pc_refinement_out(r) for r in items],
         total=len(items),
+    )
+
+
+@router.get("/prometheus/fleet-alert-rules", response_model=FleetAlertRulesOut)
+def fleet_alert_rules(
+    fleet_id: str | None = None,
+    format: str = Query("yaml", pattern="^(yaml|json)$"),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetAlertRulesOut:
+    if not fleet_alert_metrics_service.fleet_alert_metrics_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Fleet alert metrics は無効です（FLEET_ALERT_METRICS_ENABLED）。",
+        )
+
+    fleets: list[Fleet]
+    scoped_fleet: uuid.UUID | None = None
+    if fleet_id is not None:
+        scoped_fleet = _parse_uuid(fleet_id, "fleet_id")
+        check_fleet_access(principal, scoped_fleet)
+        fleet = db.get(Fleet, scoped_fleet)
+        if fleet is None or not fleet.active:
+            raise HTTPException(status_code=404, detail="艦隊が見つかりません。")
+        fleets = [fleet]
+    elif is_api_key_required() and not principal.is_admin:
+        scoped = principal_scoped_fleet_id(principal)
+        if scoped is None:
+            raise HTTPException(status_code=401, detail="API Key が必要です。")
+        check_fleet_access(principal, scoped)
+        fleet = db.get(Fleet, scoped)
+        if fleet is None or not fleet.active:
+            raise HTTPException(status_code=404, detail="艦隊が見つかりません。")
+        fleets = [fleet]
+        scoped_fleet = scoped
+    else:
+        fleets = fleet_alert_metrics_service.list_active_fleets(db)
+
+    rules: list = []
+    for fleet in fleets:
+        rules.extend(fleet_alert_metrics_service.render_fleet_alert_rules(fleet.id, fleet.name))
+
+    fmt = format.lower()
+    if fmt == "json":
+        content = fleet_alert_metrics_service.render_fleet_alert_rules_json(rules)
+    else:
+        content = fleet_alert_metrics_service.render_fleet_alert_rules_yaml(rules)
+
+    return FleetAlertRulesOut(
+        format=fmt,
+        fleet_id=str(scoped_fleet) if scoped_fleet is not None else None,
+        content=content,
     )
 
 

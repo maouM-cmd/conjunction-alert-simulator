@@ -14,8 +14,10 @@ from backend.app.metrics_registry import (
     cas_api_availability_ratio,
     cas_api_slo_ok,
     cas_celery_queue_depth,
+    cas_fleet_alerts_total,
     cas_fleet_api_availability_ratio,
     cas_fleet_api_slo_ok,
+    cas_fleet_open_alerts_breach,
     cas_info,
     cas_open_alerts,
     cas_screening_lag_seconds,
@@ -25,6 +27,7 @@ from backend.app.metrics_registry import (
 )
 from backend.app.services import (
     api_availability_service,
+    fleet_alert_metrics_service,
     fleet_api_availability_service,
     sla_service,
     slo_persistence_service,
@@ -63,6 +66,19 @@ def _collect_db_metrics() -> None:
         for fleet_id, lag in lags.items():
             cas_screening_lag_seconds.labels(fleet_id=fleet_id).set(lag)
         cas_screening_overdue_fleets.set(overdue)
+
+        if fleet_alert_metrics_service.fleet_alert_metrics_enabled():
+            counts = fleet_alert_metrics_service.collect_fleet_alert_counts(db)
+            threshold = fleet_alert_metrics_service.fleet_open_alert_threshold()
+            cas_fleet_alerts_total.clear()
+            cas_fleet_open_alerts_breach.clear()
+            for fleet_id, status_counts in counts.items():
+                fleet_id_str = str(fleet_id)
+                open_count = status_counts.get("open", 0)
+                for status, count in status_counts.items():
+                    cas_fleet_alerts_total.labels(fleet_id=fleet_id_str, status=status).set(count)
+                breach = 1.0 if open_count > threshold else 0.0
+                cas_fleet_open_alerts_breach.labels(fleet_id=fleet_id_str).set(breach)
     finally:
         db.close()
 
