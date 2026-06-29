@@ -74,6 +74,8 @@ cas_info{version="1.19.0"} 1.0
 | `cas_fleet_api_slo_ok{fleet_id}` | 艦隊別 API SLO（Phase 10N） |
 | `cas_fleet_alerts_total{fleet_id,status}` | 艦隊別アラート件数（Phase 10Q、`FLEET_ALERT_METRICS_ENABLED`） |
 | `cas_fleet_open_alerts_breach{fleet_id}` | open 件数が閾値超過時 1（Phase 10Q） |
+| `cas_fleet_alerts_by_risk_total{fleet_id,risk_level,status}` | risk_level × status 件数（Phase 10S） |
+| `cas_fleet_high_risk_open_breach{fleet_id}` | open high が閾値以上で 1（Phase 10S） |
 | `cas_info{version}` | アプリバージョン |
 
 **SLA 監視クエリ例（Phase 10B / 10H）:**
@@ -890,7 +892,9 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
 
 **env（Phase 10Q）:** `FLEET_ALERT_METRICS_ENABLED`（default false）, `FLEET_ALERT_OPEN_THRESHOLD`（default 10）
 
-### GET /api/v1/ops/prometheus/fleet-alert-rules（Phase 10Q）
+**env（Phase 10S）:** `FLEET_ALERT_HIGH_RISK_THRESHOLD`（default 1）, `ALERTMANAGER_PUSH_ENABLED`（default false）, `ALERTMANAGER_URL`, `ALERTMANAGER_BASIC_AUTH_USER`, `ALERTMANAGER_BASIC_AUTH_PASSWORD`
+
+### GET /api/v1/ops/prometheus/fleet-alert-rules（Phase 10Q / 10S）
 
 クエリ: `fleet_id`（optional）、`format`（`yaml` | `json`、default `yaml`）。
 
@@ -909,6 +913,27 @@ Pc 再計算履歴（新しい順）。`{ "items": [...], "total": N }`
   "content": "groups:\n  - name: cas-fleet-alerts\n    rules:\n      ..."
 }
 ```
+
+Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
+
+### POST /api/v1/ops/prometheus/alertmanager/test（Phase 10S）
+
+`ALERTMANAGER_PUSH_ENABLED=true` かつ `ALERTMANAGER_URL` 設定時、テスト alert を 1 件 push。管理者または認証 OFF。
+
+| コード | 条件 |
+|--------|------|
+| 200 | push 成功 |
+| 403 | 非管理者 |
+| 503 | push 無効 / URL 未設定 / push 失敗 |
+
+```json
+{
+  "sent": true,
+  "message": "1 件を Alertmanager に送信しました。"
+}
+```
+
+`FleetOpsSummaryOut` に `open_high_count`, `open_medium_count`, `open_low_count`（Phase 10S）。
 
 ### GET /api/v1/ops/sla/api-history（Phase 10J / 10N）
 

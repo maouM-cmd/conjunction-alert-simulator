@@ -564,9 +564,17 @@ class FleetOpsSummaryOut(BaseModel):
     mitigation_planned_count: int
     closed_count: int
     false_positive_count: int
+    open_high_count: int = 0
+    open_medium_count: int = 0
+    open_low_count: int = 0
     latest_run_id: str | None
     latest_run_status: str | None
     latest_run_finished_at: datetime | None
+
+
+class AlertmanagerTestOut(BaseModel):
+    sent: bool
+    message: str
 
 
 class FleetSlaOut(BaseModel):

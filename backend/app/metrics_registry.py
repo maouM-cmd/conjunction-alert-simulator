@@ -74,6 +74,18 @@ cas_fleet_open_alerts_breach = Gauge(
     ["fleet_id"],
     registry=registry,
 )
+cas_fleet_alerts_by_risk_total = Gauge(
+    "cas_fleet_alerts_by_risk_total",
+    "Per-fleet conjunction alert counts by risk level and status (Phase 10S)",
+    ["fleet_id", "risk_level", "status"],
+    registry=registry,
+)
+cas_fleet_high_risk_open_breach = Gauge(
+    "cas_fleet_high_risk_open_breach",
+    "1 if fleet open high-risk alert count exceeds threshold, else 0 (Phase 10S)",
+    ["fleet_id"],
+    registry=registry,
+)
 
 
 def status_class(status_code: int) -> str:

@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10S — 次着手
+## Phase 10T — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（risk_level 別メトリクス、Alertmanager push 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（STM `open` 巻き戻し、Alertmanager silences 等）。
+
+## Phase 10S — 完了
+
+risk_level 別 per-fleet メトリクス + Alertmanager breach push、high-risk rule 雛形、Ops summary risk breakdown。v1.26.0 ship 済み。
 
 ## Phase 10R — 完了
 

@@ -21,7 +21,7 @@ SAMPLES_DIR = PROJECT_ROOT / "samples"
 app = FastAPI(
     title="Conjunction Alert Simulator",
     description="衛星 TLE からデブリ接近を検出し、3D 可視化と回避試算を行う API",
-    version="1.25.0",
+    version="1.26.0",
 )
 
 app.add_middleware(HttpMetricsMiddleware)

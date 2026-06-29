@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.db.models import ConjunctionAlert, Fleet, Satellite, ScreeningRun
 from backend.app.services.alert_stm_service import ALLOWED_TRANSITIONS, ALL_ALERT_STATUSES
+from backend.app.services import fleet_alert_metrics_service
 from backend.app.services.analysis import ConjunctionAnalysisResult
 from backend.app.services.webhook_notifier import filter_alert_events
 
@@ -226,6 +227,8 @@ def get_fleet_summary(db: Session, fleet_id: uuid.UUID) -> dict:
         .limit(1)
     ).scalar_one_or_none()
 
+    open_risk = fleet_alert_metrics_service.collect_open_risk_counts(db, fleet_id)
+
     return {
         "fleet_id": fleet_id,
         "fleet_name": fleet.name,
@@ -235,6 +238,9 @@ def get_fleet_summary(db: Session, fleet_id: uuid.UUID) -> dict:
         "mitigation_planned_count": counts["mitigation_planned"],
         "closed_count": counts["closed"],
         "false_positive_count": counts["false_positive"],
+        "open_high_count": open_risk["high"],
+        "open_medium_count": open_risk["medium"],
+        "open_low_count": open_risk["low"],
         "latest_run_id": latest_run.id if latest_run else None,
         "latest_run_status": latest_run.status if latest_run else None,
         "latest_run_finished_at": latest_run.finished_at if latest_run else None,

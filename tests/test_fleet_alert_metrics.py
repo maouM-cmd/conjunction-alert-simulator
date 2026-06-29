@@ -18,6 +18,25 @@ from tests.test_fleet_api_slo import _create_fleet_with_key
 
 
 @pytest.fixture
+def db_session(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    reset_engine_for_tests()
+    engine = get_engine()
+    assert engine is not None
+    Base.metadata.create_all(engine)
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    assert factory is not None
+    db = factory()
+    try:
+        yield db
+    finally:
+        db.close()
+        reset_engine_for_tests()
+
+
+@pytest.fixture
 def ops_client(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
@@ -121,6 +140,7 @@ def test_fleet_alert_rules_endpoint_yaml(ops_client, monkeypatch):
     assert "cas_fleet_alerts_total" in data["content"]
     assert fleet_id in data["content"]
     assert "CASFleetOpenAlertsHigh" in data["content"]
+    assert "CASFleetHighRiskOpenAlerts" in data["content"]
 
 
 def test_fleet_alert_rules_disabled_returns_503(ops_client, monkeypatch):
@@ -149,3 +169,91 @@ def test_render_fleet_alert_rules_json():
     content = fleet_alert_metrics_service.render_fleet_alert_rules_json(rules)
     assert "cas-fleet-alerts" in content
     assert "CASFleetOpenAlertsHigh" in content
+    assert "CASFleetHighRiskOpenAlerts" in content
+
+
+def test_collect_fleet_risk_counts_high_open(db_session):
+    from pathlib import Path
+
+    demo_sat = (Path(__file__).resolve().parents[1] / "samples" / "demo-satellite.tle").read_text(
+        encoding="utf-8"
+    ).strip()
+    fleet = create_fleet(db_session, name="Risk Metrics Fleet")
+    sat = add_satellite(db_session, fleet.id, name=None, norad_id=None, tle=demo_sat)
+    ingest_screening_results(
+        db_session,
+        run_id=uuid.uuid4(),
+        fleet_id=fleet.id,
+        results=[_make_result(events=[_make_event(risk="high")])],
+        satellite_by_norad={sat.norad_id: sat.id},
+    )
+    risk_counts = fleet_alert_metrics_service.collect_fleet_risk_counts(db_session)
+    assert risk_counts[fleet.id]["high"]["open"] == 1
+
+
+def test_prometheus_exports_risk_metrics(ops_client, monkeypatch):
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("FLEET_ALERT_HIGH_RISK_THRESHOLD", "1")
+    from backend.app.db.session import get_session_factory
+    from pathlib import Path
+
+    factory = get_session_factory()
+    assert factory is not None
+    db_sess = factory()
+    try:
+        demo_sat = (Path(__file__).resolve().parents[1] / "samples" / "demo-satellite.tle").read_text(
+            encoding="utf-8"
+        ).strip()
+        fleet = create_fleet(db_sess, name="Risk Prom Fleet")
+        sat = add_satellite(db_sess, fleet.id, name=None, norad_id=None, tle=demo_sat)
+        ingest_screening_results(
+            db_sess,
+            run_id=uuid.uuid4(),
+            fleet_id=fleet.id,
+            results=[_make_result(events=[_make_event(risk="high")])],
+            satellite_by_norad={sat.norad_id: sat.id},
+        )
+        fleet_id = str(fleet.id)
+    finally:
+        db_sess.close()
+
+    response = ops_client.get("/metrics")
+    assert response.status_code == 200
+    body = response.text
+    assert "cas_fleet_alerts_by_risk_total" in body
+    assert 'risk_level="high"' in body
+    assert "cas_fleet_high_risk_open_breach" in body
+    assert f'fleet_id="{fleet_id}"' in body
+
+
+def test_fleet_summary_includes_open_risk_counts(ops_client, monkeypatch):
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+    from backend.app.db.session import get_session_factory
+    from pathlib import Path
+
+    factory = get_session_factory()
+    assert factory is not None
+    db_sess = factory()
+    try:
+        demo_sat = (Path(__file__).resolve().parents[1] / "samples" / "demo-satellite.tle").read_text(
+            encoding="utf-8"
+        ).strip()
+        fleet = create_fleet(db_sess, name="Summary Risk Fleet")
+        sat = add_satellite(db_sess, fleet.id, name=None, norad_id=None, tle=demo_sat)
+        ingest_screening_results(
+            db_sess,
+            run_id=uuid.uuid4(),
+            fleet_id=fleet.id,
+            results=[_make_result(events=[_make_event(risk="high")])],
+            satellite_by_norad={sat.norad_id: sat.id},
+        )
+        fleet_id = str(fleet.id)
+    finally:
+        db_sess.close()
+
+    response = ops_client.get(f"/api/v1/ops/fleets/{fleet_id}/summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["open_high_count"] == 1
+    assert data["open_medium_count"] == 0
+    assert data["open_low_count"] == 0

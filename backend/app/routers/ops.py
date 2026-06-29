@@ -15,6 +15,7 @@ from backend.app.models.schemas import (
     AlertStatus,
     AlertStateMachineOut,
     AlertTransition,
+    AlertmanagerTestOut,
     ApiSloDayOut,
     ApiSloHistoryOut,
     AuditLogListOut,
@@ -37,6 +38,7 @@ from backend.app.models.schemas import (
 from backend.app.services import (
     alert_service,
     alert_stm_service,
+    alertmanager_push_service,
     api_availability_service,
     audit_service,
     fleet_alert_metrics_service,
@@ -347,6 +349,9 @@ def fleet_ops_summary(
         mitigation_planned_count=summary["mitigation_planned_count"],
         closed_count=summary["closed_count"],
         false_positive_count=summary["false_positive_count"],
+        open_high_count=summary["open_high_count"],
+        open_medium_count=summary["open_medium_count"],
+        open_low_count=summary["open_low_count"],
         latest_run_id=str(summary["latest_run_id"]) if summary["latest_run_id"] else None,
         latest_run_status=summary["latest_run_status"],
         latest_run_finished_at=summary["latest_run_finished_at"],
@@ -650,6 +655,18 @@ def fleet_alert_rules(
         fleet_id=str(scoped_fleet) if scoped_fleet is not None else None,
         content=content,
     )
+
+
+@router.post("/prometheus/alertmanager/test", response_model=AlertmanagerTestOut)
+def alertmanager_test_push(
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> AlertmanagerTestOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者 API Key が必要です。")
+    result = alertmanager_push_service.send_test_push()
+    if not result.sent:
+        raise HTTPException(status_code=503, detail=result.message)
+    return AlertmanagerTestOut(sent=result.sent, message=result.message)
 
 
 @router.get("/audit", response_model=AuditLogListOut)

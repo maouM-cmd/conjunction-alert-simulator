@@ -399,6 +399,9 @@ async function refreshOpsDashboard() {
       ack: ${summary.acknowledged_count} /
       対策計画: ${summary.mitigation_planned_count} /
       closed: ${summary.closed_count}<br/>
+      open risk: high ${summary.open_high_count ?? 0} /
+      medium ${summary.open_medium_count ?? 0} /
+      low ${summary.open_low_count ?? 0}<br/>
       最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}<br/>
       ${formatSlaLine(slaItem)}<br/>
       ${formatApiSloLine(sla, slaItem)}<br/>

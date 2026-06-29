@@ -4,6 +4,18 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.26.0] - 2026-06-28
+
+Phase 10S — risk_level 別メトリクス + Alertmanager push。
+
+### Added
+
+- **Phase 10S:** `cas_fleet_alerts_by_risk_total{fleet_id,risk_level,status}`, `cas_fleet_high_risk_open_breach`
+- `alertmanager_push_service` — breach 状態変化時に `POST /api/v2/alerts`
+- `CASFleetHighRiskOpenAlerts` rule 雛形、`POST /ops/prometheus/alertmanager/test`
+- `FleetOpsSummaryOut.open_high_count` / `open_medium_count` / `open_low_count`
+- env: `FLEET_ALERT_HIGH_RISK_THRESHOLD`, `ALERTMANAGER_PUSH_ENABLED`, `ALERTMANAGER_URL`
+
 ## [1.25.0] - 2026-06-28
 
 Phase 10R — 6×6 アラート STM（State Transition Matrix）。
