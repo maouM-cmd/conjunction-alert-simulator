@@ -5,10 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-import numpy as np
-
 from backend.app.services.cdm_covariance import sigma_from_cdm_rtn
 from backend.app.services.cdm_parser import CdmRecord, parse_cdm
+from backend.app.services.cdm_tca_shift_service import encounter_states_for_cdm
 from backend.app.services.conjunction import find_closest_approach
 from backend.app.services.encounter_plane import encounter_covariance_from_cdm
 from backend.app.services.pc_advanced import EncounterPcResult, pc_from_encounter
@@ -41,11 +40,6 @@ class CdmCompareResult:
     pc_methods: PcMethods
     pc_method_used: PcMethodUsed
     encounter_miss_km: float | None
-
-
-def _state_at_index(points, idx: int) -> tuple[np.ndarray, np.ndarray]:
-    p = points[idx]
-    return np.array(p.position_km, dtype=float), np.array(p.velocity_kms, dtype=float)
 
 
 def _resolve_sigma_foster_only(
@@ -83,10 +77,9 @@ def compare_cdm_with_tles(
     deb_pts = propagate_orbit(debris, start, duration_days, step_minutes)
     ca = find_closest_approach(sat_pts, deb_pts)
 
-    r1, v1 = _state_at_index(sat_pts, ca.index)
-    r2, v2 = _state_at_index(deb_pts, ca.index)
-    r_rel = r2 - r1
-    v_rel = v2 - v1
+    r1, v1, r2, v2, r_rel, v_rel, _eval_idx, _shift_applied = encounter_states_for_cdm(
+        cdm, sat_pts, deb_pts, ca.index
+    )
 
     pc_methods = PcMethods(foster=None, alfriend=None, monte_carlo=None)
     pc_method_used: PcMethodUsed = "foster_only"

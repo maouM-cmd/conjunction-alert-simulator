@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.20.0] - 2026-06-28
+
+Phase 10M — CDM σ TCA シフト。
+
+### Added
+
+- **Phase 10M:** CDM encounter 共分散を CDM 記載 TCA の軌道状態で評価
+- `cdm_tca_shift_service` — `index_nearest_tca`、`encounter_states_for_cdm`
+- `covariance_source: cdm_encounter_tca_shift`（`/conjunctions`、CDM compare、Pc refinement 経路）
+- env: `CDM_TCA_SHIFT_ENABLED`（default false）
+
 ## [1.19.0] - 2026-06-28
 
 Phase 10L — PagerDuty 通知連携。

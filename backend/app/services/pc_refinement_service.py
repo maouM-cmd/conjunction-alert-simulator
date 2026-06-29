@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.app.db.models import AlertPcRefinement, ConjunctionAlert
 from backend.app.services.cdm_spacetrack_merge import apply_spacetrack_cdm_to_events
+from backend.app.services.cdm_tca_shift_service import index_nearest_tca
 from backend.app.services.conjunction import ConjunctionEvent, find_closest_approach
 from backend.app.services.covariance_propagation_service import (
     anisotropic_covariance_source,
@@ -82,19 +83,6 @@ def _ensure_aware(dt):
     return dt.astimezone(timezone.utc)
 
 
-def _find_tca_index(sat_pts, deb_pts, target_tca) -> int:
-    target = _ensure_aware(target_tca)
-    best_idx = 0
-    best_delta = None
-    n = min(len(sat_pts), len(deb_pts))
-    for i in range(n):
-        delta = abs((_ensure_aware(sat_pts[i].time) - target).total_seconds())
-        if best_delta is None or delta < best_delta:
-            best_delta = delta
-            best_idx = i
-    return best_idx
-
-
 def _synthetic_event(alert: ConjunctionAlert, debris_tle: str, tca_index: int) -> ConjunctionEvent:
     return ConjunctionEvent(
         debris_norad_id=alert.debris_norad_id,
@@ -146,7 +134,7 @@ def refine_alert_pc(
         debris_parsed, start, duration_days=duration_days, step_minutes=REFINE_STEP_MINUTES
     )
     ca = find_closest_approach(sat_pts, deb_pts)
-    tca_index = _find_tca_index(sat_pts, deb_pts, alert.tca)
+    tca_index = index_nearest_tca(sat_pts, deb_pts, alert.tca)
 
     events = [_synthetic_event(alert, debris_parsed.text, tca_index)]
     debris_propagated = [

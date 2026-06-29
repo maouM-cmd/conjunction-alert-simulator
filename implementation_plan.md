@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10M — 次着手
+## Phase 10N — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（CDM σ TCA シフト、fleet 別 API SLO 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（fleet 別 API SLO 等）。
+
+## Phase 10M — 完了
+
+CDM σ TCA シフト — CDM encounter 共分散を CDM TCA 状態で評価、`cdm_encounter_tca_shift`。v1.20.0 ship 済み。
 
 ## Phase 10L — 完了
 

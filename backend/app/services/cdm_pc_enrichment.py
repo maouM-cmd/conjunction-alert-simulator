@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 
-import numpy as np
 from dataclasses import replace
 
 from backend.app.services.cdm_parser import CdmRecord, parse_cdm
+from backend.app.services.cdm_tca_shift_service import encounter_states_for_cdm
 from backend.app.services.conjunction import ConjunctionEvent, resolve_risk_level
 from backend.app.services.encounter_plane import encounter_covariance_from_cdm
 from backend.app.services.pc_advanced import pc_from_encounter
@@ -15,12 +15,6 @@ from backend.app.services.propagator import OrbitPoint
 from backend.app.services.tle_parser import ParsedTle, parse_tle
 
 logger = logging.getLogger(__name__)
-
-
-def _state_at_index(points: list[OrbitPoint], index: int) -> tuple[np.ndarray, np.ndarray]:
-    idx = min(index, len(points) - 1)
-    p = points[idx]
-    return np.array(p.position_km, dtype=float), np.array(p.velocity_kms, dtype=float)
 
 
 def _name_matches(a: str | None, b: str | None) -> bool:
@@ -102,11 +96,9 @@ def apply_cdm_covariance_to_events(
             updated.append(event)
             continue
 
-        idx = min(event.tca_index, len(sat_points) - 1, len(deb_pts) - 1)
-        r1, v1 = _state_at_index(sat_points, idx)
-        r2, v2 = _state_at_index(deb_pts, idx)
-        r_rel = r2 - r1
-        v_rel = v2 - v1
+        r1, v1, r2, v2, r_rel, v_rel, _eval_idx, shift_applied = encounter_states_for_cdm(
+            cdm, sat_points, deb_pts, event.tca_index
+        )
 
         enc_cov = encounter_covariance_from_cdm(
             cdm.covariance, r1, v1, r2, v2, r_rel, v_rel
@@ -127,7 +119,9 @@ def apply_cdm_covariance_to_events(
                 pc_alfriend=enc_pc.alfriend,
                 pc_monte_carlo=enc_pc.monte_carlo,
                 pc_method_used="encounter_advanced",
-                covariance_source="cdm_encounter",
+                covariance_source=(
+                    "cdm_encounter_tca_shift" if shift_applied else "cdm_encounter"
+                ),
                 sigma_source="cdm_covariance",
                 risk_level=risk,
             )

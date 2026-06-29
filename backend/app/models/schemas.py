@@ -42,7 +42,7 @@ class ConjunctionOut(BaseModel):
     pc_alfriend: float | None = None
     pc_monte_carlo: float | None = None
     pc_method_used: Literal["foster", "encounter_advanced"] | None = None
-    covariance_source: Literal["isotropic", "tle_rtn_anisotropic", "tle_rtn_propagated", "cdm_encounter"] | None = None
+    covariance_source: Literal["isotropic", "tle_rtn_anisotropic", "tle_rtn_propagated", "cdm_encounter", "cdm_encounter_tca_shift"] | None = None
     sigma_source: Literal["manual", "cdm_covariance", "tle_age"] | None = None
 
 

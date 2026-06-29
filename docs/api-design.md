@@ -178,6 +178,7 @@ cas_screening_overdue_fleets > 0
 `use_anisotropic_cov=true`（advanced 時のみ）で `covariance_source: tle_rtn_anisotropic`。  
 `COV_PROPAGATION_ENABLED=true` 時は `covariance_source: tle_rtn_propagated`（Phase 10K）。  
 `apply_cdm_covariance=true` + `cdm_text` で該当デブリに `sigma_source: cdm_covariance` / `covariance_source: cdm_encounter`。  
+`CDM_TCA_SHIFT_ENABLED=true` 時は `covariance_source: cdm_encounter_tca_shift`（Phase 10M）。
 `auto_spacetrack_cdm=true` で Space-Track から CDM を自動マージ（`cdm_text` がある場合は手動優先）。認証未設定時は merged=0 で解析継続。  
 `notify_webhook=true` で解析後に high/medium かつ Pc ≥ `ALERT_PC_THRESHOLD` を通知 POST。レスポンス `webhook` に結果（sent / alert_count / message）。  
 `ALERT_WEBHOOK_FORMAT=slack` で Slack Incoming Webhook 形式 `{"text":"..."}`。  
