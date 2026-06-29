@@ -18,11 +18,13 @@ from backend.app.models.schemas import (
     ConjunctionAlertListOut,
     ConjunctionAlertOut,
     FleetOpsSummaryOut,
+    FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
     MitigationPreviewRequest,
+    SlaSummaryOut,
 )
-from backend.app.services import alert_service, audit_service, mitigation_service
+from backend.app.services import alert_service, audit_service, mitigation_service, sla_service
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
 
@@ -103,6 +105,46 @@ def _audit_out(entry: AuditLog) -> AuditLogOut:
         api_key_id=str(entry.api_key_id) if entry.api_key_id else None,
         detail=entry.detail or {},
         created_at=entry.created_at,
+    )
+
+
+def _fleet_sla_out(summary: sla_service.FleetSlaSummary) -> FleetSlaOut:
+    return FleetSlaOut(
+        fleet_id=str(summary.fleet_id),
+        fleet_name=summary.fleet_name,
+        has_active_schedule=summary.has_active_schedule,
+        last_completed_run_at=summary.last_completed_run_at,
+        screening_lag_seconds=summary.screening_lag_seconds,
+        screening_lag_hours=summary.screening_lag_hours,
+        screening_sla_ok=summary.screening_sla_ok,
+        screening_sla_target_hours=summary.screening_sla_target_hours,
+    )
+
+
+@router.get("/sla", response_model=SlaSummaryOut)
+def list_sla(
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+    fleet_id: str | None = None,
+) -> SlaSummaryOut:
+    target_hours = sla_service.screening_max_lag_hours()
+    if fleet_id is not None:
+        fid = _parse_uuid(fleet_id, "fleet_id")
+        check_fleet_access(principal, fid)
+        try:
+            items = [sla_service.compute_fleet_sla(db, fid)]
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    elif principal.api_key is not None and not principal.is_admin:
+        items = [sla_service.compute_fleet_sla(db, principal.api_key.fleet_id)]
+    else:
+        items = sla_service.list_fleet_sla_summaries(db)
+
+    overdue = sum(1 for item in items if item.has_active_schedule and not item.screening_sla_ok)
+    return SlaSummaryOut(
+        items=[_fleet_sla_out(item) for item in items],
+        overdue_count=overdue,
+        screening_sla_target_hours=target_hours,
     )
 
 

@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.9.0] - 2026-06-28
+
+Phase 10B — SLA Metrics（FR-9E-4 計測可能化）。
+
+### Added
+
+- **Phase 10B:** スクリーニング lag / overdue を Prometheus + Ops API で可視化
+- `cas_screening_lag_seconds{fleet_id}` / `cas_screening_overdue_fleets` / `cas_http_requests_total`
+- HTTP metrics middleware（`/metrics` 除外）
+- `GET /api/v1/ops/sla` — 艦隊 SLA サマリ
+- Ops UI: summary に Screening lag OK/OVERDUE
+- env: `SLA_SCREENING_MAX_LAG_HOURS=24`
+
 ## [1.8.0] - 2026-06-28
 
 Phase 10A — Alert-Linked COLA Preview（回避試算連携）。

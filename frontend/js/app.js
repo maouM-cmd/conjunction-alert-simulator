@@ -219,6 +219,22 @@ function opsStatusBadge(status) {
   return `<span class="ops-status-badge ops-status-${status}">${status}</span>`;
 }
 
+function formatSlaLag(hours) {
+  if (hours == null) return "—";
+  return `${hours.toFixed(1)}h`;
+}
+
+function formatSlaLine(slaItem) {
+  if (!slaItem || !slaItem.has_active_schedule) {
+    return "Screening lag: <span class=\"ops-sla-na\">N/A（schedule なし）</span>";
+  }
+  const lag = formatSlaLag(slaItem.screening_lag_hours);
+  if (slaItem.screening_sla_ok) {
+    return `Screening lag: ${lag} — <span class="ops-sla-ok">OK</span>`;
+  }
+  return `Screening lag: ${lag} — <span class="ops-sla-overdue">OVERDUE</span>`;
+}
+
 async function refreshOpsDashboard() {
   const fleetId = els.opsFleetSelect.value;
   if (!fleetId) {
@@ -226,14 +242,19 @@ async function refreshOpsDashboard() {
     return;
   }
   try {
-    const summary = await apiGet(`/api/v1/ops/fleets/${fleetId}/summary`, { ops: true });
+    const [summary, sla] = await Promise.all([
+      apiGet(`/api/v1/ops/fleets/${fleetId}/summary`, { ops: true }),
+      apiGet(`/api/v1/ops/sla?fleet_id=${fleetId}`, { ops: true }),
+    ]);
+    const slaItem = sla.items && sla.items.length ? sla.items[0] : null;
     els.opsSummary.innerHTML = `
       <strong>${summary.fleet_name}</strong><br/>
       open: ${summary.open_count} /
       ack: ${summary.acknowledged_count} /
       対策計画: ${summary.mitigation_planned_count} /
       closed: ${summary.closed_count}<br/>
-      最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}
+      最新 Run: ${summary.latest_run_status ?? "—"} ${formatTime(summary.latest_run_finished_at)}<br/>
+      ${formatSlaLine(slaItem)}
     `;
     const statusQ = els.opsStatusFilter.value;
     const path = statusQ

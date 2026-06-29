@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10B — 次着手
+## Phase 10C — 次着手
 
-商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（SLA metrics、SSO、99.9% SLA 等）。
+商用運用ロードマップ [requirements-commercial-ops.md](docs/requirements-commercial-ops.md) Phase 10+（COLA 拡張、SSO、99.9% SLA 等）。
+
+## Phase 10B — 完了
+
+SLA metrics（screening lag、HTTP counter、Ops SLA API/UI）。v1.9.0 ship 済み。
 
 ## Phase 10A — 完了
 

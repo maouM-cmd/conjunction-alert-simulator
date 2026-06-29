@@ -359,3 +359,17 @@ label.checkbox-row input[type="checkbox"] {
   padding: 0.15rem 0;
   line-height: 1.35;
 }
+
+.ops-sla-ok {
+  color: #b8e0b8;
+  font-weight: 600;
+}
+
+.ops-sla-overdue {
+  color: #ffb4b4;
+  font-weight: 600;
+}
+
+.ops-sla-na {
+  color: #aaa;
+}

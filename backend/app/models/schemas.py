@@ -513,6 +513,23 @@ class FleetOpsSummaryOut(BaseModel):
     latest_run_finished_at: datetime | None
 
 
+class FleetSlaOut(BaseModel):
+    fleet_id: str
+    fleet_name: str
+    has_active_schedule: bool
+    last_completed_run_at: datetime | None
+    screening_lag_seconds: float | None
+    screening_lag_hours: float | None
+    screening_sla_ok: bool
+    screening_sla_target_hours: float
+
+
+class SlaSummaryOut(BaseModel):
+    items: list[FleetSlaOut]
+    overdue_count: int
+    screening_sla_target_hours: float
+
+
 class ApiKeyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
 
