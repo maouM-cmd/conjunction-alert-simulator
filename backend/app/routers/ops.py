@@ -862,12 +862,26 @@ def prometheus_reload_history(
 
 @router.post("/prometheus/reload/history/purge", response_model=PrometheusReloadHistoryPurgeOut)
 def prometheus_reload_history_purge(
+    async_run: bool = False,
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> PrometheusReloadHistoryPurgeOut:
     if is_api_key_required() and not principal.is_admin:
         raise HTTPException(status_code=403, detail="管理者権限が必要です。")
     if not principal.is_admin:
         raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    if async_run:
+        task_id = fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
+        if task_id is None:
+            raise HTTPException(
+                status_code=503,
+                detail="reload 履歴 purge の Celery enqueue に失敗しました。",
+            )
+        return PrometheusReloadHistoryPurgeOut(
+            status="queued",
+            queued=True,
+            task_id=task_id,
+        )
 
     result = fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
     return PrometheusReloadHistoryPurgeOut(

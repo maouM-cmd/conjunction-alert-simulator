@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.51.0] - 2026-06-28
+
+Phase 10AR — row_errors preview ui + purge async + fleet page number。
+
+### Added
+
+- **Phase 10AR:** dry-run プレビュー表 row_errors 行 + errors 列
+- `POST purge?async_run=true` — Celery enqueue
+- fleet summary `ページ N/M` 表示
+
 ## [1.50.0] - 2026-06-28
 
 Phase 10AQ — offset enter + reload purge api + dry-run json errors。

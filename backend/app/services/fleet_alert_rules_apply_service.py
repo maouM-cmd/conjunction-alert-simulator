@@ -275,6 +275,19 @@ def purge_stale_prometheus_reload_history() -> dict:
     return {"status": "ok", "removed": max(before - after, 0)}
 
 
+def queue_purge_stale_prometheus_reload_history() -> str | None:
+    try:
+        from backend.app.tasks.alertmanager_tasks import (
+            purge_stale_prometheus_reload_history as purge_stale_reload_history_task,
+        )
+
+        async_result = purge_stale_reload_history_task.delay()
+        return async_result.id
+    except Exception as exc:
+        logger.warning("Prometheus reload history purge Celery enqueue failed: %s", exc)
+        return None
+
+
 def _record_reload_history(
     *,
     task_id: str | None,

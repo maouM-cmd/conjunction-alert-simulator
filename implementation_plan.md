@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AR — 次着手
+## Phase 10AS — 次着手
 
-商用運用ロードマップ Phase 10+（row_errors UI、purge Celery enqueue 等）。
+商用運用ロードマップ Phase 10+（purge async ポーリング、row_errors CSV 等）。
+
+## Phase 10AR — 完了
+
+row_errors プレビュー UI、purge async、ページ番号。v1.51.0 ship 済み。
 
 ## Phase 10AQ — 完了
 

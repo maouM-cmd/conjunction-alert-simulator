@@ -166,6 +166,7 @@ const els = {
   btnOpsFleetAlertRulesApply: document.getElementById("btn-ops-fleet-alert-rules-apply"),
   btnOpsPrometheusReload: document.getElementById("btn-ops-prometheus-reload"),
   btnOpsPrometheusReloadHistoryPurge: document.getElementById("btn-ops-prometheus-reload-history-purge"),
+  btnOpsPrometheusReloadHistoryPurgeAsync: document.getElementById("btn-ops-prometheus-reload-history-purge-async"),
   opsPrometheusReloadStatus: document.getElementById("ops-prometheus-reload-status"),
   opsPrometheusReloadHistoryTable: document.getElementById("ops-prometheus-reload-history-table"),
   opsPrometheusReloadHistoryTableBody: document.getElementById("ops-prometheus-reload-history-table-body"),
@@ -659,8 +660,10 @@ function updateFleetSummaryPagingUI(summary) {
   const rangeStart = itemCount ? fleetSummaryOffset + 1 : fleetSummaryOffset;
   const rangeEnd = fleetSummaryOffset + itemCount;
   if (els.opsBreachHistoryAllFleetSummaryPage) {
+    const currentPage = Math.floor(fleetSummaryOffset / limit) + 1;
+    const totalPages = Math.max(Math.ceil(totalRows / limit), 1);
     els.opsBreachHistoryAllFleetSummaryPage.textContent =
-      `${rangeStart}〜${rangeEnd} / ${totalRows} 件`;
+      `ページ ${currentPage}/${totalPages}（${rangeStart}〜${rangeEnd} / ${totalRows} 件）`;
   }
   syncFleetSummaryOffsetInput(summary?.offset ?? fleetSummaryOffset);
   if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
@@ -1236,17 +1239,20 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
     if (!res.ok) {
       throw new Error(data.detail || `API エラー (${res.status})`);
     }
+    const rowErrNote = data.row_errors?.length ? ` / 行エラー ${data.row_errors.length} 件` : "";
     const errNote = data.errors?.length ? ` / 警告 ${data.errors.length} 件` : "";
     if (dryRun) {
       els.opsBreachRetentionAllStatus.textContent =
-        `dry-run: ${data.preview?.length ?? 0} 件プレビュー、${data.skipped} 件スキップ${errNote}`;
+        `dry-run: ${data.preview?.length ?? 0} 件プレビュー、${data.skipped} 件スキップ${rowErrNote}${errNote}`;
       lastOpsBreachRetentionImportPreview = {
         preview: data.preview ?? [],
         errors: data.errors ?? [],
+        row_errors: data.row_errors ?? [],
       };
       renderOpsBreachRetentionImportPreview(
         lastOpsBreachRetentionImportPreview.preview,
-        lastOpsBreachRetentionImportPreview.errors
+        lastOpsBreachRetentionImportPreview.errors,
+        lastOpsBreachRetentionImportPreview.row_errors
       );
       setOpsStatus("retention CSV dry-run を完了しました（DB 変更なし）。");
     } else {
@@ -1310,12 +1316,13 @@ async function downloadOpsBreachRetentionDryRunCsv() {
   }
 }
 
-function renderOpsBreachRetentionImportPreview(preview, errors) {
+function renderOpsBreachRetentionImportPreview(preview, errors, rowErrors = []) {
   if (!els.opsBreachRetentionImportPreviewTable || !els.opsBreachRetentionImportPreviewTableBody) {
     return;
   }
   els.opsBreachRetentionImportPreviewTableBody.innerHTML = "";
-  if (!preview.length) {
+  const safeRowErrors = rowErrors ?? [];
+  if (!preview.length && !safeRowErrors.length) {
     els.opsBreachRetentionImportPreviewTable.classList.add("hidden");
     return;
   }
@@ -1331,6 +1338,19 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
       <td class="${stateClass}">${item.retention_days != null ? item.retention_days : "—"}</td>
       <td class="${stateClass}">${item.current_retention_days != null ? item.current_retention_days : "—"}</td>
       <td class="${stateClass}">${item.effective_retention_days}</td>
+      <td class="${stateClass}"></td>
+    `;
+    els.opsBreachRetentionImportPreviewTableBody.appendChild(tr);
+  }
+
+  function appendRowError(item) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="ops-breach-active">${item.fleet_id}</td>
+      <td class="ops-breach-active">—</td>
+      <td class="ops-breach-active">—</td>
+      <td class="ops-breach-active">—</td>
+      <td class="ops-breach-active">${item.message}</td>
     `;
     els.opsBreachRetentionImportPreviewTableBody.appendChild(tr);
   }
@@ -1343,7 +1363,7 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
   if (changesOnly && unchangedItems.length) {
     const toggleRow = document.createElement("tr");
     toggleRow.className = "ops-breach-retention-preview-toggle-row";
-    toggleRow.innerHTML = `<td colspan="4"><button type="button" class="ops-breach-preview-toggle-btn">変更なし ${unchangedItems.length} 件（表示）</button></td>`;
+    toggleRow.innerHTML = `<td colspan="5"><button type="button" class="ops-breach-preview-toggle-btn">変更なし ${unchangedItems.length} 件（表示）</button></td>`;
     const btn = toggleRow.querySelector(".ops-breach-preview-toggle-btn");
     btn?.addEventListener("click", () => {
       const insertBefore = toggleRow;
@@ -1354,6 +1374,7 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
           <td>${item.retention_days != null ? item.retention_days : "—"}</td>
           <td>${item.current_retention_days != null ? item.current_retention_days : "—"}</td>
           <td>${item.effective_retention_days}</td>
+          <td></td>
         `;
         els.opsBreachRetentionImportPreviewTableBody.insertBefore(tr, insertBefore);
       }
@@ -1362,9 +1383,13 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
     els.opsBreachRetentionImportPreviewTableBody.appendChild(toggleRow);
   }
 
-  if (errors.length) {
+  for (const item of safeRowErrors) {
+    appendRowError(item);
+  }
+
+  if (errors.length && !safeRowErrors.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4" class="ops-breach-active">警告: ${errors.join("; ")}</td>`;
+    tr.innerHTML = `<td colspan="5" class="ops-breach-active">警告: ${errors.join("; ")}</td>`;
     els.opsBreachRetentionImportPreviewTableBody.appendChild(tr);
   }
   els.opsBreachRetentionImportPreviewTable.classList.remove("hidden");
@@ -1406,6 +1431,7 @@ function refreshOpsFleetAlertRulesSection() {
   els.btnOpsFleetAlertRulesApply?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.btnOpsPrometheusReload?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.btnOpsPrometheusReloadHistoryPurge?.classList.toggle("hidden", !opsAuthMe.is_admin);
+  els.btnOpsPrometheusReloadHistoryPurgeAsync?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.opsPrometheusReloadStatus?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.opsPrometheusReloadHistoryTable?.classList.toggle("hidden", !opsAuthMe.is_admin);
   if (opsAuthMe.is_admin) {
@@ -1413,15 +1439,20 @@ function refreshOpsFleetAlertRulesSection() {
   }
 }
 
-async function triggerOpsPrometheusReloadHistoryPurge() {
+async function triggerOpsPrometheusReloadHistoryPurge(asyncRun = false) {
   if (!opsAuthMe.is_admin) {
     return;
   }
   try {
-    const result = await apiPost("/api/v1/ops/prometheus/reload/history/purge", {}, { ops: true });
-    const removed = result.removed ?? 0;
-    const note = result.status === "skipped" ? ` (${result.reason || "skipped"})` : "";
-    setOpsStatus(`reload 履歴 purge: ${removed} 件削除${note}`);
+    const query = asyncRun ? "?async_run=true" : "";
+    const result = await apiPost(`/api/v1/ops/prometheus/reload/history/purge${query}`, {}, { ops: true });
+    if (result.queued && result.task_id) {
+      setOpsStatus(`reload 履歴 purge を Celery に enqueue しました（task: ${result.task_id}）。`);
+    } else {
+      const removed = result.removed ?? 0;
+      const note = result.status === "skipped" ? ` (${result.reason || "skipped"})` : "";
+      setOpsStatus(`reload 履歴 purge: ${removed} 件削除${note}`);
+    }
     await refreshOpsPrometheusReloadHistory();
   } catch (err) {
     setOpsStatus(err.message, true);
@@ -2918,7 +2949,8 @@ function initEventListeners() {
       if (lastOpsBreachRetentionImportPreview) {
         renderOpsBreachRetentionImportPreview(
           lastOpsBreachRetentionImportPreview.preview,
-          lastOpsBreachRetentionImportPreview.errors
+          lastOpsBreachRetentionImportPreview.errors,
+          lastOpsBreachRetentionImportPreview.row_errors
         );
       }
     });
@@ -2933,7 +2965,14 @@ function initEventListeners() {
     els.btnOpsPrometheusReload.addEventListener("click", triggerOpsPrometheusReload);
   }
   if (els.btnOpsPrometheusReloadHistoryPurge) {
-    els.btnOpsPrometheusReloadHistoryPurge.addEventListener("click", triggerOpsPrometheusReloadHistoryPurge);
+    els.btnOpsPrometheusReloadHistoryPurge.addEventListener("click", () => {
+      triggerOpsPrometheusReloadHistoryPurge(false);
+    });
+  }
+  if (els.btnOpsPrometheusReloadHistoryPurgeAsync) {
+    els.btnOpsPrometheusReloadHistoryPurgeAsync.addEventListener("click", () => {
+      triggerOpsPrometheusReloadHistoryPurge(true);
+    });
   }
   if (els.btnOpsBreachRetentionBulkSave) {
     els.btnOpsBreachRetentionBulkSave.addEventListener("click", saveOpsBreachRetentionBulk);

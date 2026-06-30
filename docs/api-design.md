@@ -975,6 +975,8 @@ Phase 10AP: Celery beat `purge_stale_prometheus_reload_history`（`PROMETHEUS_RE
 
 Phase 10AQ: `POST /prometheus/reload/history/purge` — 管理者手動 stale purge。応答 `PrometheusReloadHistoryPurgeOut`。
 
+Phase 10AR: `async_run=true` で Celery enqueue（`queued`, `task_id`）。Ops dry-run プレビュー表に `row_errors` 行 + errors 列。fleet summary `ページ N/M` 表示。
+
 | クエリ | 説明 |
 |--------|------|
 | `limit` | 返却件数（default 20） |

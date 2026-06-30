@@ -818,6 +818,8 @@ class PrometheusReloadHistoryPurgeOut(BaseModel):
     status: str
     removed: int = 0
     reason: str | None = None
+    queued: bool = False
+    task_id: str | None = None
 
 
 class FleetBreachHistorySettingsUpdate(BaseModel):
