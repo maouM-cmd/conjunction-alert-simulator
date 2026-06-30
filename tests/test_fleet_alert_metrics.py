@@ -1092,6 +1092,92 @@ def test_purge_stale_prometheus_reload_history_celery_task_skipped_when_ttl_disa
     assert result["reason"] == "reload history ttl disabled"
 
 
+def test_prometheus_reload_history_purge_api_ok(ops_client, monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.extend(
+        [
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": old.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "stale",
+                },
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": now.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "fresh",
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload/history/purge",
+            headers={"X-API-Key": "admin-secret"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["removed"] == 1
+    assert len(storage) == 1
+
+
+def test_prometheus_reload_history_purge_api_skipped_when_ttl_disabled(ops_client, monkeypatch):
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "0")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    response = ops_client.post(
+        "/api/v1/ops/prometheus/reload/history/purge",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "skipped"
+    assert data["reason"] == "reload history ttl disabled"
+
+
+def test_prometheus_reload_history_purge_api_forbidden_for_fleet_key(ops_client, monkeypatch):
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    _, plain = _create_fleet_with_key(ops_client, monkeypatch, "Purge Forbidden Fleet")
+    response = ops_client.post(
+        "/api/v1/ops/prometheus/reload/history/purge",
+        headers={"X-API-Key": plain},
+    )
+    assert response.status_code == 403
+
+
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):
     monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
     monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")

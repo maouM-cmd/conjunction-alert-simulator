@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AQ — 次着手
+## Phase 10AR — 次着手
 
-商用運用ロードマップ Phase 10+（offset Enter キー、reload purge 手動 API 等）。
+商用運用ロードマップ Phase 10+（row_errors UI、purge Celery enqueue 等）。
+
+## Phase 10AQ — 完了
+
+offset Enter、reload purge 手動 API、dry-run JSON row_errors。v1.50.0 ship 済み。
 
 ## Phase 10AP — 完了
 

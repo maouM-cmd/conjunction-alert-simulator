@@ -44,6 +44,7 @@ from backend.app.models.schemas import (
     FleetBreachHistorySettingsBulkOut,
     FleetBreachHistorySettingsImportOut,
     FleetBreachHistorySettingsImportPreviewItem,
+    FleetBreachHistorySettingsImportRowErrorOut,
     FleetBreachStateListOut,
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
@@ -60,6 +61,7 @@ from backend.app.models.schemas import (
     FleetBreachHistoryFleetSummaryOut,
     FleetBreachHistorySummaryOut,
     PrometheusReloadHistoryOut,
+    PrometheusReloadHistoryPurgeOut,
     PrometheusReloadOut,
     PrometheusReloadTaskOut,
     FleetSlaOut,
@@ -858,6 +860,23 @@ def prometheus_reload_history(
     return PrometheusReloadHistoryOut(items=items, total=len(items))
 
 
+@router.post("/prometheus/reload/history/purge", response_model=PrometheusReloadHistoryPurgeOut)
+def prometheus_reload_history_purge(
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PrometheusReloadHistoryPurgeOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    result = fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
+    return PrometheusReloadHistoryPurgeOut(
+        status=result["status"],
+        removed=int(result.get("removed") or 0),
+        reason=result.get("reason"),
+    )
+
+
 @router.get("/prometheus/reload/tasks/{task_id}", response_model=PrometheusReloadTaskOut)
 def prometheus_reload_task_status(
     task_id: str,
@@ -1003,7 +1022,7 @@ async def import_fleet_breach_history_settings(
             valid.append((fleet_id, retention_days))
 
     if dry_run:
-        if not preview and errors and format != "csv":
+        if not preview and errors and format != "csv" and not row_errors:
             raise HTTPException(status_code=422, detail="; ".join(errors))
         if changes_only:
             preview = [item for item in preview if item.will_change]
@@ -1021,6 +1040,13 @@ async def import_fleet_breach_history_settings(
             updated=0,
             skipped=skipped,
             errors=errors,
+            row_errors=[
+                FleetBreachHistorySettingsImportRowErrorOut(
+                    fleet_id=item.fleet_id,
+                    message=item.message,
+                )
+                for item in row_errors
+            ],
             preview=preview,
         )
 

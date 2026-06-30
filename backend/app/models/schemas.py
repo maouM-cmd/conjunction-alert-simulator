@@ -814,6 +814,12 @@ class PrometheusReloadHistoryOut(BaseModel):
     total: int
 
 
+class PrometheusReloadHistoryPurgeOut(BaseModel):
+    status: str
+    removed: int = 0
+    reason: str | None = None
+
+
 class FleetBreachHistorySettingsUpdate(BaseModel):
     retention_days: int | None = None
 
@@ -858,10 +864,16 @@ class FleetBreachHistorySettingsImportPreviewItem(BaseModel):
     will_change: bool
 
 
+class FleetBreachHistorySettingsImportRowErrorOut(BaseModel):
+    fleet_id: str
+    message: str
+
+
 class FleetBreachHistorySettingsImportOut(BaseModel):
     updated: int
     skipped: int
     errors: list[str]
+    row_errors: list[FleetBreachHistorySettingsImportRowErrorOut] = []
     preview: list[FleetBreachHistorySettingsImportPreviewItem] = []
 
 

@@ -2568,3 +2568,67 @@ def test_breach_history_summary_by_fleet_offset_last_row(ops_client, monkeypatch
     assert data["total_rows"] >= 2
     assert len(data["items"]) == 1
     assert data["offset"] == 1
+
+
+def test_breach_history_settings_import_dry_run_json_row_errors(ops_client, monkeypatch):
+    import uuid
+
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    unknown_id = str(uuid.uuid4())
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{unknown_id},Missing Fleet,30,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import?dry_run=true",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["preview"] == []
+    assert len(data["row_errors"]) == 1
+    assert data["row_errors"][0]["fleet_id"] == unknown_id
+
+
+def test_breach_history_settings_import_dry_run_json_row_errors_mixed(ops_client, monkeypatch):
+    import uuid
+
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="JSON Row Errors Fleet")
+        fleet.breach_history_retention_days = 90
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    unknown_id = str(uuid.uuid4())
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{fleet_id},JSON Row Errors Fleet,30,\n"
+        f"{unknown_id},Missing Fleet,30,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import?dry_run=true",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["row_errors"]) == 1
+    assert data["row_errors"][0]["fleet_id"] == unknown_id
+    assert "艦隊が見つかりません" in data["row_errors"][0]["message"]
+    assert len(data["preview"]) == 1
+    assert data["preview"][0]["fleet_id"] == fleet_id

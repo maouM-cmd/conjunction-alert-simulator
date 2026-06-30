@@ -165,6 +165,7 @@ const els = {
   btnOpsFleetAlertRulesDownload: document.getElementById("btn-ops-fleet-alert-rules-download"),
   btnOpsFleetAlertRulesApply: document.getElementById("btn-ops-fleet-alert-rules-apply"),
   btnOpsPrometheusReload: document.getElementById("btn-ops-prometheus-reload"),
+  btnOpsPrometheusReloadHistoryPurge: document.getElementById("btn-ops-prometheus-reload-history-purge"),
   opsPrometheusReloadStatus: document.getElementById("ops-prometheus-reload-status"),
   opsPrometheusReloadHistoryTable: document.getElementById("ops-prometheus-reload-history-table"),
   opsPrometheusReloadHistoryTableBody: document.getElementById("ops-prometheus-reload-history-table-body"),
@@ -1404,10 +1405,26 @@ function refreshOpsFleetAlertRulesSection() {
     : "管理者: 全艦隊または breaching 艦隊のみで出力できます。";
   els.btnOpsFleetAlertRulesApply?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.btnOpsPrometheusReload?.classList.toggle("hidden", !opsAuthMe.is_admin);
+  els.btnOpsPrometheusReloadHistoryPurge?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.opsPrometheusReloadStatus?.classList.toggle("hidden", !opsAuthMe.is_admin);
   els.opsPrometheusReloadHistoryTable?.classList.toggle("hidden", !opsAuthMe.is_admin);
   if (opsAuthMe.is_admin) {
     refreshOpsPrometheusReloadHistory();
+  }
+}
+
+async function triggerOpsPrometheusReloadHistoryPurge() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  try {
+    const result = await apiPost("/api/v1/ops/prometheus/reload/history/purge", {}, { ops: true });
+    const removed = result.removed ?? 0;
+    const note = result.status === "skipped" ? ` (${result.reason || "skipped"})` : "";
+    setOpsStatus(`reload 履歴 purge: ${removed} 件削除${note}`);
+    await refreshOpsPrometheusReloadHistory();
+  } catch (err) {
+    setOpsStatus(err.message, true);
   }
 }
 
@@ -2888,6 +2905,14 @@ function initEventListeners() {
       goToFleetSummaryOffset(els.opsBreachHistoryAllFleetSummaryOffset?.value);
     });
   }
+  if (els.opsBreachHistoryAllFleetSummaryOffset) {
+    els.opsBreachHistoryAllFleetSummaryOffset.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        goToFleetSummaryOffset(els.opsBreachHistoryAllFleetSummaryOffset?.value);
+      }
+    });
+  }
   if (els.opsBreachRetentionPreviewChangesOnly) {
     els.opsBreachRetentionPreviewChangesOnly.addEventListener("change", () => {
       if (lastOpsBreachRetentionImportPreview) {
@@ -2906,6 +2931,9 @@ function initEventListeners() {
   }
   if (els.btnOpsPrometheusReload) {
     els.btnOpsPrometheusReload.addEventListener("click", triggerOpsPrometheusReload);
+  }
+  if (els.btnOpsPrometheusReloadHistoryPurge) {
+    els.btnOpsPrometheusReloadHistoryPurge.addEventListener("click", triggerOpsPrometheusReloadHistoryPurge);
   }
   if (els.btnOpsBreachRetentionBulkSave) {
     els.btnOpsBreachRetentionBulkSave.addEventListener("click", saveOpsBreachRetentionBulk);
