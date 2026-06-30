@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AM — 次着手
+## Phase 10AN — 次着手
 
-商用運用ロードマップ Phase 10+（reload 履歴 Redis 永続化、dry-run diff 強化 等）。
+商用運用ロードマップ Phase 10+（reload 履歴 Redis TTL、dry-run preview CSV 等）。
+
+## Phase 10AM — 完了
+
+reload 履歴 Redis 永続化、dry-run 折りたたみ、艦隊名フィルタ。v1.46.0 ship 済み。
 
 ## Phase 10AL — 完了
 

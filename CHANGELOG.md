@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.46.0] - 2026-06-28
+
+Phase 10AM — reload history Redis + dry-run collapse + fleet name filter。
+
+### Added
+
+- **Phase 10AM:** reload 履歴 Redis 永続化（`cas:prometheus:reload:history`）
+- `preview[].will_change` + Ops dry-run 変更行のみ折りたたみ
+- `fleet_name_contains` クエリ + Ops 艦隊名フィルタ
+- `PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED` env
+
 ## [1.45.0] - 2026-06-28
 
 Phase 10AL — fleet summary CSV UI + dry-run preview table + reload history。

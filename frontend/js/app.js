@@ -126,6 +126,7 @@ const els = {
   opsBreachRetentionImportFile: document.getElementById("ops-breach-retention-import-file"),
   btnOpsBreachRetentionImport: document.getElementById("btn-ops-breach-retention-import"),
   btnOpsBreachRetentionDryRun: document.getElementById("btn-ops-breach-retention-dry-run"),
+  opsBreachRetentionPreviewChangesOnly: document.getElementById("ops-breach-retention-preview-changes-only"),
   opsBreachRetentionImportPreviewTable: document.getElementById("ops-breach-retention-import-preview-table"),
   opsBreachRetentionImportPreviewTableBody: document.getElementById("ops-breach-retention-import-preview-table-body"),
   opsBreachRetentionSelectAll: document.getElementById("ops-breach-retention-select-all"),
@@ -143,6 +144,7 @@ const els = {
   opsBreachHistoryAllAlertnameHighrisk: document.getElementById("ops-breach-history-all-alertname-highrisk"),
   opsBreachHistoryAllSince: document.getElementById("ops-breach-history-all-since"),
   opsBreachHistoryAllUntil: document.getElementById("ops-breach-history-all-until"),
+  opsBreachHistoryAllFleetName: document.getElementById("ops-breach-history-all-fleet-name"),
   opsBreachHistoryAllSummaryTable: document.getElementById("ops-breach-history-all-summary-table"),
   opsBreachHistoryAllSummaryTableBody: document.getElementById("ops-breach-history-all-summary-table-body"),
   opsBreachHistoryAllFleetSummaryTable: document.getElementById("ops-breach-history-all-fleet-summary-table"),
@@ -172,6 +174,7 @@ const els = {
 
 let opsOidcEnabled = false;
 let opsAuthMe = { authenticated: false };
+let lastOpsBreachRetentionImportPreview = null;
 
 function opsFetchOptions(extraHeaders = {}, { ops = false } = {}) {
   const options = {};
@@ -607,6 +610,7 @@ function breachHistoryFilterOptions(scope = "fleet") {
       alertnameEls: [els.opsBreachHistoryAllAlertnameOpen, els.opsBreachHistoryAllAlertnameHighrisk],
       sinceEl: els.opsBreachHistoryAllSince,
       untilEl: els.opsBreachHistoryAllUntil,
+      fleetNameEl: els.opsBreachHistoryAllFleetName,
     };
   }
   return {
@@ -618,7 +622,7 @@ function breachHistoryFilterOptions(scope = "fleet") {
   };
 }
 
-function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = [], sinceEl, untilEl } = {}) {
+function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = [], sinceEl, untilEl, fleetNameEl } = {}) {
   const params = [];
   const source = sourceEl?.value?.trim();
   if (source) {
@@ -639,6 +643,10 @@ function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = []
   const until = datetimeLocalToIso(untilEl?.value);
   if (until) {
     params.push(`until=${encodeURIComponent(until)}`);
+  }
+  const fleetName = fleetNameEl?.value?.trim();
+  if (fleetName) {
+    params.push(`fleet_name_contains=${encodeURIComponent(fleetName)}`);
   }
   return params.length ? `&${params.join("&")}` : "";
 }
@@ -1115,7 +1123,14 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
     if (dryRun) {
       els.opsBreachRetentionAllStatus.textContent =
         `dry-run: ${data.preview?.length ?? 0} 件プレビュー、${data.skipped} 件スキップ${errNote}`;
-      renderOpsBreachRetentionImportPreview(data.preview ?? [], data.errors ?? []);
+      lastOpsBreachRetentionImportPreview = {
+        preview: data.preview ?? [],
+        errors: data.errors ?? [],
+      };
+      renderOpsBreachRetentionImportPreview(
+        lastOpsBreachRetentionImportPreview.preview,
+        lastOpsBreachRetentionImportPreview.errors
+      );
       setOpsStatus("retention CSV dry-run を完了しました（DB 変更なし）。");
     } else {
       els.opsBreachRetentionAllStatus.textContent =
@@ -1124,6 +1139,7 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
       if (els.opsBreachRetentionImportPreviewTableBody) {
         els.opsBreachRetentionImportPreviewTableBody.innerHTML = "";
       }
+      lastOpsBreachRetentionImportPreview = null;
       await refreshOpsBreachRetentionAll();
       setOpsStatus(`retention CSV をインポートしました（${data.updated} 件更新）。`);
     }
@@ -1148,12 +1164,13 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
     els.opsBreachRetentionImportPreviewTable.classList.add("hidden");
     return;
   }
-  for (const item of preview) {
+  const changesOnly = els.opsBreachRetentionPreviewChangesOnly?.checked !== false;
+  const changedItems = preview.filter((item) => item.will_change);
+  const unchangedItems = preview.filter((item) => !item.will_change);
+
+  function appendPreviewRow(item) {
     const tr = document.createElement("tr");
-    const changed =
-      item.retention_days !== item.current_retention_days &&
-      !(item.retention_days == null && item.current_retention_days == null);
-    const stateClass = changed ? "ops-breach-active" : "";
+    const stateClass = item.will_change ? "ops-breach-active" : "";
     tr.innerHTML = `
       <td class="${stateClass}">${item.fleet_name || item.fleet_id}</td>
       <td class="${stateClass}">${item.retention_days != null ? item.retention_days : "—"}</td>
@@ -1162,6 +1179,34 @@ function renderOpsBreachRetentionImportPreview(preview, errors) {
     `;
     els.opsBreachRetentionImportPreviewTableBody.appendChild(tr);
   }
+
+  const itemsToShow = changesOnly ? changedItems : preview;
+  for (const item of itemsToShow) {
+    appendPreviewRow(item);
+  }
+
+  if (changesOnly && unchangedItems.length) {
+    const toggleRow = document.createElement("tr");
+    toggleRow.className = "ops-breach-retention-preview-toggle-row";
+    toggleRow.innerHTML = `<td colspan="4"><button type="button" class="ops-breach-preview-toggle-btn">変更なし ${unchangedItems.length} 件（表示）</button></td>`;
+    const btn = toggleRow.querySelector(".ops-breach-preview-toggle-btn");
+    btn?.addEventListener("click", () => {
+      const insertBefore = toggleRow;
+      for (const item of unchangedItems) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.fleet_name || item.fleet_id}</td>
+          <td>${item.retention_days != null ? item.retention_days : "—"}</td>
+          <td>${item.current_retention_days != null ? item.current_retention_days : "—"}</td>
+          <td>${item.effective_retention_days}</td>
+        `;
+        els.opsBreachRetentionImportPreviewTableBody.insertBefore(tr, insertBefore);
+      }
+      toggleRow.remove();
+    });
+    els.opsBreachRetentionImportPreviewTableBody.appendChild(toggleRow);
+  }
+
   if (errors.length) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="4" class="ops-breach-active">警告: ${errors.join("; ")}</td>`;
@@ -2666,6 +2711,20 @@ function initEventListeners() {
   }
   for (const el of [els.opsBreachHistoryAllSince, els.opsBreachHistoryAllUntil]) {
     el?.addEventListener("change", refreshOpsBreachHistoryAll);
+  }
+  if (els.opsBreachHistoryAllFleetName) {
+    els.opsBreachHistoryAllFleetName.addEventListener("change", refreshOpsBreachHistoryAll);
+    els.opsBreachHistoryAllFleetName.addEventListener("input", refreshOpsBreachHistoryAll);
+  }
+  if (els.opsBreachRetentionPreviewChangesOnly) {
+    els.opsBreachRetentionPreviewChangesOnly.addEventListener("change", () => {
+      if (lastOpsBreachRetentionImportPreview) {
+        renderOpsBreachRetentionImportPreview(
+          lastOpsBreachRetentionImportPreview.preview,
+          lastOpsBreachRetentionImportPreview.errors
+        );
+      }
+    });
   }
   if (els.btnOpsFleetAlertRulesDownload) {
     els.btnOpsFleetAlertRulesDownload.addEventListener("click", downloadOpsFleetAlertRules);

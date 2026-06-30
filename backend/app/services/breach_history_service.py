@@ -405,6 +405,7 @@ def _summarize_by_fleet_filtered(
     breaching_only: bool = False,
     since: datetime | None = None,
     until: datetime | None = None,
+    fleet_name_contains: str | None = None,
 ) -> list[FleetDaySummaryRow]:
     from backend.app.db.models import Fleet, FleetAlertBreachHistory
 
@@ -431,6 +432,13 @@ def _summarize_by_fleet_filtered(
         since=since,
         until=until,
     )
+    if fleet_name_contains:
+        escaped = (
+            fleet_name_contains.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        stmt = stmt.where(Fleet.name.ilike(f"%{escaped}%", escape="\\"))
     stmt = stmt.group_by(day_col, FleetAlertBreachHistory.fleet_id, Fleet.name).order_by(
         day_col.desc(),
         Fleet.name,
@@ -457,6 +465,7 @@ def summarize_all_history_by_fleet(
     breaching_only: bool = False,
     since: datetime | None = None,
     until: datetime | None = None,
+    fleet_name_contains: str | None = None,
 ) -> list[FleetDaySummaryRow]:
     return _summarize_by_fleet_filtered(
         db,
@@ -466,7 +475,15 @@ def summarize_all_history_by_fleet(
         breaching_only=breaching_only,
         since=since,
         until=until,
+        fleet_name_contains=fleet_name_contains,
     )
+
+
+def retention_import_will_change(
+    retention_days: int | None,
+    current_retention_days: int | None,
+) -> bool:
+    return retention_days != current_retention_days
 
 
 def purge_old_breach_history(db: Session, *, fleet_id: uuid.UUID | None = None) -> int:

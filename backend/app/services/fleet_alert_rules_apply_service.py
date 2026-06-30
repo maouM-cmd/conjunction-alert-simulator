@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -11,9 +12,12 @@ from pathlib import Path
 
 import httpx
 
+from backend.app.db.session import get_redis_url, is_redis_configured
+
 logger = logging.getLogger(__name__)
 
 RELOAD_TIMEOUT_SEC = 10.0
+_REDIS_HISTORY_KEY = "cas:prometheus:reload:history"
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,107 @@ class ReloadHistoryEntry:
 
 
 _reload_history: list[ReloadHistoryEntry] = []
+_redis_client = None
+
+
+def prometheus_reload_history_redis_enabled() -> bool:
+    if not is_redis_configured():
+        return False
+    raw = os.getenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "").strip().lower()
+    if raw:
+        return raw in ("1", "true", "yes", "on")
+    return True
+
+
+def _get_redis():
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    if not prometheus_reload_history_redis_enabled():
+        return None
+    url = get_redis_url()
+    if not url:
+        return None
+    try:
+        import redis
+
+        _redis_client = redis.from_url(url, decode_responses=True)
+        _redis_client.ping()
+        return _redis_client
+    except Exception as exc:
+        logger.warning("Prometheus reload history Redis unavailable: %s", exc)
+        return None
+
+
+def _use_reload_history_redis() -> bool:
+    return _get_redis() is not None
+
+
+def _entry_to_payload(entry: ReloadHistoryEntry) -> dict:
+    return {
+        "task_id": entry.task_id,
+        "source": entry.source,
+        "enqueued_at": entry.enqueued_at.isoformat(),
+        "state": entry.state,
+        "reloaded": entry.reloaded,
+        "message": entry.message,
+    }
+
+
+def _entry_from_payload(payload: dict) -> ReloadHistoryEntry:
+    enqueued_raw = payload.get("enqueued_at")
+    if isinstance(enqueued_raw, str):
+        enqueued_at = datetime.fromisoformat(enqueued_raw.replace("Z", "+00:00"))
+    else:
+        enqueued_at = datetime.now(timezone.utc)
+    if enqueued_at.tzinfo is None:
+        enqueued_at = enqueued_at.replace(tzinfo=timezone.utc)
+    return ReloadHistoryEntry(
+        task_id=payload.get("task_id"),
+        source=str(payload.get("source") or ""),
+        enqueued_at=enqueued_at,
+        state=str(payload.get("state") or ""),
+        reloaded=bool(payload.get("reloaded")),
+        message=str(payload.get("message") or ""),
+    )
+
+
+def _push_reload_history_redis(entry: ReloadHistoryEntry) -> None:
+    client = _get_redis()
+    if client is None:
+        return
+    limit = prometheus_reload_history_size()
+    try:
+        client.lpush(_REDIS_HISTORY_KEY, json.dumps(_entry_to_payload(entry), ensure_ascii=False))
+        client.ltrim(_REDIS_HISTORY_KEY, 0, limit - 1)
+    except Exception as exc:
+        logger.warning("Prometheus reload history Redis write failed: %s", exc)
+        reset_reload_history_redis_client_for_tests()
+
+
+def _load_reload_history_redis(limit: int) -> list[ReloadHistoryEntry]:
+    client = _get_redis()
+    if client is None:
+        return []
+    capped = max(min(limit, prometheus_reload_history_size()), 1)
+    try:
+        raw_items = client.lrange(_REDIS_HISTORY_KEY, 0, capped - 1)
+    except Exception as exc:
+        logger.warning("Prometheus reload history Redis read failed: %s", exc)
+        reset_reload_history_redis_client_for_tests()
+        return []
+    entries: list[ReloadHistoryEntry] = []
+    for raw in raw_items:
+        try:
+            entries.append(_entry_from_payload(json.loads(raw)))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+    return entries
+
+
+def reset_reload_history_redis_client_for_tests() -> None:
+    global _redis_client
+    _redis_client = None
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -100,6 +205,32 @@ def _record_reload_history(
     limit = prometheus_reload_history_size()
     while len(_reload_history) > limit:
         _reload_history.pop(0)
+    _push_reload_history_redis(entry)
+
+
+def _history_entry_to_item(entry: ReloadHistoryEntry) -> dict:
+    if entry.task_id:
+        try:
+            live = get_prometheus_reload_task_status(entry.task_id)
+        except Exception:
+            live = None
+        if live:
+            return {
+                "task_id": entry.task_id,
+                "source": entry.source,
+                "state": live["state"],
+                "reloaded": live["reloaded"],
+                "message": live["message"],
+                "enqueued_at": entry.enqueued_at,
+            }
+    return {
+        "task_id": entry.task_id,
+        "source": entry.source,
+        "state": entry.state,
+        "reloaded": entry.reloaded,
+        "message": entry.message,
+        "enqueued_at": entry.enqueued_at,
+    }
 
 
 def _reload_basic_auth() -> tuple[str, str] | None:
@@ -205,42 +336,24 @@ def record_sync_prometheus_reload(*, reloaded: bool, message: str) -> None:
 
 def list_prometheus_reload_history(limit: int = 20) -> list[dict]:
     capped = max(min(limit, prometheus_reload_history_size()), 1)
-    entries = list(reversed(_reload_history[-capped:]))
-    items: list[dict] = []
-    for entry in entries:
-        if entry.task_id:
-            try:
-                live = get_prometheus_reload_task_status(entry.task_id)
-            except Exception:
-                live = None
-            if live:
-                items.append(
-                    {
-                        "task_id": entry.task_id,
-                        "source": entry.source,
-                        "state": live["state"],
-                        "reloaded": live["reloaded"],
-                        "message": live["message"],
-                        "enqueued_at": entry.enqueued_at,
-                    }
-                )
-                continue
-        items.append(
-            {
-                "task_id": entry.task_id,
-                "source": entry.source,
-                "state": entry.state,
-                "reloaded": entry.reloaded,
-                "message": entry.message,
-                "enqueued_at": entry.enqueued_at,
-            }
-        )
-    return items
+    entries: list[ReloadHistoryEntry] = []
+    if _use_reload_history_redis():
+        entries = _load_reload_history_redis(capped)
+    if not entries:
+        entries = list(reversed(_reload_history[-capped:]))
+    return [_history_entry_to_item(entry) for entry in entries]
 
 
 def clear_reload_tasks_for_tests() -> None:
     _enqueued_reload_task_ids.clear()
     _reload_history.clear()
+    client = _get_redis()
+    if client is not None:
+        try:
+            client.delete(_REDIS_HISTORY_KEY)
+        except Exception:
+            pass
+    reset_reload_history_redis_client_for_tests()
 
 
 def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesApplyResult:

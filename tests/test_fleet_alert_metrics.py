@@ -13,6 +13,18 @@ from backend.app.db.session import get_engine, reset_engine_for_tests
 from backend.app.services import fleet_alert_metrics_service
 from backend.app.services.alert_service import ingest_screening_results
 from backend.app.services.fleet_service import add_satellite, create_fleet
+
+
+@pytest.fixture(autouse=True)
+def _isolate_prometheus_reload_history(monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "false")
+    yield
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
 from tests.test_alerts_ops import _make_event, _make_result
 from tests.test_fleet_api_slo import _create_fleet_with_key
 
@@ -641,6 +653,130 @@ def test_prometheus_reload_history_empty(ops_client, monkeypatch):
     )
     assert response.status_code == 200
     assert response.json() == {"items": [], "total": 0}
+
+
+def _mock_reload_history_redis():
+    from unittest.mock import MagicMock
+
+    storage: list[str] = []
+
+    mock_redis = MagicMock()
+    mock_redis.ping.return_value = True
+
+    def lpush(_key, value):
+        storage.insert(0, value)
+        return len(storage)
+
+    def ltrim(_key, _start, end):
+        del storage[end + 1 :]
+
+    def lrange(_key, start, end):
+        return storage[start : end + 1]
+
+    def delete(_key):
+        storage.clear()
+
+    mock_redis.lpush.side_effect = lpush
+    mock_redis.ltrim.side_effect = ltrim
+    mock_redis.lrange.side_effect = lrange
+    mock_redis.delete.side_effect = delete
+    return mock_redis, storage
+
+
+def test_prometheus_reload_history_persists_to_redis_mock(ops_client, monkeypatch):
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    mock_redis, _storage = _mock_reload_history_redis()
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+            reloaded=True,
+            message="redis persisted",
+        )
+        fleet_alert_rules_apply_service._reload_history.clear()
+        response = ops_client.get(
+            "/api/v1/ops/prometheus/reload/history",
+            headers={"X-API-Key": "admin-secret"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
+    assert data["items"][0]["message"] == "redis persisted"
+
+
+def test_prometheus_reload_history_reads_from_redis_when_memory_empty(ops_client, monkeypatch):
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+            reloaded=True,
+            message="from redis only",
+        )
+        assert storage
+        fleet_alert_rules_apply_service._reload_history.clear()
+        items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit=5)
+    assert len(items) == 1
+    assert items[0]["message"] == "from redis only"
+
+
+def test_prometheus_reload_history_in_memory_without_redis(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.delenv("CELERY_BROKER_URL", raising=False)
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "false")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+        reloaded=False,
+        message="memory only",
+    )
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["items"][0]["message"] == "memory only"
+
+
+def test_prometheus_reload_history_redis_ltrim_respects_size(monkeypatch):
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_SIZE", "2")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        for index in range(3):
+            fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+                reloaded=True,
+                message=f"redis reload {index}",
+            )
+    assert len(storage) == 2
+    assert "redis reload 2" in storage[0]
 
 
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):

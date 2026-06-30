@@ -972,14 +972,18 @@ async def import_fleet_breach_history_settings(
             skipped += 1
             continue
         if dry_run:
+            current = fleet.breach_history_retention_days
             preview.append(
                 FleetBreachHistorySettingsImportPreviewItem(
                     fleet_id=str(fleet_id),
                     fleet_name=fleet.name,
                     retention_days=retention_days,
-                    current_retention_days=fleet.breach_history_retention_days,
+                    current_retention_days=current,
                     effective_retention_days=breach_history_service.effective_retention_days(
                         db, fleet_id
+                    ),
+                    will_change=breach_history_service.retention_import_will_change(
+                        retention_days, current
                     ),
                 )
             )
@@ -1190,6 +1194,7 @@ def summarize_fleet_breach_history(
     until: datetime | None = None,
     format: str = Query("json", pattern="^(json|csv)$"),
     group_by: str = Query("day", pattern="^(day|fleet)$"),
+    fleet_name_contains: str | None = None,
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ):
@@ -1222,6 +1227,7 @@ def summarize_fleet_breach_history(
             breaching_only=breaching_only,
             since=since,
             until=until,
+            fleet_name_contains=fleet_name_contains,
         )
         if format == "csv":
             buffer = io.StringIO()

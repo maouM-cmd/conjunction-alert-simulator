@@ -853,6 +853,7 @@ class FleetBreachHistorySettingsImportPreviewItem(BaseModel):
     retention_days: int | None
     current_retention_days: int | None
     effective_retention_days: int
+    will_change: bool
 
 
 class FleetBreachHistorySettingsImportOut(BaseModel):
