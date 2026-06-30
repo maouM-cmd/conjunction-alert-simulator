@@ -4,6 +4,19 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.42.0] - 2026-06-28
+
+Phase 10AI — reload リトライ/Celery fallback + retention CSV + 履歴日次集計。
+
+### Added
+
+- **Phase 10AI:** `reload_prometheus` リトライ（`PROMETHEUS_RELOAD_MAX_RETRIES`）
+- Celery `prometheus_reload` タスク + `PROMETHEUS_RELOAD_CELERY_FALLBACK`
+- `POST /ops/prometheus/reload` — 手動 reload（管理者）
+- `GET breach-history-settings?format=csv` — retention CSV
+- `GET history/summary` — 日次集計 API
+- Ops UI — reload queued、retention CSV、日次 summary テーブル
+
 ## [1.41.0] - 2026-06-28
 
 Phase 10AH — Prometheus reload + retention bulk + 履歴日付 range。

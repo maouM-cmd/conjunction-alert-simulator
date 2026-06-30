@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AI — 次着手
+## Phase 10AJ — 次着手
 
-商用運用ロードマップ Phase 10+（reload リトライ、retention CSV、履歴集計 API 等）。
+商用運用ロードマップ Phase 10+（summary CSV、retention CSV インポート、reload Celery ポーリング UI 等）。
+
+## Phase 10AI — 完了
+
+reload リトライ/Celery フォールバック、retention CSV、履歴日次集計 API。v1.42.0 ship 済み。
 
 ## Phase 10AH — 完了
 

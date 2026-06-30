@@ -603,6 +603,11 @@ label.checkbox-row input[type="checkbox"] {
   margin-bottom: 0.5rem;
 }
 
+.ops-breach-summary-table {
+  margin-bottom: 0.75rem;
+  max-width: 24rem;
+}
+
 .ops-breach-history-all-section {
   margin: 0.75rem 0;
   padding: 0.6rem;

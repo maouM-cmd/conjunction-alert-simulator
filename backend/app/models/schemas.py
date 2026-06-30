@@ -663,6 +663,18 @@ class FleetBreachHistoryPurgedOut(BaseModel):
     message: str
 
 
+class FleetBreachHistoryDayOut(BaseModel):
+    day: date
+    total: int
+    breaching_count: int
+
+
+class FleetBreachHistorySummaryOut(BaseModel):
+    fleet_id: str | None = None
+    items: list[FleetBreachHistoryDayOut]
+    total_days: int
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int
@@ -755,6 +767,13 @@ class FleetAlertRulesApplyOut(BaseModel):
     message: str
     reloaded: bool = False
     reload_message: str | None = None
+    reload_queued: bool = False
+
+
+class PrometheusReloadOut(BaseModel):
+    reloaded: bool
+    reload_queued: bool = False
+    message: str
 
 
 class FleetBreachHistorySettingsUpdate(BaseModel):

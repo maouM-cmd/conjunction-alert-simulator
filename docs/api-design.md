@@ -927,7 +927,7 @@ Phase 10S で `CASFleetHighRiskOpenAlerts` ルールを追加。
 
 ### POST /api/v1/ops/prometheus/fleet-alert-rules/apply（Phase 10AG / 10AH）
 
-GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 設定時、生成ルールを atomic にファイル書き込み。`applied=true` 時、`PROMETHEUS_RELOAD_URL` があれば POST reload（Phase 10AH）。
+GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 設定時、生成ルールを atomic にファイル書き込み。`applied=true` 時、`PROMETHEUS_RELOAD_URL` があれば POST reload（Phase 10AH）。全リトライ失敗時は Celery フォールバック（Phase 10AI、`PROMETHEUS_RELOAD_CELERY_FALLBACK`）。
 
 | コード | 条件 |
 |--------|------|
@@ -944,15 +944,27 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
   "content": "groups:\n  ...",
   "message": "ルールを ... に書き込みました。",
   "reloaded": true,
-  "reload_message": "Prometheus reload を実行しました。"
+  "reload_message": "Prometheus reload を実行しました。",
+  "reload_queued": false
 }
 ```
 
-**env:** `PROMETHEUS_FLEET_RULES_OUTPUT_PATH`（未設定時 `applied=false`）、`PROMETHEUS_RELOAD_URL`（Phase 10AH、任意 Basic Auth）
+**env:** `PROMETHEUS_FLEET_RULES_OUTPUT_PATH`（未設定時 `applied=false`）、`PROMETHEUS_RELOAD_URL`（Phase 10AH、任意 Basic Auth）、`PROMETHEUS_RELOAD_MAX_RETRIES`（default 3、Phase 10AI）、`PROMETHEUS_RELOAD_CELERY_FALLBACK`（Phase 10AI）
 
-### GET /api/v1/ops/fleets/breach-history-settings（Phase 10AH）
+### POST /api/v1/ops/prometheus/reload（Phase 10AI）
+
+管理者のみ。`reload_prometheus()` を実行。失敗かつ Celery fallback ON ならタスク enqueue。
+
+応答 `PrometheusReloadOut`: `reloaded`, `reload_queued`, `message`
+
+### GET /api/v1/ops/fleets/breach-history-settings（Phase 10AH / 10AI）
 
 管理者のみ。active 艦隊の retention override / effective 一覧。
+
+| `format` | 応答 |
+|----------|------|
+| json（default） | `FleetBreachHistorySettingsListOut` |
+| csv（Phase 10AI） | `fleet_id,fleet_name,retention_days,effective_retention_days` |
 
 応答 `FleetBreachHistorySettingsListOut`: `items[]`（`fleet_id`, `fleet_name`, `retention_days`, `effective_retention_days`）, `total`
 
@@ -1178,6 +1190,25 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 監査: `alert.breach_state_sticky_cleared`
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
+
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history/summary（Phase 10AI）
+
+history GET と同一クエリ（`limit` / `offset` / `format` 除く）。日次バケット集計。
+
+| `fleet_id` | 認可 | 応答 |
+|----------|------|------|
+| 指定あり | fleet スコープ | `FleetBreachHistorySummaryOut` |
+| 省略 | 管理者のみ | `FleetBreachHistorySummaryOut`（全艦隊合算） |
+
+```json
+{
+  "fleet_id": "uuid-or-null",
+  "items": [
+    { "day": "2026-06-01", "total": 5, "breaching_count": 2 }
+  ],
+  "total_days": 1
+}
+```
 
 ### GET /api/v1/ops/prometheus/alertmanager/breach-states/history（Phase 10AC / 10AD / 10AE / 10AG / 10AH）
 

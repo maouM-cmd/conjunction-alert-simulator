@@ -53,6 +53,9 @@ from backend.app.models.schemas import (
     FleetBreachHistoryEntryOut,
     FleetBreachHistoryMultiListOut,
     FleetBreachHistoryPurgedOut,
+    FleetBreachHistoryDayOut,
+    FleetBreachHistorySummaryOut,
+    PrometheusReloadOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -799,7 +802,26 @@ def fleet_alert_rules_apply(
         message=result.message,
         reloaded=result.reloaded,
         reload_message=result.reload_message,
+        reload_queued=result.reload_queued,
     )
+
+
+@router.post("/prometheus/reload", response_model=PrometheusReloadOut)
+def prometheus_reload(
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PrometheusReloadOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    reloaded, message = fleet_alert_rules_apply_service.reload_prometheus()
+    reload_queued = False
+    if not reloaded and fleet_alert_rules_apply_service.prometheus_reload_celery_fallback_enabled():
+        reload_queued = fleet_alert_rules_apply_service.queue_prometheus_reload()
+        if reload_queued:
+            message = f"{message} Celery タスクに enqueue しました。"
+    return PrometheusReloadOut(reloaded=reloaded, reload_queued=reload_queued, message=message)
 
 
 @router.get(
@@ -807,11 +829,25 @@ def fleet_alert_rules_apply(
     response_model=FleetBreachHistorySettingsListOut,
 )
 def list_fleet_breach_history_settings(
+    format: str = Query("json", pattern="^(json|csv)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
-) -> FleetBreachHistorySettingsListOut:
+):
     _require_admin_breach_history(principal)
     rows = breach_history_service.list_fleet_retention_settings(db)
+    if format == "csv":
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["fleet_id", "fleet_name", "retention_days", "effective_retention_days"])
+        for row in rows:
+            writer.writerow([
+                str(row.fleet_id),
+                row.fleet_name,
+                row.retention_days if row.retention_days is not None else "",
+                row.effective_retention_days,
+            ])
+        return Response(content=buffer.getvalue(), media_type="text/csv")
+
     items = [
         FleetBreachHistorySettingsEntryOut(
             fleet_id=str(row.fleet_id),
@@ -1019,6 +1055,83 @@ def list_fleet_breach_states(
         filtered = _filter_breaching_only_state(out.items)
         return out.model_copy(update={"items": filtered, "total": len(filtered)})
     return out
+
+
+@router.get(
+    "/prometheus/alertmanager/breach-states/history/summary",
+    response_model=FleetBreachHistorySummaryOut,
+)
+def summarize_fleet_breach_history(
+    fleet_id: str | None = None,
+    alertname: str | None = None,
+    alertnames: list[str] | None = Query(None),
+    source: str | None = None,
+    breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistorySummaryOut:
+    if not alertmanager_push_service.alertmanager_push_enabled():
+        raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
+    if not breach_history_service.breach_history_enabled():
+        raise HTTPException(status_code=503, detail="breach 履歴は無効です。")
+
+    _validate_history_alertnames(alertname, alertnames)
+    since, until = _normalize_history_dates(since, until)
+    if source is not None and source not in breach_history_service.VALID_SOURCES:
+        raise HTTPException(status_code=422, detail="source が不正です。")
+
+    if fleet_id is None:
+        if is_api_key_required() and not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        rows = breach_history_service.summarize_all_history(
+            db,
+            alertname=alertname,
+            alertnames=alertnames,
+            source=source,
+            breaching_only=breaching_only,
+            since=since,
+            until=until,
+        )
+        return FleetBreachHistorySummaryOut(
+            fleet_id=None,
+            items=[
+                FleetBreachHistoryDayOut(
+                    day=row.day,
+                    total=row.total,
+                    breaching_count=row.breaching_count,
+                )
+                for row in rows
+            ],
+            total_days=len(rows),
+        )
+
+    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+    rows = breach_history_service.summarize_history(
+        db,
+        fid,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+        since=since,
+        until=until,
+    )
+    return FleetBreachHistorySummaryOut(
+        fleet_id=str(fid),
+        items=[
+            FleetBreachHistoryDayOut(
+                day=row.day,
+                total=row.total,
+                breaching_count=row.breaching_count,
+            )
+            for row in rows
+        ],
+        total_days=len(rows),
+    )
 
 
 @router.get(

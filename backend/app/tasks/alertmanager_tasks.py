@@ -54,3 +54,18 @@ def purge_old_breach_history() -> dict:
         return {"status": "ok", "deleted": total, "by_fleet": by_fleet}
     finally:
         db.close()
+
+
+@celery_app.task(name="backend.app.tasks.alertmanager_tasks.prometheus_reload")
+def prometheus_reload_task() -> dict:
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    if not fleet_alert_rules_apply_service.prometheus_reload_url():
+        return {"status": "skipped", "reloaded": False, "message": "reload url not configured"}
+
+    reloaded, message = fleet_alert_rules_apply_service.reload_prometheus()
+    return {
+        "status": "ok" if reloaded else "error",
+        "reloaded": reloaded,
+        "message": message,
+    }

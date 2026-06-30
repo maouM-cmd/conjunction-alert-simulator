@@ -1,9 +1,10 @@
-"""Prometheus fleet alert rules file apply (Phase 10AG / 10AH)."""
+"""Prometheus fleet alert rules file apply (Phase 10AG / 10AH / 10AI)."""
 
 from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,6 +22,14 @@ class FleetAlertRulesApplyResult:
     message: str
     reloaded: bool = False
     reload_message: str | None = None
+    reload_queued: bool = False
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes", "on")
 
 
 def prometheus_fleet_rules_output_path() -> str | None:
@@ -31,6 +40,18 @@ def prometheus_fleet_rules_output_path() -> str | None:
 def prometheus_reload_url() -> str | None:
     raw = os.getenv("PROMETHEUS_RELOAD_URL", "").strip()
     return raw or None
+
+
+def prometheus_reload_max_retries() -> int:
+    raw = os.getenv("PROMETHEUS_RELOAD_MAX_RETRIES", "3").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 3
+
+
+def prometheus_reload_celery_fallback_enabled() -> bool:
+    return _env_bool("PROMETHEUS_RELOAD_CELERY_FALLBACK", default=False)
 
 
 def _reload_basic_auth() -> tuple[str, str] | None:
@@ -47,14 +68,31 @@ def reload_prometheus() -> tuple[bool, str]:
         return False, "PROMETHEUS_RELOAD_URL が未設定です。"
 
     auth = _reload_basic_auth()
+    max_retries = prometheus_reload_max_retries()
+    last_error = "unknown error"
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=RELOAD_TIMEOUT_SEC) as client:
+                response = client.post(url, auth=auth)
+                response.raise_for_status()
+            return True, "Prometheus reload を実行しました。"
+        except httpx.HTTPError as exc:
+            last_error = str(exc)
+            logger.warning("Prometheus reload failed (attempt %s/%s): %s", attempt + 1, max_retries, exc)
+            if attempt < max_retries - 1:
+                time.sleep(0.2 * (attempt + 1))
+    return False, f"Prometheus reload 失敗（{max_retries} 回）: {last_error}"
+
+
+def queue_prometheus_reload() -> bool:
     try:
-        with httpx.Client(timeout=RELOAD_TIMEOUT_SEC) as client:
-            response = client.post(url, auth=auth)
-            response.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.warning("Prometheus reload failed: %s", exc)
-        return False, f"Prometheus reload 失敗: {exc}"
-    return True, "Prometheus reload を実行しました。"
+        from backend.app.tasks.alertmanager_tasks import prometheus_reload_task
+
+        prometheus_reload_task.delay()
+        return True
+    except Exception as exc:
+        logger.warning("Prometheus reload Celery enqueue failed: %s", exc)
+        return False
 
 
 def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesApplyResult:
@@ -83,10 +121,17 @@ def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesAppl
     os.replace(tmp_path, target)
 
     reloaded, reload_message = reload_prometheus()
+    reload_queued = False
+    if not reloaded and prometheus_reload_celery_fallback_enabled():
+        reload_queued = queue_prometheus_reload()
+        if reload_queued:
+            reload_message = f"{reload_message} Celery フォールバックに enqueue しました。"
+
     return FleetAlertRulesApplyResult(
         applied=True,
         path=str(target),
         message=f"ルールを {target} に書き込みました。",
         reloaded=reloaded,
         reload_message=reload_message,
+        reload_queued=reload_queued,
     )

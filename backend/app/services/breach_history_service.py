@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from backend.app.db.session import get_session_factory, is_database_configured
@@ -44,6 +44,13 @@ class FleetRetentionRow:
     fleet_name: str
     retention_days: int | None
     effective_retention_days: int
+
+
+@dataclass(frozen=True)
+class DaySummaryRow:
+    day: date
+    total: int
+    breaching_count: int
 
 
 def list_fleet_retention_settings(db: Session) -> list[FleetRetentionRow]:
@@ -249,6 +256,95 @@ def list_all_history(
         base.order_by(FleetAlertBreachHistory.created_at.desc()).limit(limit).offset(offset)
     ).scalars().unique().all()
     return list(rows), int(total)
+
+
+def _summarize_filtered(
+    db: Session,
+    *,
+    fleet_id: uuid.UUID | None = None,
+    alertname: str | None = None,
+    alertnames: list[str] | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[DaySummaryRow]:
+    from backend.app.db.models import FleetAlertBreachHistory
+
+    day_col = func.date(FleetAlertBreachHistory.created_at)
+    stmt = select(
+        day_col.label("day"),
+        func.count().label("total"),
+        func.sum(
+            case((FleetAlertBreachHistory.is_breaching.is_(True), 1), else_=0)
+        ).label("breaching_count"),
+    ).select_from(FleetAlertBreachHistory)
+    if fleet_id is not None:
+        stmt = stmt.where(FleetAlertBreachHistory.fleet_id == fleet_id)
+    stmt = _apply_history_filters(
+        stmt,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+        since=since,
+        until=until,
+    )
+    stmt = stmt.group_by(day_col).order_by(day_col.desc())
+    rows = db.execute(stmt).all()
+    return [
+        DaySummaryRow(
+            day=row.day if isinstance(row.day, date) else date.fromisoformat(str(row.day)),
+            total=int(row.total or 0),
+            breaching_count=int(row.breaching_count or 0),
+        )
+        for row in rows
+    ]
+
+
+def summarize_history(
+    db: Session,
+    fleet_id: uuid.UUID,
+    *,
+    alertname: str | None = None,
+    alertnames: list[str] | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[DaySummaryRow]:
+    return _summarize_filtered(
+        db,
+        fleet_id=fleet_id,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+        since=since,
+        until=until,
+    )
+
+
+def summarize_all_history(
+    db: Session,
+    *,
+    alertname: str | None = None,
+    alertnames: list[str] | None = None,
+    source: str | None = None,
+    breaching_only: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[DaySummaryRow]:
+    return _summarize_filtered(
+        db,
+        fleet_id=None,
+        alertname=alertname,
+        alertnames=alertnames,
+        source=source,
+        breaching_only=breaching_only,
+        since=since,
+        until=until,
+    )
 
 
 def purge_old_breach_history(db: Session, *, fleet_id: uuid.UUID | None = None) -> int:
