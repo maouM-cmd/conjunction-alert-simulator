@@ -320,6 +320,17 @@
             <button id="btn-ops-breach-retention-import" type="button">CSV インポート</button>
             <button id="btn-ops-breach-retention-dry-run" type="button">dry-run プレビュー</button>
           </div>
+          <table id="ops-breach-retention-import-preview-table" class="ops-breach-states-table hidden">
+            <thead>
+              <tr>
+                <th>艦隊</th>
+                <th>CSV retention</th>
+                <th>現在 override</th>
+                <th>effective</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-retention-import-preview-table-body"></tbody>
+          </table>
           <table id="ops-breach-retention-all-table" class="ops-breach-states-table">
             <thead>
               <tr>
@@ -370,6 +381,7 @@
           <div class="button-row">
             <button id="btn-ops-breach-history-all-csv" type="button">CSV ダウンロード</button>
             <button id="btn-ops-breach-history-all-summary-csv" type="button">summary CSV</button>
+            <button id="btn-ops-breach-history-all-fleet-summary-csv" type="button">fleet summary CSV</button>
           </div>
           <table id="ops-breach-history-all-summary-table" class="ops-breach-states-table ops-breach-summary-table hidden">
             <thead>
@@ -432,6 +444,19 @@
             <button id="btn-ops-prometheus-reload" type="button" class="hidden">Prometheus reload</button>
           </div>
           <p id="ops-prometheus-reload-status" class="meta hidden"></p>
+          <table id="ops-prometheus-reload-history-table" class="ops-breach-states-table hidden">
+            <thead>
+              <tr>
+                <th>時刻</th>
+                <th>task_id</th>
+                <th>source</th>
+                <th>state</th>
+                <th>reloaded</th>
+                <th>message</th>
+              </tr>
+            </thead>
+            <tbody id="ops-prometheus-reload-history-table-body"></tbody>
+          </table>
         </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">
           <h3>Alertmanager Silences</h3>

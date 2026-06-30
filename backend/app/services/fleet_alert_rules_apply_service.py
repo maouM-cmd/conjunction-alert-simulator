@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -27,6 +28,19 @@ class FleetAlertRulesApplyResult:
 
 
 _enqueued_reload_task_ids: set[str] = set()
+
+
+@dataclass(frozen=True)
+class ReloadHistoryEntry:
+    task_id: str | None
+    source: str
+    enqueued_at: datetime
+    state: str
+    reloaded: bool
+    message: str
+
+
+_reload_history: list[ReloadHistoryEntry] = []
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -56,6 +70,36 @@ def prometheus_reload_max_retries() -> int:
 
 def prometheus_reload_celery_fallback_enabled() -> bool:
     return _env_bool("PROMETHEUS_RELOAD_CELERY_FALLBACK", default=False)
+
+
+def prometheus_reload_history_size() -> int:
+    raw = os.getenv("PROMETHEUS_RELOAD_HISTORY_SIZE", "20").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 20
+
+
+def _record_reload_history(
+    *,
+    task_id: str | None,
+    source: str,
+    message: str,
+    state: str,
+    reloaded: bool,
+) -> None:
+    entry = ReloadHistoryEntry(
+        task_id=task_id,
+        source=source,
+        enqueued_at=datetime.now(timezone.utc),
+        state=state,
+        reloaded=reloaded,
+        message=message,
+    )
+    _reload_history.append(entry)
+    limit = prometheus_reload_history_size()
+    while len(_reload_history) > limit:
+        _reload_history.pop(0)
 
 
 def _reload_basic_auth() -> tuple[str, str] | None:
@@ -94,6 +138,13 @@ def queue_prometheus_reload() -> str | None:
 
         async_result = prometheus_reload_task.delay()
         _enqueued_reload_task_ids.add(async_result.id)
+        _record_reload_history(
+            task_id=async_result.id,
+            source="celery",
+            message="Celery reload タスクに enqueue しました。",
+            state="PENDING",
+            reloaded=False,
+        )
         return async_result.id
     except Exception as exc:
         logger.warning("Prometheus reload Celery enqueue failed: %s", exc)
@@ -142,8 +193,54 @@ def get_prometheus_reload_task_status(task_id: str) -> dict | None:
     }
 
 
+def record_sync_prometheus_reload(*, reloaded: bool, message: str) -> None:
+    _record_reload_history(
+        task_id=None,
+        source="sync",
+        message=message,
+        state="SUCCESS" if reloaded else "FAILURE",
+        reloaded=reloaded,
+    )
+
+
+def list_prometheus_reload_history(limit: int = 20) -> list[dict]:
+    capped = max(min(limit, prometheus_reload_history_size()), 1)
+    entries = list(reversed(_reload_history[-capped:]))
+    items: list[dict] = []
+    for entry in entries:
+        if entry.task_id:
+            try:
+                live = get_prometheus_reload_task_status(entry.task_id)
+            except Exception:
+                live = None
+            if live:
+                items.append(
+                    {
+                        "task_id": entry.task_id,
+                        "source": entry.source,
+                        "state": live["state"],
+                        "reloaded": live["reloaded"],
+                        "message": live["message"],
+                        "enqueued_at": entry.enqueued_at,
+                    }
+                )
+                continue
+        items.append(
+            {
+                "task_id": entry.task_id,
+                "source": entry.source,
+                "state": entry.state,
+                "reloaded": entry.reloaded,
+                "message": entry.message,
+                "enqueued_at": entry.enqueued_at,
+            }
+        )
+    return items
+
+
 def clear_reload_tasks_for_tests() -> None:
     _enqueued_reload_task_ids.clear()
+    _reload_history.clear()
 
 
 def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesApplyResult:

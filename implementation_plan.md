@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AL — 次着手
+## Phase 10AM — 次着手
 
-商用運用ロードマップ Phase 10+（summary CSV UI トグル、dry-run 詳細テーブル、reload 履歴一覧 等）。
+商用運用ロードマップ Phase 10+（reload 履歴 Redis 永続化、dry-run diff 強化 等）。
+
+## Phase 10AL — 完了
+
+fleet summary CSV UI、dry-run preview テーブル、reload 履歴一覧。v1.45.0 ship 済み。
 
 ## Phase 10AK — 完了
 

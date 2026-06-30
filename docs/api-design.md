@@ -958,6 +958,21 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
 
 応答 `PrometheusReloadOut`: `reloaded`, `reload_queued`, `reload_task_id`, `message`
 
+### GET /api/v1/ops/prometheus/reload/history（Phase 10AL）
+
+管理者のみ。直近の Prometheus reload 履歴（in-memory、`PROMETHEUS_RELOAD_HISTORY_SIZE` default 20）。
+
+| クエリ | 説明 |
+|--------|------|
+| `limit` | 返却件数（default 20） |
+
+応答 `PrometheusReloadHistoryOut`: `items[]`（`task_id`, `source`, `state`, `reloaded`, `message`, `enqueued_at`）, `total`
+
+| コード | 条件 |
+|--------|------|
+| 200 | 履歴一覧 |
+| 403 | 非管理者 |
+
 ### GET /api/v1/ops/prometheus/reload/tasks/{task_id}（Phase 10AJ）
 
 管理者のみ。Celery reload タスクの状態を返す。

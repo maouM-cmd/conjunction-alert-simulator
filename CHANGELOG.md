@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.45.0] - 2026-06-28
+
+Phase 10AL — fleet summary CSV UI + dry-run preview table + reload history。
+
+### Added
+
+- **Phase 10AL:** `GET /prometheus/reload/history` — 直近 reload 履歴
+- Ops UI — fleet summary CSV ボタン、dry-run preview テーブル、reload 履歴テーブル
+- `PROMETHEUS_RELOAD_HISTORY_SIZE` env（default 20）
+
 ## [1.44.0] - 2026-06-28
 
 Phase 10AK — per-fleet summary + import dry-run + reload 手動 UI。

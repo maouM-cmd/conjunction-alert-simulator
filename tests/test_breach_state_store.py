@@ -1966,3 +1966,56 @@ def test_breach_history_settings_csv_import_dry_run_skips_unknown(ops_client, mo
     assert len(data["preview"]) == 1
     assert data["skipped"] == 1
     assert len(data["errors"]) == 1
+
+
+def test_breach_history_summary_by_fleet_csv_with_date_filters(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history/summary"
+        "?group_by=fleet&format=csv"
+        "&since=2026-05-01T00:00:00Z"
+        "&until=2026-12-31T23:59:59Z",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "day,fleet_id,fleet_name,total,breaching_count" in response.text
+
+
+def test_breach_history_settings_csv_import_dry_run_preview_fields(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Preview Fields Fleet")
+        fleet.breach_history_retention_days = 90
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{fleet_id},Preview Fields Fleet,30,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import?dry_run=true",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    preview = response.json()["preview"][0]
+    assert preview["retention_days"] == 30
+    assert preview["current_retention_days"] == 90
+    assert preview["effective_retention_days"] == 90

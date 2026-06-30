@@ -522,6 +522,127 @@ def test_prometheus_reload_manual_endpoint_returns_task_id(ops_client, monkeypat
     assert data["reload_queued"] is False
 
 
+def test_prometheus_reload_history_lists_enqueued_task(ops_client, monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    mock_delay = MagicMock()
+    mock_delay.id = "history-task-001"
+    with patch(
+        "backend.app.tasks.alertmanager_tasks.prometheus_reload_task.delay",
+        return_value=mock_delay,
+    ):
+        task_id = fleet_alert_rules_apply_service.queue_prometheus_reload()
+    assert task_id == "history-task-001"
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
+    assert any(item["task_id"] == task_id for item in data["items"])
+
+
+def test_prometheus_reload_history_records_sync_reload(ops_client, monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_URL", "http://prometheus:9090/-/reload")
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_client.post.return_value = mock_response
+    mock_client.__enter__.return_value = mock_client
+    mock_client.__exit__.return_value = False
+
+    with patch(
+        "backend.app.services.fleet_alert_rules_apply_service.httpx.Client",
+        return_value=mock_client,
+    ):
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload",
+            headers={"X-API-Key": "admin-secret"},
+        )
+    assert response.status_code == 200
+
+    history = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert len(items) >= 1
+    assert items[0]["source"] == "sync"
+    assert items[0]["task_id"] is None
+    assert items[0]["reloaded"] is True
+    assert items[0]["state"] == "SUCCESS"
+
+
+def test_prometheus_reload_history_respects_limit(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_SIZE", "2")
+
+    for index in range(3):
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+            reloaded=True,
+            message=f"sync reload {index}",
+        )
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history?limit=1",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["message"] == "sync reload 2"
+
+
+def test_prometheus_reload_history_forbidden_for_fleet_key(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    _, plain = _create_fleet_with_key(ops_client, monkeypatch, "Reload History Fleet")
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history",
+        headers={"X-API-Key": plain},
+    )
+    assert response.status_code == 403
+
+
+def test_prometheus_reload_history_empty(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "total": 0}
+
+
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):
     monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
     monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")

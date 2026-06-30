@@ -59,6 +59,7 @@ from backend.app.models.schemas import (
     FleetBreachHistoryFleetDayOut,
     FleetBreachHistoryFleetSummaryOut,
     FleetBreachHistorySummaryOut,
+    PrometheusReloadHistoryOut,
     PrometheusReloadOut,
     PrometheusReloadTaskOut,
     FleetSlaOut,
@@ -824,17 +825,37 @@ def prometheus_reload(
     reloaded, message = fleet_alert_rules_apply_service.reload_prometheus()
     reload_queued = False
     reload_task_id = None
-    if not reloaded and fleet_alert_rules_apply_service.prometheus_reload_celery_fallback_enabled():
+    if reloaded:
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(reloaded=True, message=message)
+    elif fleet_alert_rules_apply_service.prometheus_reload_celery_fallback_enabled():
         reload_task_id = fleet_alert_rules_apply_service.queue_prometheus_reload()
         reload_queued = reload_task_id is not None
         if reload_queued:
             message = f"{message} Celery タスクに enqueue しました。"
+        else:
+            fleet_alert_rules_apply_service.record_sync_prometheus_reload(reloaded=False, message=message)
+    else:
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(reloaded=False, message=message)
     return PrometheusReloadOut(
         reloaded=reloaded,
         reload_queued=reload_queued,
         reload_task_id=reload_task_id,
         message=message,
     )
+
+
+@router.get("/prometheus/reload/history", response_model=PrometheusReloadHistoryOut)
+def prometheus_reload_history(
+    limit: int = 20,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PrometheusReloadHistoryOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit)
+    return PrometheusReloadHistoryOut(items=items, total=len(items))
 
 
 @router.get("/prometheus/reload/tasks/{task_id}", response_model=PrometheusReloadTaskOut)

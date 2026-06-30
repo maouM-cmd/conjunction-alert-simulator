@@ -798,6 +798,20 @@ class PrometheusReloadTaskOut(BaseModel):
     message: str
 
 
+class PrometheusReloadHistoryItemOut(BaseModel):
+    task_id: str | None
+    source: str
+    state: str
+    reloaded: bool
+    message: str
+    enqueued_at: datetime
+
+
+class PrometheusReloadHistoryOut(BaseModel):
+    items: list[PrometheusReloadHistoryItemOut]
+    total: int
+
+
 class FleetBreachHistorySettingsUpdate(BaseModel):
     retention_days: int | None = None
 
