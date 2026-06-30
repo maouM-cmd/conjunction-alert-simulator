@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -255,14 +256,60 @@ def _purge_stale_reload_history_redis() -> None:
         reset_reload_history_redis_client_for_tests()
 
 
-def purge_stale_prometheus_reload_history() -> dict:
+def _purge_result_to_history(result: dict) -> tuple[str, bool, str]:
+    status = str(result.get("status") or "")
+    if status == "skipped":
+        return str(result.get("reason") or "reload 履歴 purge skipped"), False, "SUCCESS"
+    if status == "ok":
+        removed = int(result.get("removed") or 0)
+        return f"reload 履歴 purge: {removed} 件削除", True, "SUCCESS"
+    return "reload 履歴 purge", False, "FAILURE"
+
+
+def record_purge_reload_history_entry(
+    *,
+    task_id: str | None,
+    result: dict | None = None,
+    pending: bool = False,
+) -> None:
+    if pending:
+        _record_reload_history(
+            task_id=task_id,
+            source="purge",
+            message="Celery purge タスクに enqueue しました。",
+            state="PENDING",
+            reloaded=False,
+        )
+        return
+    if result is None:
+        return
+    message, reloaded, state = _purge_result_to_history(result)
+    _record_reload_history(
+        task_id=task_id,
+        source="purge",
+        message=message,
+        state=state,
+        reloaded=reloaded,
+    )
+
+
+def purge_stale_prometheus_reload_history(*, record_history: bool = False) -> dict:
     if not prometheus_reload_history_redis_enabled():
-        return {"status": "skipped", "reason": "reload history redis disabled"}
+        result = {"status": "skipped", "reason": "reload history redis disabled"}
+        if record_history:
+            record_purge_reload_history_entry(task_id=None, result=result)
+        return result
     if prometheus_reload_history_redis_ttl_seconds() is None:
-        return {"status": "skipped", "reason": "reload history ttl disabled"}
+        result = {"status": "skipped", "reason": "reload history ttl disabled"}
+        if record_history:
+            record_purge_reload_history_entry(task_id=None, result=result)
+        return result
     client = _get_redis()
     if client is None:
-        return {"status": "skipped", "reason": "redis unavailable"}
+        result = {"status": "skipped", "reason": "redis unavailable"}
+        if record_history:
+            record_purge_reload_history_entry(task_id=None, result=result)
+        return result
     try:
         before = client.llen(_REDIS_HISTORY_KEY)
     except Exception:
@@ -272,7 +319,10 @@ def purge_stale_prometheus_reload_history() -> dict:
         after = client.llen(_REDIS_HISTORY_KEY)
     except Exception:
         after = 0
-    return {"status": "ok", "removed": max(before - after, 0)}
+    result = {"status": "ok", "removed": max(before - after, 0)}
+    if record_history:
+        record_purge_reload_history_entry(task_id=None, result=result)
+    return result
 
 
 def queue_purge_stale_prometheus_reload_history() -> str | None:
@@ -281,9 +331,11 @@ def queue_purge_stale_prometheus_reload_history() -> str | None:
             purge_stale_prometheus_reload_history as purge_stale_reload_history_task,
         )
 
-        async_result = purge_stale_reload_history_task.delay()
-        _enqueued_reload_task_ids.add(async_result.id)
-        return async_result.id
+        task_id = str(uuid.uuid4())
+        _enqueued_reload_task_ids.add(task_id)
+        record_purge_reload_history_entry(task_id=task_id, pending=True)
+        async_result = purge_stale_reload_history_task.apply_async(task_id=task_id)
+        return task_id
     except Exception as exc:
         logger.warning("Prometheus reload history purge Celery enqueue failed: %s", exc)
         return None
@@ -387,8 +439,12 @@ def queue_prometheus_reload() -> str | None:
         return None
 
 
+def is_enqueued_reload_task(task_id: str) -> bool:
+    return task_id in _enqueued_reload_task_ids
+
+
 def reload_task_known(task_id: str) -> bool:
-    if task_id in _enqueued_reload_task_ids:
+    if is_enqueued_reload_task(task_id):
         return True
 
     from backend.app.tasks.celery_app import celery_app

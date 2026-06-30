@@ -2570,6 +2570,84 @@ def test_breach_history_summary_by_fleet_offset_last_row(ops_client, monkeypatch
     assert data["offset"] == 1
 
 
+def test_breach_history_summary_by_fleet_offset_first_page(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from datetime import datetime, timezone
+
+    from backend.app.db.models import FleetAlertBreachHistory
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet_a = create_fleet(db, name="Offset First Fleet A")
+        fleet_b = create_fleet(db, name="Offset First Fleet B")
+        db.commit()
+        for fleet in (fleet_a, fleet_b):
+            db.add(
+                FleetAlertBreachHistory(
+                    fleet_id=fleet.id,
+                    alertname="CASFleetOpenAlertsHigh",
+                    is_breaching=True,
+                    source="sync",
+                    is_sticky=False,
+                    created_at=datetime(2026, 6, 7, tzinfo=timezone.utc),
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    last_page = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history/summary"
+        "?group_by=fleet&limit=1&offset=1",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert last_page.status_code == 200
+    last_name = last_page.json()["items"][0]["fleet_name"]
+
+    first_page = ops_client.get(
+        "/api/v1/ops/prometheus/alertmanager/breach-states/history/summary"
+        "?group_by=fleet&limit=1&offset=0",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert first_page.status_code == 200
+    first_data = first_page.json()
+    assert first_data["offset"] == 0
+    assert first_data["items"][0]["fleet_name"] != last_name
+
+
+def test_breach_history_settings_import_preview_csv_server_api(ops_client, monkeypatch):
+    import uuid
+
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    unknown_id = str(uuid.uuid4())
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{unknown_id},Missing Fleet,30,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    lines = [line for line in response.text.strip().splitlines() if line]
+    assert len(lines) == 2
+    assert "errors" in lines[0]
+    assert unknown_id in lines[1]
+
+
 def test_format_retention_import_preview_csv_row_errors_only():
     from backend.app.services.breach_history_service import (
         RetentionImportRowError,

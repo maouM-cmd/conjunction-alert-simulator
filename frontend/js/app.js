@@ -153,6 +153,7 @@ const els = {
   opsBreachHistoryAllFleetSummaryTable: document.getElementById("ops-breach-history-all-fleet-summary-table"),
   opsBreachHistoryAllFleetSummaryTableBody: document.getElementById("ops-breach-history-all-fleet-summary-table-body"),
   opsBreachHistoryAllFleetSummaryPaging: document.getElementById("ops-breach-history-all-fleet-summary-paging"),
+  btnOpsBreachHistoryAllFleetSummaryFirst: document.getElementById("btn-ops-breach-history-all-fleet-summary-first"),
   btnOpsBreachHistoryAllFleetSummaryPrev: document.getElementById("btn-ops-breach-history-all-fleet-summary-prev"),
   btnOpsBreachHistoryAllFleetSummaryNext: document.getElementById("btn-ops-breach-history-all-fleet-summary-next"),
   btnOpsBreachHistoryAllFleetSummaryLast: document.getElementById("btn-ops-breach-history-all-fleet-summary-last"),
@@ -187,6 +188,7 @@ const els = {
 let opsOidcEnabled = false;
 let opsAuthMe = { authenticated: false };
 let lastOpsBreachRetentionImportPreview = null;
+let lastOpsBreachRetentionImportFile = null;
 
 function opsFetchOptions(extraHeaders = {}, { ops = false } = {}) {
   const options = {};
@@ -668,6 +670,9 @@ function updateFleetSummaryPagingUI(summary) {
       `ページ ${currentPage}/${totalPages}（${rangeStart}〜${rangeEnd} / ${totalRows} 件）`;
   }
   syncFleetSummaryOffsetInput(summary?.offset ?? fleetSummaryOffset);
+  if (els.btnOpsBreachHistoryAllFleetSummaryFirst) {
+    els.btnOpsBreachHistoryAllFleetSummaryFirst.disabled = fleetSummaryOffset <= 0;
+  }
   if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
     els.btnOpsBreachHistoryAllFleetSummaryPrev.disabled = fleetSummaryOffset <= 0;
   }
@@ -732,6 +737,7 @@ function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = []
 
 let retentionImportDryRun = false;
 let retentionImportDryRunCsv = false;
+let retentionImportPreviewCsv = false;
 
 function renderOpsBreachHistoryFleetSummary(summary, { tableEl, bodyEl } = {}) {
   if (!bodyEl || !tableEl) {
@@ -1209,6 +1215,11 @@ async function changeFleetSummaryPage(delta) {
   await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
 }
 
+async function goToFleetSummaryFirstPage() {
+  fleetSummaryOffset = 0;
+  await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
+}
+
 async function goToFleetSummaryLastPage() {
   if (lastFleetSummaryTotalRows <= 0) {
     return;
@@ -1241,6 +1252,7 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
   if (!file) {
     return;
   }
+  lastOpsBreachRetentionImportFile = file;
   const formData = new FormData();
   formData.append("file", file, file.name);
   const query = dryRun ? "?dry_run=true" : "";
@@ -1298,58 +1310,51 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
 
 function updateOpsBreachRetentionPreviewCsvButton() {
   if (els.btnOpsBreachRetentionPreviewCsv) {
-    els.btnOpsBreachRetentionPreviewCsv.disabled = !lastOpsBreachRetentionImportPreview;
+    els.btnOpsBreachRetentionPreviewCsv.disabled = false;
   }
 }
 
-function retentionPreviewCsvField(value) {
-  const str = String(value ?? "");
-  if (/[",\n\r]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
+async function downloadRetentionImportPreviewCsvFromFile(file, downloadName = "breach-history-retention-preview-table.csv") {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  const res = await fetch(
+    `${API_BASE}/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv${retentionImportChangesOnlyQuery()}`,
+    {
+      method: "POST",
+      headers: getOpsApiHeaders(),
+      credentials: "include",
+      body: formData,
+    }
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `API エラー (${res.status})`);
   }
-  return str;
-}
-
-function downloadOpsBreachRetentionPreviewCsv() {
-  if (!opsAuthMe.is_admin) {
-    return;
-  }
-  if (!lastOpsBreachRetentionImportPreview) {
-    setOpsStatus("dry-run プレビューがありません。先に dry-run を実行してください。", true);
-    return;
-  }
-  const { preview, row_errors: rowErrors = [] } = lastOpsBreachRetentionImportPreview;
-  const changesOnly = els.opsBreachRetentionPreviewChangesOnly?.checked !== false;
-  const filteredPreview = changesOnly ? preview.filter((item) => item.will_change) : preview;
-  const lines = [
-    "fleet_id,fleet_name,retention_days,current_retention_days,effective_retention_days,will_change,errors",
-  ];
-  for (const item of filteredPreview) {
-    lines.push(
-      [
-        item.fleet_id,
-        item.fleet_name,
-        item.retention_days != null ? item.retention_days : "",
-        item.current_retention_days != null ? item.current_retention_days : "",
-        item.effective_retention_days,
-        item.will_change ? "true" : "false",
-        "",
-      ].map(retentionPreviewCsvField).join(",")
-    );
-  }
-  for (const item of rowErrors) {
-    lines.push(
-      [item.fleet_id, "", "", "", "", "", item.message].map(retentionPreviewCsvField).join(",")
-    );
-  }
-  const blob = new Blob([`${lines.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
+  const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "breach-history-retention-preview-table.csv";
+  a.download = downloadName;
   a.click();
   URL.revokeObjectURL(url);
-  setOpsStatus("preview CSV をダウンロードしました。");
+}
+
+async function downloadOpsBreachRetentionPreviewCsv() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  const file = lastOpsBreachRetentionImportFile ?? els.opsBreachRetentionImportFile?.files?.[0];
+  if (!file) {
+    retentionImportPreviewCsv = true;
+    els.opsBreachRetentionImportFile?.click();
+    return;
+  }
+  try {
+    await downloadRetentionImportPreviewCsvFromFile(file);
+    setOpsStatus("preview CSV をダウンロードしました（サーバー dry-run CSV）。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
 }
 
 async function downloadOpsBreachRetentionDryRunCsv() {
@@ -1361,29 +1366,8 @@ async function downloadOpsBreachRetentionDryRunCsv() {
     setOpsStatus("CSV ファイルを選択してください。", true);
     return;
   }
-  const formData = new FormData();
-  formData.append("file", file, file.name);
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv${retentionImportChangesOnlyQuery()}`,
-      {
-        method: "POST",
-        headers: getOpsApiHeaders(),
-        credentials: "include",
-        body: formData,
-      }
-    );
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || `API エラー (${res.status})`);
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "breach-history-retention-preview.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadRetentionImportPreviewCsvFromFile(file, "breach-history-retention-preview.csv");
     setOpsStatus("dry-run preview CSV をダウンロードしました。");
   } catch (err) {
     setOpsStatus(err.message, true);
@@ -3025,6 +3009,11 @@ function initEventListeners() {
   if (els.opsBreachHistoryAllFleetSummaryLimit) {
     els.opsBreachHistoryAllFleetSummaryLimit.addEventListener("change", refreshOpsBreachHistoryAll);
   }
+  if (els.btnOpsBreachHistoryAllFleetSummaryFirst) {
+    els.btnOpsBreachHistoryAllFleetSummaryFirst.addEventListener("click", () => {
+      goToFleetSummaryFirstPage();
+    });
+  }
   if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
     els.btnOpsBreachHistoryAllFleetSummaryPrev.addEventListener("click", () => {
       changeFleetSummaryPage(-1);
@@ -3113,10 +3102,19 @@ function initEventListeners() {
     els.btnOpsBreachRetentionPreviewCsv.addEventListener("click", downloadOpsBreachRetentionPreviewCsv);
   }
   if (els.opsBreachRetentionImportFile) {
-    els.opsBreachRetentionImportFile.addEventListener("change", () => {
+    els.opsBreachRetentionImportFile.addEventListener("change", async () => {
       if (retentionImportDryRunCsv) {
         retentionImportDryRunCsv = false;
         downloadOpsBreachRetentionDryRunCsv();
+        return;
+      }
+      if (retentionImportPreviewCsv) {
+        retentionImportPreviewCsv = false;
+        const file = els.opsBreachRetentionImportFile?.files?.[0];
+        if (file) {
+          lastOpsBreachRetentionImportFile = file;
+          await downloadOpsBreachRetentionPreviewCsv();
+        }
         return;
       }
       importOpsBreachRetentionCsv(retentionImportDryRun);

@@ -1076,8 +1076,9 @@ def test_purge_stale_prometheus_reload_history_celery_task(monkeypatch):
 
     assert result["status"] == "ok"
     assert result["removed"] == 1
-    assert len(storage) == 1
-    assert "fresh" in storage[0]
+    assert len(storage) == 2
+    assert any("fresh" in item for item in storage)
+    assert any('"source": "purge"' in item for item in storage)
 
 
 def test_purge_stale_prometheus_reload_history_celery_task_skipped_when_ttl_disabled(monkeypatch):
@@ -1146,7 +1147,9 @@ def test_prometheus_reload_history_purge_api_ok(ops_client, monkeypatch):
     data = response.json()
     assert data["status"] == "ok"
     assert data["removed"] == 1
-    assert len(storage) == 1
+    assert len(storage) == 2
+    assert any("fresh" in item for item in storage)
+    assert any('"source": "purge"' in item for item in storage)
 
 
 def test_prometheus_reload_history_purge_api_skipped_when_ttl_disabled(ops_client, monkeypatch):
@@ -1236,8 +1239,9 @@ def test_prometheus_reload_history_purge_api_async_run(ops_client, monkeypatch):
     assert data["status"] == "queued"
     assert data["queued"] is True
     assert data["task_id"]
-    assert len(storage) == 1
-    assert "fresh" in storage[0]
+    assert len(storage) == 2
+    assert any("fresh" in item for item in storage)
+    assert any('"source": "purge"' in item for item in storage)
 
 
 def test_prometheus_reload_history_purge_api_async_run_skipped_when_ttl_disabled(
@@ -1273,15 +1277,13 @@ def test_queue_purge_stale_prometheus_reload_history(monkeypatch):
     monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
     configure_celery_eager()
 
-    mock_result = MagicMock()
-    mock_result.id = "purge-task-123"
     with patch(
-        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.delay",
-        return_value=mock_result,
-    ):
+        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.apply_async",
+        return_value=MagicMock(),
+    ) as mock_apply:
         task_id = fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
-    assert task_id == "purge-task-123"
-    assert fleet_alert_rules_apply_service.reload_task_known("purge-task-123")
+    assert task_id == mock_apply.call_args.kwargs["task_id"]
+    assert fleet_alert_rules_apply_service.reload_task_known(task_id)
 
 
 def test_prometheus_reload_task_status_purge_success_message(monkeypatch):
@@ -1340,15 +1342,14 @@ def test_reload_task_unknown_before_purge_queue(monkeypatch):
 
     assert not fleet_alert_rules_apply_service.reload_task_known("purge-task-new")
 
-    mock_result = MagicMock()
-    mock_result.id = "purge-task-new"
     with patch(
-        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.delay",
-        return_value=mock_result,
-    ):
-        fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
+        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.apply_async",
+        return_value=MagicMock(),
+    ) as mock_apply:
+        task_id = fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
 
-    assert fleet_alert_rules_apply_service.reload_task_known("purge-task-new")
+    assert task_id == mock_apply.call_args.kwargs["task_id"]
+    assert fleet_alert_rules_apply_service.reload_task_known(task_id)
 
 
 def test_prometheus_reload_history_purge_async_task_status_endpoint(ops_client, monkeypatch):
@@ -1417,6 +1418,182 @@ def test_prometheus_reload_history_purge_async_task_status_endpoint(ops_client, 
     status_data = status_response.json()
     assert status_data["state"] == "SUCCESS"
     assert "件削除" in status_data["message"]
+
+
+def test_queue_purge_registers_reload_history_pending(monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.celery_app import configure_celery_eager
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+    configure_celery_eager()
+
+    with patch(
+        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.apply_async",
+        return_value=MagicMock(),
+    ) as mock_apply:
+        task_id = fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
+
+    assert task_id == mock_apply.call_args.kwargs["task_id"]
+    items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit=5)
+    assert items
+    assert items[-1]["source"] == "purge"
+    assert items[-1]["task_id"] == task_id
+    assert items[-1]["state"] == "PENDING"
+
+
+def test_prometheus_reload_history_purge_api_records_sync_history(ops_client, monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.extend(
+        [
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": old.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "stale",
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload/history/purge",
+            headers={"X-API-Key": "admin-secret"},
+        )
+
+    assert response.status_code == 200
+    history = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history?limit=5",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert items
+    assert items[0]["source"] == "purge"
+    assert "件削除" in items[0]["message"]
+
+
+def test_prometheus_reload_history_purge_async_lists_in_history(ops_client, monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.celery_app import configure_celery_eager
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    configure_celery_eager()
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.extend(
+        [
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": old.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "stale",
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload/history/purge?async_run=true",
+            headers={"X-API-Key": "admin-secret"},
+        )
+
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+    history = ops_client.get(
+        "/api/v1/ops/prometheus/reload/history?limit=5",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    purge_items = [item for item in items if item["source"] == "purge"]
+    assert purge_items
+    assert purge_items[0]["task_id"] == task_id
+    assert purge_items[0]["state"] == "SUCCESS"
+    assert "件削除" in purge_items[0]["message"]
+
+
+def test_purge_celery_task_records_history_when_not_queued(monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.alertmanager_tasks import purge_stale_prometheus_reload_history as purge_task
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.extend(
+        [
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": old.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "stale",
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        purge_task()
+
+    items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit=5)
+    assert items
+    assert items[-1]["source"] == "purge"
+    assert "件削除" in items[-1]["message"]
 
 
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):

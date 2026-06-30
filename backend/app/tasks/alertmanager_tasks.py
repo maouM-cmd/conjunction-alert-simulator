@@ -58,9 +58,19 @@ def purge_old_breach_history() -> dict:
 
 @celery_app.task(name="backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history")
 def purge_stale_prometheus_reload_history() -> dict:
+    from celery import current_task
+
     from backend.app.services import fleet_alert_rules_apply_service
 
-    return fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
+    result = fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
+    request = getattr(current_task, "request", None)
+    task_id = getattr(request, "id", None) if request is not None else None
+    if task_id is None or not fleet_alert_rules_apply_service.is_enqueued_reload_task(task_id):
+        fleet_alert_rules_apply_service.record_purge_reload_history_entry(
+            task_id=task_id,
+            result=result,
+        )
+    return result
 
 
 @celery_app.task(name="backend.app.tasks.alertmanager_tasks.prometheus_reload")

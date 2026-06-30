@@ -979,6 +979,8 @@ Phase 10AR: `async_run=true` で Celery enqueue（`queued`, `task_id`）。Ops d
 
 Phase 10AS: purge task ID を `reload_task_known` に登録。`GET /reload/tasks/{id}` が purge 結果（`removed` / `reason`）を message にマップ。Ops purge async 後ポーリング。dry-run プレビュー表から `preview CSV`（キャッシュベース、`changes_only` 時も row_errors 含む）。fleet summary 「最後へ」ボタン。
 
+Phase 10AT: purge 結果を reload 履歴（`source=purge`）に記録。Ops `preview CSV` はサーバー `dry_run&format=csv` API 経由（キャッシュ不要）。fleet summary 「先頭へ」ボタン。
+
 | クエリ | 説明 |
 |--------|------|
 | `limit` | 返却件数（default 20） |
@@ -1280,6 +1282,8 @@ Ops UI（Phase 10AP）: offset 数値入力 + 移動ボタン。`0 <= offset < t
 Ops UI（Phase 10AQ）: offset 入力で Enter キー移動。reload 履歴 purge ボタン。
 
 Ops UI（Phase 10AS）: fleet summary 「最後へ」ボタン（`offset = (ceil(total/limit)-1)*limit`）。
+
+Ops UI（Phase 10AT）: fleet summary 「先頭へ」ボタン（`offset=0`）。retention `preview CSV` はサーバー dry-run CSV API。
 
 `FleetBreachHistoryFleetSummaryOut`（Phase 10AN）: `items[]`, `total_rows`, `limit`, `offset`
 

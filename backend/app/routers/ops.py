@@ -883,7 +883,7 @@ def prometheus_reload_history_purge(
             task_id=task_id,
         )
 
-    result = fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
+    result = fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history(record_history=True)
     return PrometheusReloadHistoryPurgeOut(
         status=result["status"],
         removed=int(result.get("removed") or 0),

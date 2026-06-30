@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AT — 次着手
+## Phase 10AU — 次着手
 
-商用運用ロードマップ Phase 10+（purge 履歴表示、preview CSV API、先頭ページ等）。
+商用運用ロードマップ Phase 10+（purge 履歴フィルタ、preview CSV 専用 API 等）。
+
+## Phase 10AT — 完了
+
+purge 履歴テーブル表示、preview CSV サーバー API、fleet 先頭ページ。v1.53.0 ship 済み。
 
 ## Phase 10AS — 完了
 
