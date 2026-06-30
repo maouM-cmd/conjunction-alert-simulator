@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.52.0] - 2026-06-28
+
+Phase 10AS — purge poll ui + preview csv export + fleet last page。
+
+### Added
+
+- **Phase 10AS:** purge async ポーリング UI + task status purge message
+- retention dry-run プレビュー `preview CSV` エクスポート
+- fleet summary 「最後へ」ボタン
+
 ## [1.51.0] - 2026-06-28
 
 Phase 10AR — row_errors preview ui + purge async + fleet page number。

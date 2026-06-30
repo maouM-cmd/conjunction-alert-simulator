@@ -127,6 +127,7 @@ const els = {
   btnOpsBreachRetentionImport: document.getElementById("btn-ops-breach-retention-import"),
   btnOpsBreachRetentionDryRun: document.getElementById("btn-ops-breach-retention-dry-run"),
   btnOpsBreachRetentionDryRunCsv: document.getElementById("btn-ops-breach-retention-dry-run-csv"),
+  btnOpsBreachRetentionPreviewCsv: document.getElementById("btn-ops-breach-retention-preview-csv"),
   opsBreachRetentionPreviewChangesOnly: document.getElementById("ops-breach-retention-preview-changes-only"),
   opsBreachRetentionImportPreviewTable: document.getElementById("ops-breach-retention-import-preview-table"),
   opsBreachRetentionImportPreviewTableBody: document.getElementById("ops-breach-retention-import-preview-table-body"),
@@ -154,6 +155,7 @@ const els = {
   opsBreachHistoryAllFleetSummaryPaging: document.getElementById("ops-breach-history-all-fleet-summary-paging"),
   btnOpsBreachHistoryAllFleetSummaryPrev: document.getElementById("btn-ops-breach-history-all-fleet-summary-prev"),
   btnOpsBreachHistoryAllFleetSummaryNext: document.getElementById("btn-ops-breach-history-all-fleet-summary-next"),
+  btnOpsBreachHistoryAllFleetSummaryLast: document.getElementById("btn-ops-breach-history-all-fleet-summary-last"),
   opsBreachHistoryAllFleetSummaryPage: document.getElementById("ops-breach-history-all-fleet-summary-page"),
   opsBreachHistoryAllFleetSummaryOffset: document.getElementById("ops-breach-history-all-fleet-summary-offset"),
   btnOpsBreachHistoryAllFleetSummaryGo: document.getElementById("btn-ops-breach-history-all-fleet-summary-go"),
@@ -671,6 +673,10 @@ function updateFleetSummaryPagingUI(summary) {
   }
   if (els.btnOpsBreachHistoryAllFleetSummaryNext) {
     els.btnOpsBreachHistoryAllFleetSummaryNext.disabled =
+      fleetSummaryOffset + limit >= totalRows;
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryLast) {
+    els.btnOpsBreachHistoryAllFleetSummaryLast.disabled =
       fleetSummaryOffset + limit >= totalRows;
   }
 }
@@ -1203,6 +1209,16 @@ async function changeFleetSummaryPage(delta) {
   await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
 }
 
+async function goToFleetSummaryLastPage() {
+  if (lastFleetSummaryTotalRows <= 0) {
+    return;
+  }
+  const limit = fleetSummaryLimitValue();
+  const totalPages = Math.max(Math.ceil(lastFleetSummaryTotalRows / limit), 1);
+  fleetSummaryOffset = Math.max((totalPages - 1) * limit, 0);
+  await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
+}
+
 async function goToFleetSummaryOffset(raw) {
   const parsed = Number(String(raw ?? "").trim());
   if (!Number.isInteger(parsed) || parsed < 0) {
@@ -1254,6 +1270,7 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
         lastOpsBreachRetentionImportPreview.errors,
         lastOpsBreachRetentionImportPreview.row_errors
       );
+      updateOpsBreachRetentionPreviewCsvButton();
       setOpsStatus("retention CSV dry-run を完了しました（DB 変更なし）。");
     } else {
       els.opsBreachRetentionAllStatus.textContent =
@@ -1263,6 +1280,7 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
         els.opsBreachRetentionImportPreviewTableBody.innerHTML = "";
       }
       lastOpsBreachRetentionImportPreview = null;
+      updateOpsBreachRetentionPreviewCsvButton();
       await refreshOpsBreachRetentionAll();
       setOpsStatus(`retention CSV をインポートしました（${data.updated} 件更新）。`);
     }
@@ -1276,6 +1294,62 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
       els.opsBreachRetentionImportFile.value = "";
     }
   }
+}
+
+function updateOpsBreachRetentionPreviewCsvButton() {
+  if (els.btnOpsBreachRetentionPreviewCsv) {
+    els.btnOpsBreachRetentionPreviewCsv.disabled = !lastOpsBreachRetentionImportPreview;
+  }
+}
+
+function retentionPreviewCsvField(value) {
+  const str = String(value ?? "");
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadOpsBreachRetentionPreviewCsv() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  if (!lastOpsBreachRetentionImportPreview) {
+    setOpsStatus("dry-run プレビューがありません。先に dry-run を実行してください。", true);
+    return;
+  }
+  const { preview, row_errors: rowErrors = [] } = lastOpsBreachRetentionImportPreview;
+  const changesOnly = els.opsBreachRetentionPreviewChangesOnly?.checked !== false;
+  const filteredPreview = changesOnly ? preview.filter((item) => item.will_change) : preview;
+  const lines = [
+    "fleet_id,fleet_name,retention_days,current_retention_days,effective_retention_days,will_change,errors",
+  ];
+  for (const item of filteredPreview) {
+    lines.push(
+      [
+        item.fleet_id,
+        item.fleet_name,
+        item.retention_days != null ? item.retention_days : "",
+        item.current_retention_days != null ? item.current_retention_days : "",
+        item.effective_retention_days,
+        item.will_change ? "true" : "false",
+        "",
+      ].map(retentionPreviewCsvField).join(",")
+    );
+  }
+  for (const item of rowErrors) {
+    lines.push(
+      [item.fleet_id, "", "", "", "", "", item.message].map(retentionPreviewCsvField).join(",")
+    );
+  }
+  const blob = new Blob([`${lines.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "breach-history-retention-preview-table.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+  setOpsStatus("preview CSV をダウンロードしました。");
 }
 
 async function downloadOpsBreachRetentionDryRunCsv() {
@@ -1439,6 +1513,35 @@ function refreshOpsFleetAlertRulesSection() {
   }
 }
 
+async function pollPurgeReloadHistoryTask(taskId, options = {}) {
+  const {
+    attempt = 0,
+    statusEl = els.opsPrometheusReloadStatus,
+    timeoutMessage = "reload 履歴 purge タスクの確認がタイムアウトしました。",
+  } = options;
+  const maxAttempts = 15;
+  if (!taskId || attempt >= maxAttempts) {
+    if (attempt >= maxAttempts) {
+      setOpsStatus(timeoutMessage, true);
+    }
+    return;
+  }
+  try {
+    const status = await apiGet(`/api/v1/ops/prometheus/reload/tasks/${taskId}`, { ops: true });
+    if (status.state === "SUCCESS" || status.state === "FAILURE") {
+      setOpsStatus(status.message, status.state === "FAILURE");
+      await refreshOpsPrometheusReloadHistory();
+      return;
+    }
+    window.setTimeout(
+      () => pollPurgeReloadHistoryTask(taskId, { ...options, attempt: attempt + 1 }),
+      2000
+    );
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function triggerOpsPrometheusReloadHistoryPurge(asyncRun = false) {
   if (!opsAuthMe.is_admin) {
     return;
@@ -1448,12 +1551,13 @@ async function triggerOpsPrometheusReloadHistoryPurge(asyncRun = false) {
     const result = await apiPost(`/api/v1/ops/prometheus/reload/history/purge${query}`, {}, { ops: true });
     if (result.queued && result.task_id) {
       setOpsStatus(`reload 履歴 purge を Celery に enqueue しました（task: ${result.task_id}）。`);
+      pollPurgeReloadHistoryTask(result.task_id);
     } else {
       const removed = result.removed ?? 0;
       const note = result.status === "skipped" ? ` (${result.reason || "skipped"})` : "";
       setOpsStatus(`reload 履歴 purge: ${removed} 件削除${note}`);
+      await refreshOpsPrometheusReloadHistory();
     }
-    await refreshOpsPrometheusReloadHistory();
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -2931,6 +3035,11 @@ function initEventListeners() {
       changeFleetSummaryPage(1);
     });
   }
+  if (els.btnOpsBreachHistoryAllFleetSummaryLast) {
+    els.btnOpsBreachHistoryAllFleetSummaryLast.addEventListener("click", () => {
+      goToFleetSummaryLastPage();
+    });
+  }
   if (els.btnOpsBreachHistoryAllFleetSummaryGo) {
     els.btnOpsBreachHistoryAllFleetSummaryGo.addEventListener("click", () => {
       goToFleetSummaryOffset(els.opsBreachHistoryAllFleetSummaryOffset?.value);
@@ -2999,6 +3108,9 @@ function initEventListeners() {
       retentionImportDryRunCsv = true;
       els.opsBreachRetentionImportFile?.click();
     });
+  }
+  if (els.btnOpsBreachRetentionPreviewCsv) {
+    els.btnOpsBreachRetentionPreviewCsv.addEventListener("click", downloadOpsBreachRetentionPreviewCsv);
   }
   if (els.opsBreachRetentionImportFile) {
     els.opsBreachRetentionImportFile.addEventListener("change", () => {

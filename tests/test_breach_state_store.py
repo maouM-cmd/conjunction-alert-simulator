@@ -2570,6 +2570,26 @@ def test_breach_history_summary_by_fleet_offset_last_row(ops_client, monkeypatch
     assert data["offset"] == 1
 
 
+def test_format_retention_import_preview_csv_row_errors_only():
+    from backend.app.services.breach_history_service import (
+        RetentionImportRowError,
+        format_retention_import_preview_csv,
+    )
+
+    unknown_id = "00000000-0000-0000-0000-000000000099"
+    csv_text = format_retention_import_preview_csv(
+        [],
+        row_errors=[
+            RetentionImportRowError(fleet_id=unknown_id, message="艦隊が見つかりません"),
+        ],
+    )
+    lines = [line for line in csv_text.strip().splitlines() if line]
+    assert len(lines) == 2
+    assert "errors" in lines[0]
+    assert unknown_id in lines[1]
+    assert "艦隊が見つかりません" in lines[1]
+
+
 def test_breach_history_settings_import_dry_run_json_row_errors(ops_client, monkeypatch):
     import uuid
 

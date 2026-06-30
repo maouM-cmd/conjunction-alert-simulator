@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AS — 次着手
+## Phase 10AT — 次着手
 
-商用運用ロードマップ Phase 10+（purge async ポーリング、row_errors CSV 等）。
+商用運用ロードマップ Phase 10+（purge 履歴表示、preview CSV API、先頭ページ等）。
+
+## Phase 10AS — 完了
+
+purge async ポーリング、preview CSV エクスポート、fleet 最終ページ。v1.52.0 ship 済み。
 
 ## Phase 10AR — 完了
 

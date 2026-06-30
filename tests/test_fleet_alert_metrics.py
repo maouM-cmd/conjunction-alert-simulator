@@ -1281,6 +1281,142 @@ def test_queue_purge_stale_prometheus_reload_history(monkeypatch):
     ):
         task_id = fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
     assert task_id == "purge-task-123"
+    assert fleet_alert_rules_apply_service.reload_task_known("purge-task-123")
+
+
+def test_prometheus_reload_task_status_purge_success_message(monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    task_id = "purge-status-task-ok"
+    fleet_alert_rules_apply_service._enqueued_reload_task_ids.add(task_id)
+
+    mock_result = MagicMock()
+    mock_result.state = "SUCCESS"
+    mock_result.result = {"status": "ok", "removed": 5}
+
+    with patch("backend.app.tasks.celery_app.celery_app.AsyncResult", return_value=mock_result):
+        status = fleet_alert_rules_apply_service.get_prometheus_reload_task_status(task_id)
+
+    assert status is not None
+    assert status["state"] == "SUCCESS"
+    assert status["reloaded"] is True
+    assert "5 件削除" in status["message"]
+
+
+def test_prometheus_reload_task_status_purge_skipped_message(monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    task_id = "purge-status-task-skipped"
+    fleet_alert_rules_apply_service._enqueued_reload_task_ids.add(task_id)
+
+    mock_result = MagicMock()
+    mock_result.state = "SUCCESS"
+    mock_result.result = {"status": "skipped", "reason": "reload history ttl disabled"}
+
+    with patch("backend.app.tasks.celery_app.celery_app.AsyncResult", return_value=mock_result):
+        status = fleet_alert_rules_apply_service.get_prometheus_reload_task_status(task_id)
+
+    assert status is not None
+    assert status["state"] == "SUCCESS"
+    assert status["reloaded"] is False
+    assert "ttl disabled" in status["message"]
+
+
+def test_reload_task_unknown_before_purge_queue(monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.celery_app import configure_celery_eager
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+    configure_celery_eager()
+
+    assert not fleet_alert_rules_apply_service.reload_task_known("purge-task-new")
+
+    mock_result = MagicMock()
+    mock_result.id = "purge-task-new"
+    with patch(
+        "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history.delay",
+        return_value=mock_result,
+    ):
+        fleet_alert_rules_apply_service.queue_purge_stale_prometheus_reload_history()
+
+    assert fleet_alert_rules_apply_service.reload_task_known("purge-task-new")
+
+
+def test_prometheus_reload_history_purge_async_task_status_endpoint(ops_client, monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.celery_app import configure_celery_eager
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    configure_celery_eager()
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.extend(
+        [
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": old.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "stale",
+                },
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": now.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": "fresh",
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload/history/purge?async_run=true",
+            headers={"X-API-Key": "admin-secret"},
+        )
+
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+    assert task_id
+
+    status_response = ops_client.get(
+        f"/api/v1/ops/prometheus/reload/tasks/{task_id}",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["state"] == "SUCCESS"
+    assert "件削除" in status_data["message"]
 
 
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):

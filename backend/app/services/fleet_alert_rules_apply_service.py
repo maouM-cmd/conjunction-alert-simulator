@@ -282,6 +282,7 @@ def queue_purge_stale_prometheus_reload_history() -> str | None:
         )
 
         async_result = purge_stale_reload_history_task.delay()
+        _enqueued_reload_task_ids.add(async_result.id)
         return async_result.id
     except Exception as exc:
         logger.warning("Prometheus reload history purge Celery enqueue failed: %s", exc)
@@ -413,6 +414,17 @@ def get_prometheus_reload_task_status(task_id: str) -> dict | None:
     payload = result.result if isinstance(result.result, dict) else {}
     reloaded = bool(payload.get("reloaded")) if payload else False
     message = str(payload.get("message") or "")
+    if "removed" in payload or payload.get("status") in ("ok", "skipped"):
+        purge_status = str(payload.get("status") or "")
+        if purge_status == "skipped":
+            message = str(payload.get("reason") or "reload 履歴 purge skipped")
+            reloaded = False
+        elif purge_status == "ok":
+            removed = int(payload.get("removed") or 0)
+            message = f"reload 履歴 purge: {removed} 件削除"
+            reloaded = True
+        elif state == "SUCCESS" and not message:
+            message = "reload 履歴 purge タスクが完了しました。"
     if state == "SUCCESS" and not message:
         message = "Prometheus reload タスクが完了しました。"
     if state == "FAILURE":
