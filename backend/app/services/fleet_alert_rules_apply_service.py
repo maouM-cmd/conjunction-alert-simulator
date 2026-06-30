@@ -7,7 +7,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -118,6 +118,9 @@ def _push_reload_history_redis(entry: ReloadHistoryEntry) -> None:
     try:
         client.lpush(_REDIS_HISTORY_KEY, json.dumps(_entry_to_payload(entry), ensure_ascii=False))
         client.ltrim(_REDIS_HISTORY_KEY, 0, limit - 1)
+        ttl = prometheus_reload_history_redis_ttl_seconds()
+        if ttl is not None:
+            client.expire(_REDIS_HISTORY_KEY, ttl)
     except Exception as exc:
         logger.warning("Prometheus reload history Redis write failed: %s", exc)
         reset_reload_history_redis_client_for_tests()
@@ -140,7 +143,7 @@ def _load_reload_history_redis(limit: int) -> list[ReloadHistoryEntry]:
             entries.append(_entry_from_payload(json.loads(raw)))
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
-    return entries
+    return _filter_reload_history_by_ttl(entries)
 
 
 def reset_reload_history_redis_client_for_tests() -> None:
@@ -183,6 +186,24 @@ def prometheus_reload_history_size() -> int:
         return max(int(raw), 1)
     except ValueError:
         return 20
+
+
+def prometheus_reload_history_redis_ttl_seconds() -> int | None:
+    raw = os.getenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "604800").strip().lower()
+    if raw in ("0", "none", "off"):
+        return None
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 604800
+
+
+def _filter_reload_history_by_ttl(entries: list[ReloadHistoryEntry]) -> list[ReloadHistoryEntry]:
+    ttl = prometheus_reload_history_redis_ttl_seconds()
+    if ttl is None:
+        return entries
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=ttl)
+    return [entry for entry in entries if entry.enqueued_at >= cutoff]
 
 
 def _record_reload_history(
@@ -341,6 +362,8 @@ def list_prometheus_reload_history(limit: int = 20) -> list[dict]:
         entries = _load_reload_history_redis(capped)
     if not entries:
         entries = list(reversed(_reload_history[-capped:]))
+    else:
+        entries = _filter_reload_history_by_ttl(entries)
     return [_history_entry_to_item(entry) for entry in entries]
 
 

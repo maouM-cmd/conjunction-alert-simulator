@@ -939,17 +939,20 @@ def bulk_update_fleet_breach_history_settings(
     return FleetBreachHistorySettingsBulkOut(updated=updated)
 
 
-@router.post(
-    "/fleets/breach-history-settings/import",
-    response_model=FleetBreachHistorySettingsImportOut,
-)
+@router.post("/fleets/breach-history-settings/import")
 async def import_fleet_breach_history_settings(
     file: UploadFile = File(...),
     dry_run: bool = False,
+    format: str = Query("json", pattern="^(json|csv)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
-) -> FleetBreachHistorySettingsImportOut:
+):
     _require_admin_breach_history(principal)
+    if format == "csv" and not dry_run:
+        raise HTTPException(
+            status_code=422,
+            detail="format=csv は dry_run=true 時のみ利用できます。",
+        )
     raw = await file.read()
     try:
         content = raw.decode("utf-8-sig")
@@ -993,6 +996,11 @@ async def import_fleet_breach_history_settings(
     if dry_run:
         if not preview and errors:
             raise HTTPException(status_code=422, detail="; ".join(errors))
+        if format == "csv":
+            return Response(
+                content=breach_history_service.format_retention_import_preview_csv(preview),
+                media_type="text/csv",
+            )
         return FleetBreachHistorySettingsImportOut(
             updated=0,
             skipped=skipped,
@@ -1195,6 +1203,8 @@ def summarize_fleet_breach_history(
     format: str = Query("json", pattern="^(json|csv)$"),
     group_by: str = Query("day", pattern="^(day|fleet)$"),
     fleet_name_contains: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ):
@@ -1229,11 +1239,13 @@ def summarize_fleet_breach_history(
             until=until,
             fleet_name_contains=fleet_name_contains,
         )
+        total_rows = len(fleet_rows)
+        page_rows = fleet_rows[offset : offset + limit]
         if format == "csv":
             buffer = io.StringIO()
             writer = csv.writer(buffer)
             writer.writerow(["day", "fleet_id", "fleet_name", "total", "breaching_count"])
-            for row in fleet_rows:
+            for row in page_rows:
                 writer.writerow([
                     row.day.isoformat(),
                     str(row.fleet_id),
@@ -1252,9 +1264,11 @@ def summarize_fleet_breach_history(
                     total=row.total,
                     breaching_count=row.breaching_count,
                 )
-                for row in fleet_rows
+                for row in page_rows
             ],
-            total_rows=len(fleet_rows),
+            total_rows=total_rows,
+            limit=limit,
+            offset=offset,
         )
 
     scoped_fleet_id: str | None = None

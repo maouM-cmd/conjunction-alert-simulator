@@ -126,6 +126,7 @@ const els = {
   opsBreachRetentionImportFile: document.getElementById("ops-breach-retention-import-file"),
   btnOpsBreachRetentionImport: document.getElementById("btn-ops-breach-retention-import"),
   btnOpsBreachRetentionDryRun: document.getElementById("btn-ops-breach-retention-dry-run"),
+  btnOpsBreachRetentionDryRunCsv: document.getElementById("btn-ops-breach-retention-dry-run-csv"),
   opsBreachRetentionPreviewChangesOnly: document.getElementById("ops-breach-retention-preview-changes-only"),
   opsBreachRetentionImportPreviewTable: document.getElementById("ops-breach-retention-import-preview-table"),
   opsBreachRetentionImportPreviewTableBody: document.getElementById("ops-breach-retention-import-preview-table-body"),
@@ -145,6 +146,7 @@ const els = {
   opsBreachHistoryAllSince: document.getElementById("ops-breach-history-all-since"),
   opsBreachHistoryAllUntil: document.getElementById("ops-breach-history-all-until"),
   opsBreachHistoryAllFleetName: document.getElementById("ops-breach-history-all-fleet-name"),
+  opsBreachHistoryAllFleetSummaryLimit: document.getElementById("ops-breach-history-all-fleet-summary-limit"),
   opsBreachHistoryAllSummaryTable: document.getElementById("ops-breach-history-all-summary-table"),
   opsBreachHistoryAllSummaryTableBody: document.getElementById("ops-breach-history-all-summary-table-body"),
   opsBreachHistoryAllFleetSummaryTable: document.getElementById("ops-breach-history-all-fleet-summary-table"),
@@ -602,6 +604,15 @@ function datetimeLocalToIso(value) {
   return parsed.toISOString();
 }
 
+function fleetSummaryLimitParam() {
+  const raw = els.opsBreachHistoryAllFleetSummaryLimit?.value?.trim() ?? "100";
+  const limit = Number(raw);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+    return "limit=100";
+  }
+  return `limit=${limit}`;
+}
+
 function breachHistoryFilterOptions(scope = "fleet") {
   if (scope === "all") {
     return {
@@ -652,6 +663,7 @@ function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = []
 }
 
 let retentionImportDryRun = false;
+let retentionImportDryRunCsv = false;
 
 function renderOpsBreachHistoryFleetSummary(summary, { tableEl, bodyEl } = {}) {
   if (!bodyEl || !tableEl) {
@@ -664,7 +676,7 @@ function renderOpsBreachHistoryFleetSummary(summary, { tableEl, bodyEl } = {}) {
   }
   tableEl.classList.remove("hidden");
   bodyEl.innerHTML = "";
-  for (const item of summary.items.slice(0, 20)) {
+  for (const item of summary.items) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${item.day}</td>
@@ -674,6 +686,7 @@ function renderOpsBreachHistoryFleetSummary(summary, { tableEl, bodyEl } = {}) {
     `;
     bodyEl.appendChild(tr);
   }
+  return summary;
 }
 
 function renderOpsBreachHistorySummary(summary, { tableEl, bodyEl } = {}) {
@@ -710,6 +723,9 @@ async function loadOpsBreachHistorySummary(scope = "fleet", { groupBy = "day" } 
     if (groupSuffix) {
       parts.push(groupSuffix);
     }
+    if (groupBy === "fleet") {
+      parts.push(fleetSummaryLimitParam());
+    }
     if (filterSuffix) {
       parts.push(filterSuffix.slice(1));
     }
@@ -720,11 +736,16 @@ async function loadOpsBreachHistorySummary(scope = "fleet", { groupBy = "day" } 
   try {
     const summary = await apiGet(url, { ops: true });
     if (scope === "all" && groupBy === "fleet") {
-      renderOpsBreachHistoryFleetSummary(summary, {
+      const fleetSummary = renderOpsBreachHistoryFleetSummary(summary, {
         tableEl: els.opsBreachHistoryAllFleetSummaryTable,
         bodyEl: els.opsBreachHistoryAllFleetSummaryTableBody,
       });
-      return;
+      if (fleetSummary && els.opsBreachHistoryAllStatus) {
+        const base = els.opsBreachHistoryAllStatus.textContent.split(" / fleet summary:")[0];
+        els.opsBreachHistoryAllStatus.textContent =
+          `${base} / fleet summary: ${fleetSummary.total_rows} 件中 ${fleetSummary.items.length} 件表示`;
+      }
+      return fleetSummary;
     }
     if (scope === "all") {
       renderOpsBreachHistorySummary(summary, {
@@ -923,6 +944,7 @@ function breachHistorySummaryDownloadUrl(scope, { groupBy = "day" } = {}) {
   let url = `${API_BASE}/api/v1/ops/prometheus/alertmanager/breach-states/history/summary?format=csv`;
   if (scope === "all" && groupBy === "fleet") {
     url += "&group_by=fleet";
+    url += `&${fleetSummaryLimitParam()}`;
   }
   if (scope === "fleet" && fleetId) {
     url += `&fleet_id=${fleetId}${filterSuffix}`;
@@ -1152,6 +1174,44 @@ async function importOpsBreachRetentionCsv(dryRun = false) {
     if (els.opsBreachRetentionImportFile) {
       els.opsBreachRetentionImportFile.value = "";
     }
+  }
+}
+
+async function downloadOpsBreachRetentionDryRunCsv() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  const file = els.opsBreachRetentionImportFile?.files?.[0];
+  if (!file) {
+    setOpsStatus("CSV ファイルを選択してください。", true);
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv`,
+      {
+        method: "POST",
+        headers: getOpsApiHeaders(),
+        credentials: "include",
+        body: formData,
+      }
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "breach-history-retention-preview.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpsStatus("dry-run preview CSV をダウンロードしました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
   }
 }
 
@@ -2716,6 +2776,9 @@ function initEventListeners() {
     els.opsBreachHistoryAllFleetName.addEventListener("change", refreshOpsBreachHistoryAll);
     els.opsBreachHistoryAllFleetName.addEventListener("input", refreshOpsBreachHistoryAll);
   }
+  if (els.opsBreachHistoryAllFleetSummaryLimit) {
+    els.opsBreachHistoryAllFleetSummaryLimit.addEventListener("change", refreshOpsBreachHistoryAll);
+  }
   if (els.opsBreachRetentionPreviewChangesOnly) {
     els.opsBreachRetentionPreviewChangesOnly.addEventListener("change", () => {
       if (lastOpsBreachRetentionImportPreview) {
@@ -2750,12 +2813,26 @@ function initEventListeners() {
   if (els.btnOpsBreachRetentionDryRun) {
     els.btnOpsBreachRetentionDryRun.addEventListener("click", () => {
       retentionImportDryRun = true;
+      retentionImportDryRunCsv = false;
+      els.opsBreachRetentionImportFile?.click();
+    });
+  }
+  if (els.btnOpsBreachRetentionDryRunCsv) {
+    els.btnOpsBreachRetentionDryRunCsv.addEventListener("click", () => {
+      retentionImportDryRun = false;
+      retentionImportDryRunCsv = true;
       els.opsBreachRetentionImportFile?.click();
     });
   }
   if (els.opsBreachRetentionImportFile) {
     els.opsBreachRetentionImportFile.addEventListener("change", () => {
+      if (retentionImportDryRunCsv) {
+        retentionImportDryRunCsv = false;
+        downloadOpsBreachRetentionDryRunCsv();
+        return;
+      }
       importOpsBreachRetentionCsv(retentionImportDryRun);
+      retentionImportDryRun = false;
     });
   }
   if (els.opsBreachRetentionSelectAll) {

@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AN — 次着手
+## Phase 10AO — 次着手
 
-商用運用ロードマップ Phase 10+（reload 履歴 Redis TTL、dry-run preview CSV 等）。
+商用運用ロードマップ Phase 10+（fleet summary offset UI、reload stale purge 等）。
+
+## Phase 10AN — 完了
+
+reload 履歴 Redis TTL、dry-run preview CSV、fleet summary limit/offset。v1.47.0 ship 済み。
 
 ## Phase 10AM — 完了
 

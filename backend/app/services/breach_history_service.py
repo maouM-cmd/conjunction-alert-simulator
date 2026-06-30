@@ -486,6 +486,32 @@ def retention_import_will_change(
     return retention_days != current_retention_days
 
 
+PREVIEW_CSV_HEADER = (
+    "fleet_id",
+    "fleet_name",
+    "retention_days",
+    "current_retention_days",
+    "effective_retention_days",
+    "will_change",
+)
+
+
+def format_retention_import_preview_csv(preview: list) -> str:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(PREVIEW_CSV_HEADER)
+    for item in preview:
+        writer.writerow([
+            item.fleet_id,
+            item.fleet_name,
+            item.retention_days if item.retention_days is not None else "",
+            item.current_retention_days if item.current_retention_days is not None else "",
+            item.effective_retention_days,
+            "true" if item.will_change else "false",
+        ])
+    return buffer.getvalue()
+
+
 def purge_old_breach_history(db: Session, *, fleet_id: uuid.UUID | None = None) -> int:
     if not breach_history_enabled():
         return 0

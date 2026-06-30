@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.47.0] - 2026-06-28
+
+Phase 10AN — reload history TTL + dry-run preview CSV + fleet summary paging。
+
+### Added
+
+- **Phase 10AN:** reload 履歴 Redis TTL（`PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS`）
+- `POST import?dry_run=true&format=csv` — dry-run preview CSV
+- `GET summary?group_by=fleet&limit=&offset=` + Ops 表示件数
+
 ## [1.46.0] - 2026-06-28
 
 Phase 10AM — reload history Redis + dry-run collapse + fleet name filter。

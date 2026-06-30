@@ -319,6 +319,7 @@
             <input id="ops-breach-retention-import-file" type="file" accept=".csv,text/csv" class="hidden" />
             <button id="btn-ops-breach-retention-import" type="button">CSV インポート</button>
             <button id="btn-ops-breach-retention-dry-run" type="button">dry-run プレビュー</button>
+            <button id="btn-ops-breach-retention-dry-run-csv" type="button">dry-run CSV</button>
             <label class="ops-breach-filter">
               <input id="ops-breach-retention-preview-changes-only" type="checkbox" checked />
               変更行のみ
@@ -384,6 +385,10 @@
             <label class="ops-breach-filter">
               艦隊名
               <input id="ops-breach-history-all-fleet-name" type="text" placeholder="部分一致" />
+            </label>
+            <label class="ops-breach-filter">
+              fleet summary 件数
+              <input id="ops-breach-history-all-fleet-summary-limit" type="number" min="1" max="500" value="100" />
             </label>
           </div>
           <div class="button-row">

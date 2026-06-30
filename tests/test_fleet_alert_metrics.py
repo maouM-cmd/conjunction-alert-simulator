@@ -779,6 +779,122 @@ def test_prometheus_reload_history_redis_ltrim_respects_size(monkeypatch):
     assert "redis reload 2" in storage[0]
 
 
+def test_prometheus_reload_history_redis_expire_on_push(monkeypatch):
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+
+    mock_redis, _storage = _mock_reload_history_redis()
+    expire_calls: list[tuple[str, int]] = []
+
+    def expire(_key, ttl):
+        expire_calls.append((_key, ttl))
+
+    mock_redis.expire.side_effect = expire
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        fleet_alert_rules_apply_service.record_sync_prometheus_reload(
+            reloaded=True,
+            message="ttl test",
+        )
+
+    assert expire_calls == [("cas:prometheus:reload:history", 3600)]
+
+
+def test_prometheus_reload_history_filters_stale_entries(monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "3600")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    storage.append(
+        json.dumps(
+            {
+                "task_id": None,
+                "source": "sync",
+                "enqueued_at": old.isoformat(),
+                "state": "SUCCESS",
+                "reloaded": True,
+                "message": "old",
+            },
+            ensure_ascii=False,
+        )
+    )
+    storage.insert(
+        0,
+        json.dumps(
+            {
+                "task_id": None,
+                "source": "sync",
+                "enqueued_at": now.isoformat(),
+                "state": "SUCCESS",
+                "reloaded": True,
+                "message": "new",
+            },
+            ensure_ascii=False,
+        ),
+    )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit=10)
+
+    assert len(items) == 1
+    assert items[0]["message"] == "new"
+
+
+def test_prometheus_reload_history_ttl_disabled_keeps_old_entries(monkeypatch):
+    import json
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_ENABLED", "true")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_HISTORY_REDIS_TTL_SECONDS", "0")
+
+    mock_redis, storage = _mock_reload_history_redis()
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(seconds=7200)
+    for message, enqueued_at in (("old", old), ("new", now)):
+        storage.insert(
+            0,
+            json.dumps(
+                {
+                    "task_id": None,
+                    "source": "sync",
+                    "enqueued_at": enqueued_at.isoformat(),
+                    "state": "SUCCESS",
+                    "reloaded": True,
+                    "message": message,
+                },
+                ensure_ascii=False,
+            ),
+        )
+
+    with patch("redis.from_url", return_value=mock_redis):
+        fleet_alert_rules_apply_service.reset_reload_history_redis_client_for_tests()
+        items = fleet_alert_rules_apply_service.list_prometheus_reload_history(limit=10)
+
+    assert len(items) == 2
+    messages = {item["message"] for item in items}
+    assert messages == {"old", "new"}
+
+
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):
     monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
     monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")

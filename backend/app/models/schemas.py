@@ -686,6 +686,8 @@ class FleetBreachHistoryFleetDayOut(BaseModel):
 class FleetBreachHistoryFleetSummaryOut(BaseModel):
     items: list[FleetBreachHistoryFleetDayOut]
     total_rows: int
+    limit: int
+    offset: int
 
 
 class ConjunctionAlertListOut(BaseModel):
