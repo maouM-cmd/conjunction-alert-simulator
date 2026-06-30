@@ -155,6 +155,8 @@ const els = {
   btnOpsBreachHistoryAllFleetSummaryPrev: document.getElementById("btn-ops-breach-history-all-fleet-summary-prev"),
   btnOpsBreachHistoryAllFleetSummaryNext: document.getElementById("btn-ops-breach-history-all-fleet-summary-next"),
   opsBreachHistoryAllFleetSummaryPage: document.getElementById("ops-breach-history-all-fleet-summary-page"),
+  opsBreachHistoryAllFleetSummaryOffset: document.getElementById("ops-breach-history-all-fleet-summary-offset"),
+  btnOpsBreachHistoryAllFleetSummaryGo: document.getElementById("btn-ops-breach-history-all-fleet-summary-go"),
   opsFleetAlertRulesSection: document.getElementById("ops-fleet-alert-rules-section"),
   opsFleetAlertRulesStatus: document.getElementById("ops-fleet-alert-rules-status"),
   opsFleetAlertRulesBreachingOnly: document.getElementById("ops-fleet-alert-rules-breaching-only"),
@@ -618,9 +620,17 @@ function fleetSummaryLimitValue() {
 }
 
 let fleetSummaryOffset = 0;
+let lastFleetSummaryTotalRows = 0;
+
+function syncFleetSummaryOffsetInput(offset = fleetSummaryOffset) {
+  if (els.opsBreachHistoryAllFleetSummaryOffset) {
+    els.opsBreachHistoryAllFleetSummaryOffset.value = String(offset);
+  }
+}
 
 function resetFleetSummaryOffset() {
   fleetSummaryOffset = 0;
+  syncFleetSummaryOffsetInput(0);
 }
 
 function fleetSummaryPagingParams() {
@@ -644,12 +654,14 @@ function updateFleetSummaryPagingUI(summary) {
     return;
   }
   pagingEl.classList.remove("hidden");
+  lastFleetSummaryTotalRows = totalRows;
   const rangeStart = itemCount ? fleetSummaryOffset + 1 : fleetSummaryOffset;
   const rangeEnd = fleetSummaryOffset + itemCount;
   if (els.opsBreachHistoryAllFleetSummaryPage) {
     els.opsBreachHistoryAllFleetSummaryPage.textContent =
       `${rangeStart}〜${rangeEnd} / ${totalRows} 件`;
   }
+  syncFleetSummaryOffsetInput(summary?.offset ?? fleetSummaryOffset);
   if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
     els.btnOpsBreachHistoryAllFleetSummaryPrev.disabled = fleetSummaryOffset <= 0;
   }
@@ -1184,6 +1196,20 @@ async function changeFleetSummaryPage(delta) {
     return;
   }
   fleetSummaryOffset = nextOffset;
+  await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
+}
+
+async function goToFleetSummaryOffset(raw) {
+  const parsed = Number(String(raw ?? "").trim());
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    setOpsStatus("offset は 0 以上の整数を指定してください。", true);
+    return;
+  }
+  if (lastFleetSummaryTotalRows <= 0) {
+    fleetSummaryOffset = 0;
+  } else {
+    fleetSummaryOffset = Math.min(parsed, lastFleetSummaryTotalRows - 1);
+  }
   await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
 }
 
@@ -2855,6 +2881,11 @@ function initEventListeners() {
   if (els.btnOpsBreachHistoryAllFleetSummaryNext) {
     els.btnOpsBreachHistoryAllFleetSummaryNext.addEventListener("click", () => {
       changeFleetSummaryPage(1);
+    });
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryGo) {
+    els.btnOpsBreachHistoryAllFleetSummaryGo.addEventListener("click", () => {
+      goToFleetSummaryOffset(els.opsBreachHistoryAllFleetSummaryOffset?.value);
     });
   }
   if (els.opsBreachRetentionPreviewChangesOnly) {

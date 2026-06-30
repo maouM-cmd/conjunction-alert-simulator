@@ -968,11 +968,19 @@ async def import_fleet_breach_history_settings(
     valid: list[tuple[uuid.UUID, int | None]] = []
     preview: list[FleetBreachHistorySettingsImportPreviewItem] = []
     errors: list[str] = []
+    row_errors: list[breach_history_service.RetentionImportRowError] = []
     skipped = 0
     for fleet_id, retention_days in rows:
         fleet = db.get(Fleet, fleet_id)
         if fleet is None or not fleet.active:
-            errors.append(f"艦隊が見つかりません: {fleet_id}")
+            message = f"艦隊が見つかりません: {fleet_id}"
+            errors.append(message)
+            row_errors.append(
+                breach_history_service.RetentionImportRowError(
+                    fleet_id=str(fleet_id),
+                    message=message,
+                )
+            )
             skipped += 1
             continue
         if dry_run:
@@ -995,13 +1003,18 @@ async def import_fleet_breach_history_settings(
             valid.append((fleet_id, retention_days))
 
     if dry_run:
-        if not preview and errors:
+        if not preview and errors and format != "csv":
             raise HTTPException(status_code=422, detail="; ".join(errors))
         if changes_only:
             preview = [item for item in preview if item.will_change]
         if format == "csv":
+            if not preview and not row_errors and errors:
+                raise HTTPException(status_code=422, detail="; ".join(errors))
             return Response(
-                content=breach_history_service.format_retention_import_preview_csv(preview),
+                content=breach_history_service.format_retention_import_preview_csv(
+                    preview,
+                    row_errors=row_errors,
+                ),
                 media_type="text/csv",
             )
         return FleetBreachHistorySettingsImportOut(

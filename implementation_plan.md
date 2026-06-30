@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AP — 次着手
+## Phase 10AQ — 次着手
 
-商用運用ロードマップ Phase 10+（offset 数値入力、reload purge 定期タスク等）。
+商用運用ロードマップ Phase 10+（offset Enter キー、reload purge 手動 API 等）。
+
+## Phase 10AP — 完了
+
+fleet summary offset 入力、reload purge Celery beat、dry-run CSV errors。v1.49.0 ship 済み。
 
 ## Phase 10AO — 完了
 

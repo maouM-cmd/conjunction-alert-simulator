@@ -200,6 +200,14 @@ def prometheus_reload_history_redis_ttl_seconds() -> int | None:
         return 604800
 
 
+def prometheus_reload_history_purge_interval_seconds() -> float:
+    raw = os.getenv("PROMETHEUS_RELOAD_HISTORY_PURGE_INTERVAL_SECONDS", "86400").strip()
+    try:
+        return max(float(raw), 60.0)
+    except ValueError:
+        return 86400.0
+
+
 def _filter_reload_history_by_ttl(entries: list[ReloadHistoryEntry]) -> list[ReloadHistoryEntry]:
     ttl = prometheus_reload_history_redis_ttl_seconds()
     if ttl is None:
@@ -245,6 +253,26 @@ def _purge_stale_reload_history_redis() -> None:
     except Exception as exc:
         logger.warning("Prometheus reload history Redis purge failed: %s", exc)
         reset_reload_history_redis_client_for_tests()
+
+
+def purge_stale_prometheus_reload_history() -> dict:
+    if not prometheus_reload_history_redis_enabled():
+        return {"status": "skipped", "reason": "reload history redis disabled"}
+    if prometheus_reload_history_redis_ttl_seconds() is None:
+        return {"status": "skipped", "reason": "reload history ttl disabled"}
+    client = _get_redis()
+    if client is None:
+        return {"status": "skipped", "reason": "redis unavailable"}
+    try:
+        before = client.llen(_REDIS_HISTORY_KEY)
+    except Exception:
+        before = 0
+    _purge_stale_reload_history_redis()
+    try:
+        after = client.llen(_REDIS_HISTORY_KEY)
+    except Exception:
+        after = 0
+    return {"status": "ok", "removed": max(before - after, 0)}
 
 
 def _record_reload_history(

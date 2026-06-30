@@ -8,6 +8,9 @@ from celery import Celery
 
 from backend.app.db.session import get_redis_url
 from backend.app.services.alertmanager_push_service import push_celery_interval_sec
+from backend.app.services.fleet_alert_rules_apply_service import (
+    prometheus_reload_history_purge_interval_seconds,
+)
 
 redis_url = get_redis_url() or "redis://localhost:6379/0"
 
@@ -46,6 +49,10 @@ celery_app.conf.update(
         "purge-old-breach-history": {
             "task": "backend.app.tasks.alertmanager_tasks.purge_old_breach_history",
             "schedule": 86400.0,
+        },
+        "purge-stale-prometheus-reload-history": {
+            "task": "backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history",
+            "schedule": prometheus_reload_history_purge_interval_seconds(),
         },
     },
 )

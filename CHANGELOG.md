@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.49.0] - 2026-06-28
+
+Phase 10AP — fleet offset input + reload purge beat + dry-run csv errors。
+
+### Added
+
+- **Phase 10AP:** fleet summary offset 数値入力 + 移動ボタン
+- Celery `purge_stale_prometheus_reload_history` 定期 purge
+- dry-run preview CSV `errors` 列 + エラー行
+
 ## [1.48.0] - 2026-06-28
 
 Phase 10AO — fleet summary offset UI + reload stale purge + dry-run CSV filter。

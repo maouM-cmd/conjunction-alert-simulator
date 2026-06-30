@@ -493,10 +493,20 @@ PREVIEW_CSV_HEADER = (
     "current_retention_days",
     "effective_retention_days",
     "will_change",
+    "errors",
 )
 
 
-def format_retention_import_preview_csv(preview: list) -> str:
+@dataclass(frozen=True)
+class RetentionImportRowError:
+    fleet_id: str
+    message: str
+
+
+def format_retention_import_preview_csv(
+    preview: list,
+    row_errors: list[RetentionImportRowError] | None = None,
+) -> str:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(PREVIEW_CSV_HEADER)
@@ -508,6 +518,17 @@ def format_retention_import_preview_csv(preview: list) -> str:
             item.current_retention_days if item.current_retention_days is not None else "",
             item.effective_retention_days,
             "true" if item.will_change else "false",
+            "",
+        ])
+    for row_error in row_errors or []:
+        writer.writerow([
+            row_error.fleet_id,
+            "",
+            "",
+            "",
+            "",
+            "",
+            row_error.message,
         ])
     return buffer.getvalue()
 

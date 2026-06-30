@@ -56,6 +56,13 @@ def purge_old_breach_history() -> dict:
         db.close()
 
 
+@celery_app.task(name="backend.app.tasks.alertmanager_tasks.purge_stale_prometheus_reload_history")
+def purge_stale_prometheus_reload_history() -> dict:
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    return fleet_alert_rules_apply_service.purge_stale_prometheus_reload_history()
+
+
 @celery_app.task(name="backend.app.tasks.alertmanager_tasks.prometheus_reload")
 def prometheus_reload_task() -> dict:
     from backend.app.services import fleet_alert_rules_apply_service
