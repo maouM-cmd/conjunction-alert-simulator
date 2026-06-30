@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AK — 次着手
+## Phase 10AL — 次着手
 
-商用運用ロードマップ Phase 10+（summary per-fleet 内訳、retention import dry-run、reload 手動 UI 等）。
+商用運用ロードマップ Phase 10+（summary CSV UI トグル、dry-run 詳細テーブル、reload 履歴一覧 等）。
+
+## Phase 10AK — 完了
+
+per-fleet summary、retention import dry-run、reload 手動 UI。v1.44.0 ship 済み。
 
 ## Phase 10AJ — 完了
 

@@ -4,6 +4,16 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.44.0] - 2026-06-28
+
+Phase 10AK — per-fleet summary + import dry-run + reload 手動 UI。
+
+### Added
+
+- **Phase 10AK:** `GET history/summary?group_by=fleet` — 管理者日次×艦隊集計
+- `POST import?dry_run=true` — retention CSV preview
+- Ops UI — per-fleet summary テーブル、dry-run、Prometheus reload ボタン
+
 ## [1.43.0] - 2026-06-28
 
 Phase 10AJ — summary CSV + retention import + reload polling。

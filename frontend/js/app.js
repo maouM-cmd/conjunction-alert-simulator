@@ -125,6 +125,7 @@ const els = {
   btnOpsBreachRetentionCsv: document.getElementById("btn-ops-breach-retention-csv"),
   opsBreachRetentionImportFile: document.getElementById("ops-breach-retention-import-file"),
   btnOpsBreachRetentionImport: document.getElementById("btn-ops-breach-retention-import"),
+  btnOpsBreachRetentionDryRun: document.getElementById("btn-ops-breach-retention-dry-run"),
   opsBreachRetentionSelectAll: document.getElementById("ops-breach-retention-select-all"),
   opsBreachHistorySummaryTable: document.getElementById("ops-breach-history-summary-table"),
   opsBreachHistorySummaryTableBody: document.getElementById("ops-breach-history-summary-table-body"),
@@ -141,6 +142,8 @@ const els = {
   opsBreachHistoryAllUntil: document.getElementById("ops-breach-history-all-until"),
   opsBreachHistoryAllSummaryTable: document.getElementById("ops-breach-history-all-summary-table"),
   opsBreachHistoryAllSummaryTableBody: document.getElementById("ops-breach-history-all-summary-table-body"),
+  opsBreachHistoryAllFleetSummaryTable: document.getElementById("ops-breach-history-all-fleet-summary-table"),
+  opsBreachHistoryAllFleetSummaryTableBody: document.getElementById("ops-breach-history-all-fleet-summary-table-body"),
   opsFleetAlertRulesSection: document.getElementById("ops-fleet-alert-rules-section"),
   opsFleetAlertRulesStatus: document.getElementById("ops-fleet-alert-rules-status"),
   opsFleetAlertRulesBreachingOnly: document.getElementById("ops-fleet-alert-rules-breaching-only"),
@@ -148,6 +151,8 @@ const els = {
   opsFleetAlertRulesFormat: document.getElementById("ops-fleet-alert-rules-format"),
   btnOpsFleetAlertRulesDownload: document.getElementById("btn-ops-fleet-alert-rules-download"),
   btnOpsFleetAlertRulesApply: document.getElementById("btn-ops-fleet-alert-rules-apply"),
+  btnOpsPrometheusReload: document.getElementById("btn-ops-prometheus-reload"),
+  opsPrometheusReloadStatus: document.getElementById("ops-prometheus-reload-status"),
   opsSilencesStatus: document.getElementById("ops-silences-status"),
   opsSilenceAlertname: document.getElementById("ops-silence-alertname"),
   opsSilenceHours: document.getElementById("ops-silence-hours"),
@@ -633,6 +638,31 @@ function breachHistoryQuerySuffix({ sourceEl, breachingOnlyEl, alertnameEls = []
   return params.length ? `&${params.join("&")}` : "";
 }
 
+let retentionImportDryRun = false;
+
+function renderOpsBreachHistoryFleetSummary(summary, { tableEl, bodyEl } = {}) {
+  if (!bodyEl || !tableEl) {
+    return;
+  }
+  if (!summary?.items?.length) {
+    tableEl.classList.add("hidden");
+    bodyEl.innerHTML = "";
+    return;
+  }
+  tableEl.classList.remove("hidden");
+  bodyEl.innerHTML = "";
+  for (const item of summary.items.slice(0, 20)) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item.day}</td>
+      <td>${item.fleet_name || item.fleet_id}</td>
+      <td>${item.total}</td>
+      <td>${item.breaching_count}</td>
+    `;
+    bodyEl.appendChild(tr);
+  }
+}
+
 function renderOpsBreachHistorySummary(summary, { tableEl, bodyEl } = {}) {
   if (!bodyEl || !tableEl) {
     return;
@@ -655,17 +685,34 @@ function renderOpsBreachHistorySummary(summary, { tableEl, bodyEl } = {}) {
   }
 }
 
-async function loadOpsBreachHistorySummary(scope = "fleet") {
+async function loadOpsBreachHistorySummary(scope = "fleet", { groupBy = "day" } = {}) {
   const fleetId = els.opsFleetSelect.value;
   const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions(scope));
   let url = "/api/v1/ops/prometheus/alertmanager/breach-states/history/summary";
+  const groupSuffix = groupBy === "fleet" ? "group_by=fleet" : "";
   if (scope === "fleet" && fleetId) {
     url += `?fleet_id=${fleetId}${filterSuffix}`;
-  } else if (filterSuffix) {
-    url += `?${filterSuffix.slice(1)}`;
+  } else {
+    const parts = [];
+    if (groupSuffix) {
+      parts.push(groupSuffix);
+    }
+    if (filterSuffix) {
+      parts.push(filterSuffix.slice(1));
+    }
+    if (parts.length) {
+      url += `?${parts.join("&")}`;
+    }
   }
   try {
     const summary = await apiGet(url, { ops: true });
+    if (scope === "all" && groupBy === "fleet") {
+      renderOpsBreachHistoryFleetSummary(summary, {
+        tableEl: els.opsBreachHistoryAllFleetSummaryTable,
+        bodyEl: els.opsBreachHistoryAllFleetSummaryTableBody,
+      });
+      return;
+    }
     if (scope === "all") {
       renderOpsBreachHistorySummary(summary, {
         tableEl: els.opsBreachHistoryAllSummaryTable,
@@ -678,7 +725,12 @@ async function loadOpsBreachHistorySummary(scope = "fleet") {
       });
     }
   } catch {
-    if (scope === "all") {
+    if (scope === "all" && groupBy === "fleet") {
+      els.opsBreachHistoryAllFleetSummaryTable?.classList.add("hidden");
+      if (els.opsBreachHistoryAllFleetSummaryTableBody) {
+        els.opsBreachHistoryAllFleetSummaryTableBody.innerHTML = "";
+      }
+    } else if (scope === "all") {
       els.opsBreachHistoryAllSummaryTable?.classList.add("hidden");
       if (els.opsBreachHistoryAllSummaryTableBody) {
         els.opsBreachHistoryAllSummaryTableBody.innerHTML = "";
@@ -919,6 +971,7 @@ async function refreshOpsBreachHistoryAll() {
       els.opsBreachHistoryAllTableBody.appendChild(tr);
     }
     await loadOpsBreachHistorySummary("all");
+    await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
   } catch (err) {
     if (err.message.includes("履歴は無効")) {
       els.opsBreachHistoryAllStatus.textContent = "breach 履歴は無効です。";
@@ -1005,7 +1058,7 @@ async function downloadOpsBreachRetentionCsv() {
   }
 }
 
-async function importOpsBreachRetentionCsv() {
+async function importOpsBreachRetentionCsv(dryRun = false) {
   if (!opsAuthMe.is_admin) {
     return;
   }
@@ -1015,8 +1068,9 @@ async function importOpsBreachRetentionCsv() {
   }
   const formData = new FormData();
   formData.append("file", file, file.name);
+  const query = dryRun ? "?dry_run=true" : "";
   try {
-    const res = await fetch(`${API_BASE}/api/v1/ops/fleets/breach-history-settings/import`, {
+    const res = await fetch(`${API_BASE}/api/v1/ops/fleets/breach-history-settings/import${query}`, {
       method: "POST",
       headers: getOpsApiHeaders(),
       credentials: "include",
@@ -1027,13 +1081,19 @@ async function importOpsBreachRetentionCsv() {
       throw new Error(data.detail || `API エラー (${res.status})`);
     }
     const errNote = data.errors?.length ? ` / 警告 ${data.errors.length} 件` : "";
-    els.opsBreachRetentionAllStatus.textContent =
-      `${data.updated} 件更新、${data.skipped} 件スキップ${errNote}`;
+    if (dryRun) {
+      els.opsBreachRetentionAllStatus.textContent =
+        `dry-run: ${data.preview?.length ?? 0} 件プレビュー、${data.skipped} 件スキップ${errNote}`;
+      setOpsStatus("retention CSV dry-run を完了しました（DB 変更なし）。");
+    } else {
+      els.opsBreachRetentionAllStatus.textContent =
+        `${data.updated} 件更新、${data.skipped} 件スキップ${errNote}`;
+      await refreshOpsBreachRetentionAll();
+      setOpsStatus(`retention CSV をインポートしました（${data.updated} 件更新）。`);
+    }
     if (data.errors?.length) {
       console.warn("retention import errors:", data.errors);
     }
-    await refreshOpsBreachRetentionAll();
-    setOpsStatus(`retention CSV をインポートしました（${data.updated} 件更新）。`);
   } catch (err) {
     setOpsStatus(err.message, true);
   } finally {
@@ -1077,6 +1137,8 @@ function refreshOpsFleetAlertRulesSection() {
     ? "艦隊スコープのルール雛形をダウンロードできます。"
     : "管理者: 全艦隊または breaching 艦隊のみで出力できます。";
   els.btnOpsFleetAlertRulesApply?.classList.toggle("hidden", !opsAuthMe.is_admin);
+  els.btnOpsPrometheusReload?.classList.toggle("hidden", !opsAuthMe.is_admin);
+  els.opsPrometheusReloadStatus?.classList.toggle("hidden", !opsAuthMe.is_admin);
 }
 
 async function saveOpsBreachHistoryRetention() {
@@ -1206,30 +1268,72 @@ async function downloadOpsFleetAlertRules() {
   }
 }
 
-async function pollPrometheusReloadTask(taskId, attempt = 0) {
+async function pollPrometheusReloadTask(taskId, options = {}) {
+  const {
+    attempt = 0,
+    statusEl = els.opsFleetAlertRulesStatus,
+    timeoutMessage = "Prometheus reload タスクの確認がタイムアウトしました。",
+  } = options;
   const maxAttempts = 15;
-  if (!taskId || attempt >= maxAttempts) {
-    if (attempt >= maxAttempts) {
-      els.opsFleetAlertRulesStatus.textContent += " / reload タスク確認タイムアウト";
-      setOpsStatus("Prometheus reload タスクの確認がタイムアウトしました。", true);
+  if (!taskId || !statusEl || attempt >= maxAttempts) {
+    if (attempt >= maxAttempts && statusEl) {
+      statusEl.textContent += " / reload タスク確認タイムアウト";
+      setOpsStatus(timeoutMessage, true);
     }
     return;
   }
   try {
     const status = await apiGet(`/api/v1/ops/prometheus/reload/tasks/${taskId}`, { ops: true });
     if (status.state === "SUCCESS" || status.state === "FAILURE") {
-      const base = els.opsFleetAlertRulesStatus.textContent.replace(/ \/ reload.*$/, "");
+      const base = statusEl.textContent.replace(/ \/ reload.*$/, "");
       const reloadNote = status.reloaded
         ? " / reload OK (Celery)"
         : ` / reload: ${status.message}`;
-      els.opsFleetAlertRulesStatus.textContent = `${base}${reloadNote}`;
+      statusEl.textContent = `${base}${reloadNote}`;
       setOpsStatus(
         status.reloaded ? "Prometheus reload が完了しました。" : status.message,
         !status.reloaded
       );
       return;
     }
-    window.setTimeout(() => pollPrometheusReloadTask(taskId, attempt + 1), 2000);
+    window.setTimeout(
+      () => pollPrometheusReloadTask(taskId, { ...options, attempt: attempt + 1 }),
+      2000
+    );
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
+async function triggerOpsPrometheusReload() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ops/prometheus/reload`, {
+      method: "POST",
+      headers: getOpsApiHeaders(),
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const reloadNote = data.reload_queued
+      ? "reload をキューに登録しました。"
+      : data.reloaded
+        ? "reload OK"
+        : data.message;
+    if (els.opsPrometheusReloadStatus) {
+      els.opsPrometheusReloadStatus.textContent = reloadNote;
+      els.opsPrometheusReloadStatus.classList.remove("hidden");
+    }
+    setOpsStatus(reloadNote, !data.reloaded && !data.reload_queued);
+    if (data.reload_queued && data.reload_task_id) {
+      pollPrometheusReloadTask(data.reload_task_id, {
+        statusEl: els.opsPrometheusReloadStatus,
+      });
+    }
   } catch (err) {
     setOpsStatus(err.message, true);
   }
@@ -1268,7 +1372,9 @@ async function applyOpsFleetAlertRules() {
           : "ルールを適用しました。";
       setOpsStatus(statusMsg, !data.reloaded && !data.reload_queued && Boolean(data.reload_message));
       if (data.reload_queued && data.reload_task_id) {
-        pollPrometheusReloadTask(data.reload_task_id);
+        pollPrometheusReloadTask(data.reload_task_id, {
+          statusEl: els.opsFleetAlertRulesStatus,
+        });
       }
     } else {
       els.opsFleetAlertRulesStatus.textContent = data.message;
@@ -2464,6 +2570,9 @@ function initEventListeners() {
   if (els.btnOpsFleetAlertRulesApply) {
     els.btnOpsFleetAlertRulesApply.addEventListener("click", applyOpsFleetAlertRules);
   }
+  if (els.btnOpsPrometheusReload) {
+    els.btnOpsPrometheusReload.addEventListener("click", triggerOpsPrometheusReload);
+  }
   if (els.btnOpsBreachRetentionBulkSave) {
     els.btnOpsBreachRetentionBulkSave.addEventListener("click", saveOpsBreachRetentionBulk);
   }
@@ -2472,11 +2581,20 @@ function initEventListeners() {
   }
   if (els.btnOpsBreachRetentionImport) {
     els.btnOpsBreachRetentionImport.addEventListener("click", () => {
+      retentionImportDryRun = false;
+      els.opsBreachRetentionImportFile?.click();
+    });
+  }
+  if (els.btnOpsBreachRetentionDryRun) {
+    els.btnOpsBreachRetentionDryRun.addEventListener("click", () => {
+      retentionImportDryRun = true;
       els.opsBreachRetentionImportFile?.click();
     });
   }
   if (els.opsBreachRetentionImportFile) {
-    els.opsBreachRetentionImportFile.addEventListener("change", importOpsBreachRetentionCsv);
+    els.opsBreachRetentionImportFile.addEventListener("change", () => {
+      importOpsBreachRetentionCsv(retentionImportDryRun);
+    });
   }
   if (els.opsBreachRetentionSelectAll) {
     els.opsBreachRetentionSelectAll.addEventListener("change", () => {

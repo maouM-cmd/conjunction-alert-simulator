@@ -996,11 +996,16 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
 
 応答 `FleetBreachHistorySettingsBulkOut`: `updated`
 
-### POST /api/v1/ops/fleets/breach-history-settings/import（Phase 10AJ）
+### POST /api/v1/ops/fleets/breach-history-settings/import（Phase 10AJ / 10AK）
 
 管理者のみ。multipart CSV（export と同一ヘッダー）。未知 fleet_id は skip。
 
-応答 `FleetBreachHistorySettingsImportOut`: `updated`, `skipped`, `errors[]`
+| クエリ | 挙動 |
+|--------|------|
+| `dry_run=false`（default） | DB 更新 |
+| `dry_run=true`（Phase 10AK） | preview のみ、DB 不変 |
+
+応答 `FleetBreachHistorySettingsImportOut`: `updated`, `skipped`, `errors[]`, `preview[]`（dry-run 時）
 
 ### PATCH /api/v1/ops/fleets/{fleet_id}/breach-history-settings（Phase 10AG）
 
@@ -1210,19 +1215,24 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states/history/summary（Phase 10AI / 10AJ）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history/summary（Phase 10AI / 10AJ / 10AK）
 
 history GET と同一クエリ（`limit` / `offset` 除く）。日次バケット集計。
 
+| `group_by` | 挙動 |
+|------------|------|
+| `day`（default） | 日次合算 |
+| `fleet`（Phase 10AK） | 日次×艦隊（管理者横断、`fleet_id` 指定不可） |
+
 | `format` | 応答 |
 |----------|------|
-| json（default） | `FleetBreachHistorySummaryOut` |
-| csv（Phase 10AJ） | `day,total,breaching_count` |
+| json（default） | `FleetBreachHistorySummaryOut` または `FleetBreachHistoryFleetSummaryOut` |
+| csv | `day,...` または `day,fleet_id,fleet_name,...` |
 
 | `fleet_id` | 認可 | 応答 |
 |----------|------|------|
-| 指定あり | fleet スコープ | JSON / CSV |
-| 省略 | 管理者のみ | 全艦隊合算 |
+| 指定あり | fleet スコープ | JSON / CSV（group_by=day のみ） |
+| 省略 | 管理者のみ | 全艦隊合算 or per-fleet |
 
 ```json
 {

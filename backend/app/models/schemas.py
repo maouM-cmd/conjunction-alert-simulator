@@ -675,6 +675,19 @@ class FleetBreachHistorySummaryOut(BaseModel):
     total_days: int
 
 
+class FleetBreachHistoryFleetDayOut(BaseModel):
+    day: date
+    fleet_id: str
+    fleet_name: str
+    total: int
+    breaching_count: int
+
+
+class FleetBreachHistoryFleetSummaryOut(BaseModel):
+    items: list[FleetBreachHistoryFleetDayOut]
+    total_rows: int
+
+
 class ConjunctionAlertListOut(BaseModel):
     items: list[ConjunctionAlertOut]
     total: int
@@ -820,10 +833,19 @@ class FleetBreachHistorySettingsBulkOut(BaseModel):
     updated: int
 
 
+class FleetBreachHistorySettingsImportPreviewItem(BaseModel):
+    fleet_id: str
+    fleet_name: str
+    retention_days: int | None
+    current_retention_days: int | None
+    effective_retention_days: int
+
+
 class FleetBreachHistorySettingsImportOut(BaseModel):
     updated: int
     skipped: int
     errors: list[str]
+    preview: list[FleetBreachHistorySettingsImportPreviewItem] = []
 
 
 class OidcConfigOut(BaseModel):

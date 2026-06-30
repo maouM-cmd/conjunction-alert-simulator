@@ -43,6 +43,7 @@ from backend.app.models.schemas import (
     FleetBreachHistorySettingsBulkUpdate,
     FleetBreachHistorySettingsBulkOut,
     FleetBreachHistorySettingsImportOut,
+    FleetBreachHistorySettingsImportPreviewItem,
     FleetBreachStateListOut,
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
@@ -55,6 +56,8 @@ from backend.app.models.schemas import (
     FleetBreachHistoryMultiListOut,
     FleetBreachHistoryPurgedOut,
     FleetBreachHistoryDayOut,
+    FleetBreachHistoryFleetDayOut,
+    FleetBreachHistoryFleetSummaryOut,
     FleetBreachHistorySummaryOut,
     PrometheusReloadOut,
     PrometheusReloadTaskOut,
@@ -921,6 +924,7 @@ def bulk_update_fleet_breach_history_settings(
 )
 async def import_fleet_breach_history_settings(
     file: UploadFile = File(...),
+    dry_run: bool = False,
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ) -> FleetBreachHistorySettingsImportOut:
@@ -937,6 +941,7 @@ async def import_fleet_breach_history_settings(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     valid: list[tuple[uuid.UUID, int | None]] = []
+    preview: list[FleetBreachHistorySettingsImportPreviewItem] = []
     errors: list[str] = []
     skipped = 0
     for fleet_id, retention_days in rows:
@@ -945,7 +950,30 @@ async def import_fleet_breach_history_settings(
             errors.append(f"艦隊が見つかりません: {fleet_id}")
             skipped += 1
             continue
-        valid.append((fleet_id, retention_days))
+        if dry_run:
+            preview.append(
+                FleetBreachHistorySettingsImportPreviewItem(
+                    fleet_id=str(fleet_id),
+                    fleet_name=fleet.name,
+                    retention_days=retention_days,
+                    current_retention_days=fleet.breach_history_retention_days,
+                    effective_retention_days=breach_history_service.effective_retention_days(
+                        db, fleet_id
+                    ),
+                )
+            )
+        else:
+            valid.append((fleet_id, retention_days))
+
+    if dry_run:
+        if not preview and errors:
+            raise HTTPException(status_code=422, detail="; ".join(errors))
+        return FleetBreachHistorySettingsImportOut(
+            updated=0,
+            skipped=skipped,
+            errors=errors,
+            preview=preview,
+        )
 
     if not valid and errors:
         raise HTTPException(status_code=422, detail="; ".join(errors))
@@ -1130,10 +1158,7 @@ def list_fleet_breach_states(
     return out
 
 
-@router.get(
-    "/prometheus/alertmanager/breach-states/history/summary",
-    response_model=FleetBreachHistorySummaryOut,
-)
+@router.get("/prometheus/alertmanager/breach-states/history/summary")
 def summarize_fleet_breach_history(
     fleet_id: str | None = None,
     alertname: str | None = None,
@@ -1143,6 +1168,7 @@ def summarize_fleet_breach_history(
     since: datetime | None = None,
     until: datetime | None = None,
     format: str = Query("json", pattern="^(json|csv)$"),
+    group_by: str = Query("day", pattern="^(day|fleet)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
 ):
@@ -1155,6 +1181,54 @@ def summarize_fleet_breach_history(
     since, until = _normalize_history_dates(since, until)
     if source is not None and source not in breach_history_service.VALID_SOURCES:
         raise HTTPException(status_code=422, detail="source が不正です。")
+
+    if group_by == "fleet":
+        if fleet_id is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="group_by=fleet 時は fleet_id を指定できません。",
+            )
+        if is_api_key_required() and not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+        fleet_rows = breach_history_service.summarize_all_history_by_fleet(
+            db,
+            alertname=alertname,
+            alertnames=alertnames,
+            source=source,
+            breaching_only=breaching_only,
+            since=since,
+            until=until,
+        )
+        if format == "csv":
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerow(["day", "fleet_id", "fleet_name", "total", "breaching_count"])
+            for row in fleet_rows:
+                writer.writerow([
+                    row.day.isoformat(),
+                    str(row.fleet_id),
+                    row.fleet_name,
+                    row.total,
+                    row.breaching_count,
+                ])
+            return Response(content=buffer.getvalue(), media_type="text/csv")
+
+        return FleetBreachHistoryFleetSummaryOut(
+            items=[
+                FleetBreachHistoryFleetDayOut(
+                    day=row.day,
+                    fleet_id=str(row.fleet_id),
+                    fleet_name=row.fleet_name,
+                    total=row.total,
+                    breaching_count=row.breaching_count,
+                )
+                for row in fleet_rows
+            ],
+            total_rows=len(fleet_rows),
+        )
 
     scoped_fleet_id: str | None = None
     if fleet_id is None:

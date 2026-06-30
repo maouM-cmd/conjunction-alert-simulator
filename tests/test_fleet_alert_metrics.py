@@ -492,6 +492,36 @@ def test_prometheus_reload_task_forbidden_for_fleet_key(ops_client, monkeypatch)
     assert response.status_code == 403
 
 
+def test_prometheus_reload_manual_endpoint_returns_task_id(ops_client, monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_URL", "http://prometheus:9090/-/reload")
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_client.post.return_value = mock_response
+    mock_client.__enter__.return_value = mock_client
+    mock_client.__exit__.return_value = False
+
+    with patch(
+        "backend.app.services.fleet_alert_rules_apply_service.httpx.Client",
+        return_value=mock_client,
+    ):
+        response = ops_client.post(
+            "/api/v1/ops/prometheus/reload",
+            headers={"X-API-Key": "admin-secret"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["reloaded"] is True
+    assert data["reload_queued"] is False
+
+
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):
     monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
     monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")

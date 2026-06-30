@@ -318,6 +318,7 @@
             <button id="btn-ops-breach-retention-csv" type="button">CSV ダウンロード</button>
             <input id="ops-breach-retention-import-file" type="file" accept=".csv,text/csv" class="hidden" />
             <button id="btn-ops-breach-retention-import" type="button">CSV インポート</button>
+            <button id="btn-ops-breach-retention-dry-run" type="button">dry-run プレビュー</button>
           </div>
           <table id="ops-breach-retention-all-table" class="ops-breach-states-table">
             <thead>
@@ -380,6 +381,17 @@
             </thead>
             <tbody id="ops-breach-history-all-summary-table-body"></tbody>
           </table>
+          <table id="ops-breach-history-all-fleet-summary-table" class="ops-breach-states-table ops-breach-summary-table hidden">
+            <thead>
+              <tr>
+                <th>日付</th>
+                <th>艦隊</th>
+                <th>件数</th>
+                <th>breaching</th>
+              </tr>
+            </thead>
+            <tbody id="ops-breach-history-all-fleet-summary-table-body"></tbody>
+          </table>
           <table id="ops-breach-history-all-table" class="ops-breach-states-table">
             <thead>
               <tr>
@@ -417,7 +429,9 @@
           <div class="button-row">
             <button id="btn-ops-fleet-alert-rules-download" type="button">ルールをダウンロード</button>
             <button id="btn-ops-fleet-alert-rules-apply" type="button" class="hidden">ルールを適用</button>
+            <button id="btn-ops-prometheus-reload" type="button" class="hidden">Prometheus reload</button>
           </div>
+          <p id="ops-prometheus-reload-status" class="meta hidden"></p>
         </section>
         <section id="ops-silences-section" class="ops-silences-section hidden">
           <h3>Alertmanager Silences</h3>

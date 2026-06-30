@@ -244,7 +244,7 @@ def test_metrics_endpoint_returns_prometheus(scale_client):
     body = response.text
     assert "cas_open_alerts_total" in body
     assert "cas_info" in body
-    assert "1.43.0" in body
+    assert "1.44.0" in body
 
 
 def test_local_spacetrack_rate_limiter_enforces_interval(monkeypatch):
