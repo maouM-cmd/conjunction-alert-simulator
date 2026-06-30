@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AO — 次着手
+## Phase 10AP — 次着手
 
-商用運用ロードマップ Phase 10+（fleet summary offset UI、reload stale purge 等）。
+商用運用ロードマップ Phase 10+（offset 数値入力、reload purge 定期タスク等）。
+
+## Phase 10AO — 完了
+
+fleet summary offset UI、reload stale purge、dry-run CSV changes_only。v1.48.0 ship 済み。
 
 ## Phase 10AN — 完了
 

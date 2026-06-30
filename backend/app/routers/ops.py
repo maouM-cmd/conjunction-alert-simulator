@@ -943,6 +943,7 @@ def bulk_update_fleet_breach_history_settings(
 async def import_fleet_breach_history_settings(
     file: UploadFile = File(...),
     dry_run: bool = False,
+    changes_only: bool = False,
     format: str = Query("json", pattern="^(json|csv)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
@@ -996,6 +997,8 @@ async def import_fleet_breach_history_settings(
     if dry_run:
         if not preview and errors:
             raise HTTPException(status_code=422, detail="; ".join(errors))
+        if changes_only:
+            preview = [item for item in preview if item.will_change]
         if format == "csv":
             return Response(
                 content=breach_history_service.format_retention_import_preview_csv(preview),

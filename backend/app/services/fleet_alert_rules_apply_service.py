@@ -121,6 +121,7 @@ def _push_reload_history_redis(entry: ReloadHistoryEntry) -> None:
         ttl = prometheus_reload_history_redis_ttl_seconds()
         if ttl is not None:
             client.expire(_REDIS_HISTORY_KEY, ttl)
+        _purge_stale_reload_history_redis()
     except Exception as exc:
         logger.warning("Prometheus reload history Redis write failed: %s", exc)
         reset_reload_history_redis_client_for_tests()
@@ -130,6 +131,7 @@ def _load_reload_history_redis(limit: int) -> list[ReloadHistoryEntry]:
     client = _get_redis()
     if client is None:
         return []
+    _purge_stale_reload_history_redis()
     capped = max(min(limit, prometheus_reload_history_size()), 1)
     try:
         raw_items = client.lrange(_REDIS_HISTORY_KEY, 0, capped - 1)
@@ -206,6 +208,45 @@ def _filter_reload_history_by_ttl(entries: list[ReloadHistoryEntry]) -> list[Rel
     return [entry for entry in entries if entry.enqueued_at >= cutoff]
 
 
+def _trim_reload_history_memory() -> None:
+    global _reload_history
+    _reload_history[:] = _filter_reload_history_by_ttl(_reload_history)
+
+
+def _purge_stale_reload_history_redis() -> None:
+    client = _get_redis()
+    if client is None:
+        return
+    if prometheus_reload_history_redis_ttl_seconds() is None:
+        return
+    try:
+        raw_items = client.lrange(_REDIS_HISTORY_KEY, 0, -1)
+        if not raw_items:
+            return
+        entries: list[ReloadHistoryEntry] = []
+        for raw in raw_items:
+            try:
+                entries.append(_entry_from_payload(json.loads(raw)))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+        fresh = _filter_reload_history_by_ttl(entries)
+        if len(fresh) == len(entries) == len(raw_items):
+            return
+        client.delete(_REDIS_HISTORY_KEY)
+        limit = prometheus_reload_history_size()
+        for entry in fresh[:limit]:
+            client.lpush(
+                _REDIS_HISTORY_KEY,
+                json.dumps(_entry_to_payload(entry), ensure_ascii=False),
+            )
+        ttl = prometheus_reload_history_redis_ttl_seconds()
+        if ttl is not None and fresh:
+            client.expire(_REDIS_HISTORY_KEY, ttl)
+    except Exception as exc:
+        logger.warning("Prometheus reload history Redis purge failed: %s", exc)
+        reset_reload_history_redis_client_for_tests()
+
+
 def _record_reload_history(
     *,
     task_id: str | None,
@@ -226,6 +267,7 @@ def _record_reload_history(
     limit = prometheus_reload_history_size()
     while len(_reload_history) > limit:
         _reload_history.pop(0)
+    _trim_reload_history_memory()
     _push_reload_history_redis(entry)
 
 
@@ -361,6 +403,7 @@ def list_prometheus_reload_history(limit: int = 20) -> list[dict]:
     if _use_reload_history_redis():
         entries = _load_reload_history_redis(capped)
     if not entries:
+        _trim_reload_history_memory()
         entries = list(reversed(_reload_history[-capped:]))
     else:
         entries = _filter_reload_history_by_ttl(entries)

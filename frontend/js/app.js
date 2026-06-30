@@ -151,6 +151,10 @@ const els = {
   opsBreachHistoryAllSummaryTableBody: document.getElementById("ops-breach-history-all-summary-table-body"),
   opsBreachHistoryAllFleetSummaryTable: document.getElementById("ops-breach-history-all-fleet-summary-table"),
   opsBreachHistoryAllFleetSummaryTableBody: document.getElementById("ops-breach-history-all-fleet-summary-table-body"),
+  opsBreachHistoryAllFleetSummaryPaging: document.getElementById("ops-breach-history-all-fleet-summary-paging"),
+  btnOpsBreachHistoryAllFleetSummaryPrev: document.getElementById("btn-ops-breach-history-all-fleet-summary-prev"),
+  btnOpsBreachHistoryAllFleetSummaryNext: document.getElementById("btn-ops-breach-history-all-fleet-summary-next"),
+  opsBreachHistoryAllFleetSummaryPage: document.getElementById("ops-breach-history-all-fleet-summary-page"),
   opsFleetAlertRulesSection: document.getElementById("ops-fleet-alert-rules-section"),
   opsFleetAlertRulesStatus: document.getElementById("ops-fleet-alert-rules-status"),
   opsFleetAlertRulesBreachingOnly: document.getElementById("ops-fleet-alert-rules-breaching-only"),
@@ -604,13 +608,55 @@ function datetimeLocalToIso(value) {
   return parsed.toISOString();
 }
 
-function fleetSummaryLimitParam() {
+function fleetSummaryLimitValue() {
   const raw = els.opsBreachHistoryAllFleetSummaryLimit?.value?.trim() ?? "100";
   const limit = Number(raw);
   if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
-    return "limit=100";
+    return 100;
   }
-  return `limit=${limit}`;
+  return limit;
+}
+
+let fleetSummaryOffset = 0;
+
+function resetFleetSummaryOffset() {
+  fleetSummaryOffset = 0;
+}
+
+function fleetSummaryPagingParams() {
+  return `limit=${fleetSummaryLimitValue()}&offset=${fleetSummaryOffset}`;
+}
+
+function fleetSummaryLimitParam() {
+  return fleetSummaryPagingParams();
+}
+
+function updateFleetSummaryPagingUI(summary) {
+  const pagingEl = els.opsBreachHistoryAllFleetSummaryPaging;
+  if (!pagingEl) {
+    return;
+  }
+  const totalRows = summary?.total_rows ?? 0;
+  const itemCount = summary?.items?.length ?? 0;
+  const limit = fleetSummaryLimitValue();
+  if (totalRows <= 0) {
+    pagingEl.classList.add("hidden");
+    return;
+  }
+  pagingEl.classList.remove("hidden");
+  const rangeStart = itemCount ? fleetSummaryOffset + 1 : fleetSummaryOffset;
+  const rangeEnd = fleetSummaryOffset + itemCount;
+  if (els.opsBreachHistoryAllFleetSummaryPage) {
+    els.opsBreachHistoryAllFleetSummaryPage.textContent =
+      `${rangeStart}〜${rangeEnd} / ${totalRows} 件`;
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
+    els.btnOpsBreachHistoryAllFleetSummaryPrev.disabled = fleetSummaryOffset <= 0;
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryNext) {
+    els.btnOpsBreachHistoryAllFleetSummaryNext.disabled =
+      fleetSummaryOffset + limit >= totalRows;
+  }
 }
 
 function breachHistoryFilterOptions(scope = "fleet") {
@@ -742,9 +788,12 @@ async function loadOpsBreachHistorySummary(scope = "fleet", { groupBy = "day" } 
       });
       if (fleetSummary && els.opsBreachHistoryAllStatus) {
         const base = els.opsBreachHistoryAllStatus.textContent.split(" / fleet summary:")[0];
+        const rangeStart = fleetSummary.items.length ? fleetSummaryOffset + 1 : fleetSummaryOffset;
+        const rangeEnd = fleetSummaryOffset + fleetSummary.items.length;
         els.opsBreachHistoryAllStatus.textContent =
-          `${base} / fleet summary: ${fleetSummary.total_rows} 件中 ${fleetSummary.items.length} 件表示`;
+          `${base} / fleet summary: ${fleetSummary.total_rows} 件中 ${rangeStart}〜${rangeEnd} 件表示`;
       }
+      updateFleetSummaryPagingUI(fleetSummary);
       return fleetSummary;
     }
     if (scope === "all") {
@@ -764,6 +813,7 @@ async function loadOpsBreachHistorySummary(scope = "fleet", { groupBy = "day" } 
       if (els.opsBreachHistoryAllFleetSummaryTableBody) {
         els.opsBreachHistoryAllFleetSummaryTableBody.innerHTML = "";
       }
+      els.opsBreachHistoryAllFleetSummaryPaging?.classList.add("hidden");
     } else if (scope === "all") {
       els.opsBreachHistoryAllSummaryTable?.classList.add("hidden");
       if (els.opsBreachHistoryAllSummaryTableBody) {
@@ -986,6 +1036,7 @@ async function refreshOpsBreachHistoryAll() {
     els.opsBreachHistoryAllSection?.classList.add("hidden");
     return;
   }
+  resetFleetSummaryOffset();
   els.opsBreachHistoryAllSection.classList.remove("hidden");
   const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions("all"));
   try {
@@ -1119,6 +1170,23 @@ async function downloadOpsBreachRetentionCsv() {
   }
 }
 
+function retentionImportChangesOnlyQuery() {
+  if (els.opsBreachRetentionPreviewChangesOnly?.checked !== false) {
+    return "&changes_only=true";
+  }
+  return "";
+}
+
+async function changeFleetSummaryPage(delta) {
+  const limit = fleetSummaryLimitValue();
+  const nextOffset = fleetSummaryOffset + delta * limit;
+  if (nextOffset < 0) {
+    return;
+  }
+  fleetSummaryOffset = nextOffset;
+  await loadOpsBreachHistorySummary("all", { groupBy: "fleet" });
+}
+
 async function importOpsBreachRetentionCsv(dryRun = false) {
   if (!opsAuthMe.is_admin) {
     return;
@@ -1190,7 +1258,7 @@ async function downloadOpsBreachRetentionDryRunCsv() {
   formData.append("file", file, file.name);
   try {
     const res = await fetch(
-      `${API_BASE}/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv`,
+      `${API_BASE}/api/v1/ops/fleets/breach-history-settings/import?dry_run=true&format=csv${retentionImportChangesOnlyQuery()}`,
       {
         method: "POST",
         headers: getOpsApiHeaders(),
@@ -2778,6 +2846,16 @@ function initEventListeners() {
   }
   if (els.opsBreachHistoryAllFleetSummaryLimit) {
     els.opsBreachHistoryAllFleetSummaryLimit.addEventListener("change", refreshOpsBreachHistoryAll);
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryPrev) {
+    els.btnOpsBreachHistoryAllFleetSummaryPrev.addEventListener("click", () => {
+      changeFleetSummaryPage(-1);
+    });
+  }
+  if (els.btnOpsBreachHistoryAllFleetSummaryNext) {
+    els.btnOpsBreachHistoryAllFleetSummaryNext.addEventListener("click", () => {
+      changeFleetSummaryPage(1);
+    });
   }
   if (els.opsBreachRetentionPreviewChangesOnly) {
     els.opsBreachRetentionPreviewChangesOnly.addEventListener("change", () => {
