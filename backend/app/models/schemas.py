@@ -768,11 +768,20 @@ class FleetAlertRulesApplyOut(BaseModel):
     reloaded: bool = False
     reload_message: str | None = None
     reload_queued: bool = False
+    reload_task_id: str | None = None
 
 
 class PrometheusReloadOut(BaseModel):
     reloaded: bool
     reload_queued: bool = False
+    reload_task_id: str | None = None
+    message: str
+
+
+class PrometheusReloadTaskOut(BaseModel):
+    task_id: str
+    state: str
+    reloaded: bool
     message: str
 
 
@@ -809,6 +818,12 @@ class FleetBreachHistorySettingsBulkUpdate(BaseModel):
 
 class FleetBreachHistorySettingsBulkOut(BaseModel):
     updated: int
+
+
+class FleetBreachHistorySettingsImportOut(BaseModel):
+    updated: int
+    skipped: int
+    errors: list[str]
 
 
 class OidcConfigOut(BaseModel):

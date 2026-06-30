@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import os
 import uuid
 from dataclasses import dataclass
@@ -36,6 +38,7 @@ def breach_history_retention_days() -> int:
 
 RETENTION_DAYS_MIN = 1
 RETENTION_DAYS_MAX = 3650
+RETENTION_CSV_HEADER = ("fleet_id", "fleet_name", "retention_days", "effective_retention_days")
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,43 @@ def bulk_update_fleet_retention(
         update_fleet_retention_days(db, fleet_id, retention_days)
         updated += 1
     return updated
+
+
+def parse_retention_csv(content: str) -> list[tuple[uuid.UUID, int | None]]:
+    reader = csv.reader(io.StringIO(content))
+    rows = list(reader)
+    if not rows:
+        raise ValueError("CSV が空です。")
+    header = tuple(cell.strip() for cell in rows[0])
+    if header != RETENTION_CSV_HEADER:
+        expected = ",".join(RETENTION_CSV_HEADER)
+        raise ValueError(f"ヘッダー行が不正です。期待: {expected}")
+
+    parsed: list[tuple[uuid.UUID, int | None]] = []
+    for line_no, row in enumerate(rows[1:], start=2):
+        if not row or all(not cell.strip() for cell in row):
+            continue
+        while len(row) < 4:
+            row.append("")
+        fleet_id_raw = row[0].strip()
+        retention_raw = row[2].strip()
+        try:
+            fleet_id = uuid.UUID(fleet_id_raw)
+        except ValueError as exc:
+            raise ValueError(f"行 {line_no}: fleet_id が不正です。") from exc
+        if retention_raw == "":
+            retention_days = None
+        else:
+            try:
+                retention_days = int(retention_raw)
+            except ValueError as exc:
+                raise ValueError(f"行 {line_no}: retention_days が不正です。") from exc
+            if not (RETENTION_DAYS_MIN <= retention_days <= RETENTION_DAYS_MAX):
+                raise ValueError(f"行 {line_no}: retention_days が範囲外です。")
+        parsed.append((fleet_id, retention_days))
+    if not parsed:
+        raise ValueError("有効なデータ行がありません。")
+    return parsed
 
 
 def effective_retention_days(db: Session, fleet_id: uuid.UUID | None) -> int:

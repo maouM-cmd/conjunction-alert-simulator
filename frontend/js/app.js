@@ -107,6 +107,7 @@ const els = {
   opsBreachHistoryStatus: document.getElementById("ops-breach-history-status"),
   opsBreachHistoryTableBody: document.getElementById("ops-breach-history-table-body"),
   btnOpsBreachHistoryCsv: document.getElementById("btn-ops-breach-history-csv"),
+  btnOpsBreachHistorySummaryCsv: document.getElementById("btn-ops-breach-history-summary-csv"),
   opsBreachHistorySource: document.getElementById("ops-breach-history-source"),
   opsBreachHistoryBreachingOnly: document.getElementById("ops-breach-history-breaching-only"),
   opsBreachHistoryAlertnameOpen: document.getElementById("ops-breach-history-alertname-open"),
@@ -122,6 +123,8 @@ const els = {
   opsBreachRetentionBulkDays: document.getElementById("ops-breach-retention-bulk-days"),
   btnOpsBreachRetentionBulkSave: document.getElementById("btn-ops-breach-retention-bulk-save"),
   btnOpsBreachRetentionCsv: document.getElementById("btn-ops-breach-retention-csv"),
+  opsBreachRetentionImportFile: document.getElementById("ops-breach-retention-import-file"),
+  btnOpsBreachRetentionImport: document.getElementById("btn-ops-breach-retention-import"),
   opsBreachRetentionSelectAll: document.getElementById("ops-breach-retention-select-all"),
   opsBreachHistorySummaryTable: document.getElementById("ops-breach-history-summary-table"),
   opsBreachHistorySummaryTableBody: document.getElementById("ops-breach-history-summary-table-body"),
@@ -129,6 +132,7 @@ const els = {
   opsBreachHistoryAllStatus: document.getElementById("ops-breach-history-all-status"),
   opsBreachHistoryAllTableBody: document.getElementById("ops-breach-history-all-table-body"),
   btnOpsBreachHistoryAllCsv: document.getElementById("btn-ops-breach-history-all-csv"),
+  btnOpsBreachHistoryAllSummaryCsv: document.getElementById("btn-ops-breach-history-all-summary-csv"),
   opsBreachHistoryAllSource: document.getElementById("ops-breach-history-all-source"),
   opsBreachHistoryAllBreachingOnly: document.getElementById("ops-breach-history-all-breaching-only"),
   opsBreachHistoryAllAlertnameOpen: document.getElementById("ops-breach-history-all-alertname-open"),
@@ -848,6 +852,45 @@ async function downloadOpsBreachHistoryCsv() {
   }
 }
 
+function breachHistorySummaryDownloadUrl(scope) {
+  const fleetId = els.opsFleetSelect.value;
+  const filterSuffix = breachHistoryQuerySuffix(breachHistoryFilterOptions(scope));
+  let url = `${API_BASE}/api/v1/ops/prometheus/alertmanager/breach-states/history/summary?format=csv`;
+  if (scope === "fleet" && fleetId) {
+    url += `&fleet_id=${fleetId}${filterSuffix}`;
+  } else if (filterSuffix) {
+    url += filterSuffix;
+  }
+  return url;
+}
+
+async function downloadOpsBreachHistorySummaryCsv() {
+  const fleetId = els.opsFleetSelect.value;
+  if (!fleetId) {
+    return;
+  }
+  try {
+    const res = await fetch(breachHistorySummaryDownloadUrl("fleet"), {
+      headers: getOpsApiHeaders(),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `breach-history-summary-${fleetId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpsStatus("summary CSV をダウンロードしました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function refreshOpsBreachHistoryAll() {
   if (!opsAuthMe.is_admin || !els.opsBreachHistoryAllSection) {
     els.opsBreachHistoryAllSection?.classList.add("hidden");
@@ -913,6 +956,29 @@ async function downloadOpsBreachHistoryAllCsv() {
   }
 }
 
+async function downloadOpsBreachHistoryAllSummaryCsv() {
+  try {
+    const res = await fetch(breachHistorySummaryDownloadUrl("all"), {
+      headers: getOpsApiHeaders(),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "breach-history-summary-all.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpsStatus("全艦隊 summary CSV をダウンロードしました。");
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function downloadOpsBreachRetentionCsv() {
   if (!opsAuthMe.is_admin) {
     return;
@@ -936,6 +1002,44 @@ async function downloadOpsBreachRetentionCsv() {
     setOpsStatus("retention CSV をダウンロードしました。");
   } catch (err) {
     setOpsStatus(err.message, true);
+  }
+}
+
+async function importOpsBreachRetentionCsv() {
+  if (!opsAuthMe.is_admin) {
+    return;
+  }
+  const file = els.opsBreachRetentionImportFile?.files?.[0];
+  if (!file) {
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ops/fleets/breach-history-settings/import`, {
+      method: "POST",
+      headers: getOpsApiHeaders(),
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || `API エラー (${res.status})`);
+    }
+    const errNote = data.errors?.length ? ` / 警告 ${data.errors.length} 件` : "";
+    els.opsBreachRetentionAllStatus.textContent =
+      `${data.updated} 件更新、${data.skipped} 件スキップ${errNote}`;
+    if (data.errors?.length) {
+      console.warn("retention import errors:", data.errors);
+    }
+    await refreshOpsBreachRetentionAll();
+    setOpsStatus(`retention CSV をインポートしました（${data.updated} 件更新）。`);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  } finally {
+    if (els.opsBreachRetentionImportFile) {
+      els.opsBreachRetentionImportFile.value = "";
+    }
   }
 }
 
@@ -1102,6 +1206,35 @@ async function downloadOpsFleetAlertRules() {
   }
 }
 
+async function pollPrometheusReloadTask(taskId, attempt = 0) {
+  const maxAttempts = 15;
+  if (!taskId || attempt >= maxAttempts) {
+    if (attempt >= maxAttempts) {
+      els.opsFleetAlertRulesStatus.textContent += " / reload タスク確認タイムアウト";
+      setOpsStatus("Prometheus reload タスクの確認がタイムアウトしました。", true);
+    }
+    return;
+  }
+  try {
+    const status = await apiGet(`/api/v1/ops/prometheus/reload/tasks/${taskId}`, { ops: true });
+    if (status.state === "SUCCESS" || status.state === "FAILURE") {
+      const base = els.opsFleetAlertRulesStatus.textContent.replace(/ \/ reload.*$/, "");
+      const reloadNote = status.reloaded
+        ? " / reload OK (Celery)"
+        : ` / reload: ${status.message}`;
+      els.opsFleetAlertRulesStatus.textContent = `${base}${reloadNote}`;
+      setOpsStatus(
+        status.reloaded ? "Prometheus reload が完了しました。" : status.message,
+        !status.reloaded
+      );
+      return;
+    }
+    window.setTimeout(() => pollPrometheusReloadTask(taskId, attempt + 1), 2000);
+  } catch (err) {
+    setOpsStatus(err.message, true);
+  }
+}
+
 async function applyOpsFleetAlertRules() {
   if (!opsAuthMe.is_admin) {
     return;
@@ -1134,6 +1267,9 @@ async function applyOpsFleetAlertRules() {
           ? "ルールを適用し Prometheus reload しました。"
           : "ルールを適用しました。";
       setOpsStatus(statusMsg, !data.reloaded && !data.reload_queued && Boolean(data.reload_message));
+      if (data.reload_queued && data.reload_task_id) {
+        pollPrometheusReloadTask(data.reload_task_id);
+      }
     } else {
       els.opsFleetAlertRulesStatus.textContent = data.message;
       setOpsStatus(data.message, true);
@@ -2286,8 +2422,14 @@ function initEventListeners() {
   if (els.btnOpsBreachHistoryCsv) {
     els.btnOpsBreachHistoryCsv.addEventListener("click", downloadOpsBreachHistoryCsv);
   }
+  if (els.btnOpsBreachHistorySummaryCsv) {
+    els.btnOpsBreachHistorySummaryCsv.addEventListener("click", downloadOpsBreachHistorySummaryCsv);
+  }
   if (els.btnOpsBreachHistoryAllCsv) {
     els.btnOpsBreachHistoryAllCsv.addEventListener("click", downloadOpsBreachHistoryAllCsv);
+  }
+  if (els.btnOpsBreachHistoryAllSummaryCsv) {
+    els.btnOpsBreachHistoryAllSummaryCsv.addEventListener("click", downloadOpsBreachHistoryAllSummaryCsv);
   }
   if (els.opsBreachHistorySource) {
     els.opsBreachHistorySource.addEventListener("change", refreshOpsBreachHistory);
@@ -2327,6 +2469,14 @@ function initEventListeners() {
   }
   if (els.btnOpsBreachRetentionCsv) {
     els.btnOpsBreachRetentionCsv.addEventListener("click", downloadOpsBreachRetentionCsv);
+  }
+  if (els.btnOpsBreachRetentionImport) {
+    els.btnOpsBreachRetentionImport.addEventListener("click", () => {
+      els.opsBreachRetentionImportFile?.click();
+    });
+  }
+  if (els.opsBreachRetentionImportFile) {
+    els.opsBreachRetentionImportFile.addEventListener("change", importOpsBreachRetentionCsv);
   }
   if (els.opsBreachRetentionSelectAll) {
     els.opsBreachRetentionSelectAll.addEventListener("change", () => {

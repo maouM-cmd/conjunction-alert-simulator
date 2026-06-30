@@ -360,6 +360,7 @@ def test_prometheus_reload_celery_fallback_on_exhausted_retries(ops_client, monk
     mock_client.__exit__.return_value = False
 
     mock_delay = MagicMock()
+    mock_delay.return_value = MagicMock(id="celery-reload-task-123")
     fleet_id, _ = _create_fleet_with_key(ops_client, monkeypatch, "Celery Reload Fleet")
     with patch(
         "backend.app.services.fleet_alert_rules_apply_service.httpx.Client",
@@ -377,8 +378,118 @@ def test_prometheus_reload_celery_fallback_on_exhausted_retries(ops_client, monk
     assert data["applied"] is True
     assert data["reloaded"] is False
     assert data["reload_queued"] is True
+    assert data["reload_task_id"] == "celery-reload-task-123"
     assert mock_client.post.call_count == 2
     mock_delay.assert_called_once()
+
+
+def test_apply_returns_reload_task_id_on_celery_fallback(ops_client, monkeypatch, tmp_path):
+    from unittest.mock import MagicMock, patch
+
+    import httpx
+
+    monkeypatch.setenv("FLEET_ALERT_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_CELERY_FALLBACK", "true")
+
+    output = tmp_path / "fleet-rules.yaml"
+    monkeypatch.setenv("PROMETHEUS_FLEET_RULES_OUTPUT_PATH", str(output))
+    monkeypatch.setenv("PROMETHEUS_RELOAD_URL", "http://prometheus:9090/-/reload")
+
+    mock_client = MagicMock()
+    fail_response = MagicMock()
+    fail_response.raise_for_status.side_effect = httpx.HTTPError("connection failed")
+    mock_client.post.return_value = fail_response
+    mock_client.__enter__.return_value = mock_client
+    mock_client.__exit__.return_value = False
+
+    mock_delay = MagicMock()
+    mock_delay.return_value = MagicMock(id="queued-task-456")
+
+    fleet_id, _ = _create_fleet_with_key(ops_client, monkeypatch, "Task Id Fleet")
+    with patch(
+        "backend.app.services.fleet_alert_rules_apply_service.httpx.Client",
+        return_value=mock_client,
+    ), patch(
+        "backend.app.tasks.alertmanager_tasks.prometheus_reload_task.delay",
+        mock_delay,
+    ):
+        response = ops_client.post(
+            f"/api/v1/ops/prometheus/fleet-alert-rules/apply?fleet_id={fleet_id}",
+            headers={"X-API-Key": "admin-secret"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["reload_task_id"] == "queued-task-456"
+
+
+def test_prometheus_reload_task_status_eager_success(ops_client, monkeypatch):
+    from unittest.mock import MagicMock, patch
+
+    from backend.app.services import fleet_alert_rules_apply_service
+    from backend.app.tasks.celery_app import configure_celery_eager
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PROMETHEUS_RELOAD_URL", "http://prometheus:9090/-/reload")
+    configure_celery_eager()
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_client.post.return_value = mock_response
+    mock_client.__enter__.return_value = mock_client
+    mock_client.__exit__.return_value = False
+
+    with patch(
+        "backend.app.services.fleet_alert_rules_apply_service.httpx.Client",
+        return_value=mock_client,
+    ):
+        task_id = fleet_alert_rules_apply_service.queue_prometheus_reload()
+    assert task_id
+
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/reload/tasks/{task_id}",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["task_id"] == task_id
+    assert data["state"] == "SUCCESS"
+    assert data["reloaded"] is True
+
+
+def test_prometheus_reload_task_status_not_found(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    response = ops_client.get(
+        "/api/v1/ops/prometheus/reload/tasks/not-a-known-task-id",
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 404
+
+
+def test_prometheus_reload_task_forbidden_for_fleet_key(ops_client, monkeypatch):
+    from backend.app.services import fleet_alert_rules_apply_service
+
+    fleet_alert_rules_apply_service.clear_reload_tasks_for_tests()
+    task_id = "known-reload-task-for-auth-test"
+    fleet_alert_rules_apply_service._enqueued_reload_task_ids.add(task_id)
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    _, plain = _create_fleet_with_key(ops_client, monkeypatch, "Reload Poll Fleet")
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/reload/tasks/{task_id}",
+        headers={"X-API-Key": plain},
+    )
+    assert response.status_code == 403
 
 
 def test_fleet_alert_rules_apply_no_path_returns_not_applied(ops_client, monkeypatch):

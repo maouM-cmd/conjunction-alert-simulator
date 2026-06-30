@@ -945,17 +945,30 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
   "message": "ルールを ... に書き込みました。",
   "reloaded": true,
   "reload_message": "Prometheus reload を実行しました。",
-  "reload_queued": false
+  "reload_queued": false,
+  "reload_task_id": null
 }
 ```
 
 **env:** `PROMETHEUS_FLEET_RULES_OUTPUT_PATH`（未設定時 `applied=false`）、`PROMETHEUS_RELOAD_URL`（Phase 10AH、任意 Basic Auth）、`PROMETHEUS_RELOAD_MAX_RETRIES`（default 3、Phase 10AI）、`PROMETHEUS_RELOAD_CELERY_FALLBACK`（Phase 10AI）
 
-### POST /api/v1/ops/prometheus/reload（Phase 10AI）
+### POST /api/v1/ops/prometheus/reload（Phase 10AI / 10AJ）
 
 管理者のみ。`reload_prometheus()` を実行。失敗かつ Celery fallback ON ならタスク enqueue。
 
-応答 `PrometheusReloadOut`: `reloaded`, `reload_queued`, `message`
+応答 `PrometheusReloadOut`: `reloaded`, `reload_queued`, `reload_task_id`, `message`
+
+### GET /api/v1/ops/prometheus/reload/tasks/{task_id}（Phase 10AJ）
+
+管理者のみ。Celery reload タスクの状態を返す。
+
+応答 `PrometheusReloadTaskOut`: `task_id`, `state`, `reloaded`, `message`
+
+| コード | 条件 |
+|--------|------|
+| 200 | タスク状態 |
+| 403 | 非管理者 |
+| 404 | 未知 task_id |
 
 ### GET /api/v1/ops/fleets/breach-history-settings（Phase 10AH / 10AI）
 
@@ -982,6 +995,12 @@ GET と同一クエリ。管理者のみ。`PROMETHEUS_FLEET_RULES_OUTPUT_PATH` 
 ```
 
 応答 `FleetBreachHistorySettingsBulkOut`: `updated`
+
+### POST /api/v1/ops/fleets/breach-history-settings/import（Phase 10AJ）
+
+管理者のみ。multipart CSV（export と同一ヘッダー）。未知 fleet_id は skip。
+
+応答 `FleetBreachHistorySettingsImportOut`: `updated`, `skipped`, `errors[]`
 
 ### PATCH /api/v1/ops/fleets/{fleet_id}/breach-history-settings（Phase 10AG）
 
@@ -1191,14 +1210,19 @@ silence 一覧にチェックボックス列・全選択・「選択した silen
 
 応答 `items[]` / 横断一覧には `is_sticky` フィールド（Phase 10AB）。
 
-### GET /api/v1/ops/prometheus/alertmanager/breach-states/history/summary（Phase 10AI）
+### GET /api/v1/ops/prometheus/alertmanager/breach-states/history/summary（Phase 10AI / 10AJ）
 
-history GET と同一クエリ（`limit` / `offset` / `format` 除く）。日次バケット集計。
+history GET と同一クエリ（`limit` / `offset` 除く）。日次バケット集計。
+
+| `format` | 応答 |
+|----------|------|
+| json（default） | `FleetBreachHistorySummaryOut` |
+| csv（Phase 10AJ） | `day,total,breaching_count` |
 
 | `fleet_id` | 認可 | 応答 |
 |----------|------|------|
-| 指定あり | fleet スコープ | `FleetBreachHistorySummaryOut` |
-| 省略 | 管理者のみ | `FleetBreachHistorySummaryOut`（全艦隊合算） |
+| 指定あり | fleet スコープ | JSON / CSV |
+| 省略 | 管理者のみ | 全艦隊合算 |
 
 ```json
 {

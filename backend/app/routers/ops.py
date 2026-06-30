@@ -7,7 +7,7 @@ import io
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -42,6 +42,7 @@ from backend.app.models.schemas import (
     FleetBreachHistorySettingsListOut,
     FleetBreachHistorySettingsBulkUpdate,
     FleetBreachHistorySettingsBulkOut,
+    FleetBreachHistorySettingsImportOut,
     FleetBreachStateListOut,
     FleetBreachStateMultiListOut,
     FleetBreachStateEntryOut,
@@ -56,6 +57,7 @@ from backend.app.models.schemas import (
     FleetBreachHistoryDayOut,
     FleetBreachHistorySummaryOut,
     PrometheusReloadOut,
+    PrometheusReloadTaskOut,
     FleetSlaOut,
     MitigationPreviewListOut,
     MitigationPreviewOut,
@@ -803,6 +805,7 @@ def fleet_alert_rules_apply(
         reloaded=result.reloaded,
         reload_message=result.reload_message,
         reload_queued=result.reload_queued,
+        reload_task_id=result.reload_task_id,
     )
 
 
@@ -817,11 +820,34 @@ def prometheus_reload(
 
     reloaded, message = fleet_alert_rules_apply_service.reload_prometheus()
     reload_queued = False
+    reload_task_id = None
     if not reloaded and fleet_alert_rules_apply_service.prometheus_reload_celery_fallback_enabled():
-        reload_queued = fleet_alert_rules_apply_service.queue_prometheus_reload()
+        reload_task_id = fleet_alert_rules_apply_service.queue_prometheus_reload()
+        reload_queued = reload_task_id is not None
         if reload_queued:
             message = f"{message} Celery タスクに enqueue しました。"
-    return PrometheusReloadOut(reloaded=reloaded, reload_queued=reload_queued, message=message)
+    return PrometheusReloadOut(
+        reloaded=reloaded,
+        reload_queued=reload_queued,
+        reload_task_id=reload_task_id,
+        message=message,
+    )
+
+
+@router.get("/prometheus/reload/tasks/{task_id}", response_model=PrometheusReloadTaskOut)
+def prometheus_reload_task_status(
+    task_id: str,
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> PrometheusReloadTaskOut:
+    if is_api_key_required() and not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+    status = fleet_alert_rules_apply_service.get_prometheus_reload_task_status(task_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="reload タスクが見つかりません。")
+    return PrometheusReloadTaskOut(**status)
 
 
 @router.get(
@@ -887,6 +913,53 @@ def bulk_update_fleet_breach_history_settings(
         raise HTTPException(status_code=422, detail="retention_days が範囲外です。") from exc
 
     return FleetBreachHistorySettingsBulkOut(updated=updated)
+
+
+@router.post(
+    "/fleets/breach-history-settings/import",
+    response_model=FleetBreachHistorySettingsImportOut,
+)
+async def import_fleet_breach_history_settings(
+    file: UploadFile = File(...),
+    db: Session = Depends(require_db),
+    principal: AuthPrincipal = Depends(get_auth_principal),
+) -> FleetBreachHistorySettingsImportOut:
+    _require_admin_breach_history(principal)
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=422, detail="CSV の文字コードが不正です。") from exc
+
+    try:
+        rows = breach_history_service.parse_retention_csv(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    valid: list[tuple[uuid.UUID, int | None]] = []
+    errors: list[str] = []
+    skipped = 0
+    for fleet_id, retention_days in rows:
+        fleet = db.get(Fleet, fleet_id)
+        if fleet is None or not fleet.active:
+            errors.append(f"艦隊が見つかりません: {fleet_id}")
+            skipped += 1
+            continue
+        valid.append((fleet_id, retention_days))
+
+    if not valid and errors:
+        raise HTTPException(status_code=422, detail="; ".join(errors))
+
+    try:
+        updated = breach_history_service.bulk_update_fleet_retention(db, valid)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="retention_days が範囲外です。") from exc
+
+    return FleetBreachHistorySettingsImportOut(
+        updated=updated,
+        skipped=skipped,
+        errors=errors,
+    )
 
 
 @router.patch(
@@ -1069,9 +1142,10 @@ def summarize_fleet_breach_history(
     breaching_only: bool = False,
     since: datetime | None = None,
     until: datetime | None = None,
+    format: str = Query("json", pattern="^(json|csv)$"),
     db: Session = Depends(require_db),
     principal: AuthPrincipal = Depends(get_auth_principal),
-) -> FleetBreachHistorySummaryOut:
+):
     if not alertmanager_push_service.alertmanager_push_enabled():
         raise HTTPException(status_code=503, detail="Alertmanager push は無効です。")
     if not breach_history_service.breach_history_enabled():
@@ -1082,6 +1156,7 @@ def summarize_fleet_breach_history(
     if source is not None and source not in breach_history_service.VALID_SOURCES:
         raise HTTPException(status_code=422, detail="source が不正です。")
 
+    scoped_fleet_id: str | None = None
     if fleet_id is None:
         if is_api_key_required() and not principal.is_admin:
             raise HTTPException(status_code=403, detail="管理者権限が必要です。")
@@ -1096,32 +1171,30 @@ def summarize_fleet_breach_history(
             since=since,
             until=until,
         )
-        return FleetBreachHistorySummaryOut(
-            fleet_id=None,
-            items=[
-                FleetBreachHistoryDayOut(
-                    day=row.day,
-                    total=row.total,
-                    breaching_count=row.breaching_count,
-                )
-                for row in rows
-            ],
-            total_days=len(rows),
+    else:
+        fid = _resolve_fleet_for_am_silence(principal, fleet_id)
+        scoped_fleet_id = str(fid)
+        rows = breach_history_service.summarize_history(
+            db,
+            fid,
+            alertname=alertname,
+            alertnames=alertnames,
+            source=source,
+            breaching_only=breaching_only,
+            since=since,
+            until=until,
         )
 
-    fid = _resolve_fleet_for_am_silence(principal, fleet_id)
-    rows = breach_history_service.summarize_history(
-        db,
-        fid,
-        alertname=alertname,
-        alertnames=alertnames,
-        source=source,
-        breaching_only=breaching_only,
-        since=since,
-        until=until,
-    )
+    if format == "csv":
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["day", "total", "breaching_count"])
+        for row in rows:
+            writer.writerow([row.day.isoformat(), row.total, row.breaching_count])
+        return Response(content=buffer.getvalue(), media_type="text/csv")
+
     return FleetBreachHistorySummaryOut(
-        fleet_id=str(fid),
+        fleet_id=scoped_fleet_id,
         items=[
             FleetBreachHistoryDayOut(
                 day=row.day,

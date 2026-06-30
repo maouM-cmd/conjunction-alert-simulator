@@ -4,6 +4,17 @@ All notable changes to Conjunction Alert Simulator (CAS) are documented in this 
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.43.0] - 2026-06-28
+
+Phase 10AJ — summary CSV + retention import + reload polling。
+
+### Added
+
+- **Phase 10AJ:** `GET history/summary?format=csv`
+- `POST /ops/fleets/breach-history-settings/import` — retention CSV インポート
+- `reload_task_id` + `GET /ops/prometheus/reload/tasks/{task_id}`
+- Ops UI — summary CSV、retention インポート、reload ポーリング
+
 ## [1.42.0] - 2026-06-28
 
 Phase 10AI — reload リトライ/Celery fallback + retention CSV + 履歴日次集計。

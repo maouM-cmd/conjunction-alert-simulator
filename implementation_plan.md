@@ -1,8 +1,12 @@
 # implementation_plan — CAS
 
-## Phase 10AJ — 次着手
+## Phase 10AK — 次着手
 
-商用運用ロードマップ Phase 10+（summary CSV、retention CSV インポート、reload Celery ポーリング UI 等）。
+商用運用ロードマップ Phase 10+（summary per-fleet 内訳、retention import dry-run、reload 手動 UI 等）。
+
+## Phase 10AJ — 完了
+
+summary CSV、retention CSV インポート、reload Celery ポーリング UI。v1.43.0 ship 済み。
 
 ## Phase 10AI — 完了
 

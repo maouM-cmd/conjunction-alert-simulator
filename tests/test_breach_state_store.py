@@ -1664,3 +1664,121 @@ def test_breach_history_summary_forbidden_for_fleet_key(ops_client, monkeypatch)
         headers={"X-API-Key": plain},
     )
     assert response_scoped.status_code == 200
+
+
+def test_breach_history_summary_csv_export(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_PUSH_ENABLED", "true")
+    monkeypatch.setenv("ALERTMANAGER_URL", "http://alertmanager:9093")
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "false")
+
+    from datetime import datetime, timezone
+
+    from backend.app.db.models import FleetAlertBreachHistory
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Summary CSV Fleet")
+        db.commit()
+        fleet_id = fleet.id
+        db.add(
+            FleetAlertBreachHistory(
+                fleet_id=fleet_id,
+                alertname="CASFleetOpenAlertsHigh",
+                is_breaching=True,
+                source="sync",
+                is_sticky=False,
+                created_at=datetime(2026, 6, 4, tzinfo=timezone.utc),
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    response = ops_client.get(
+        f"/api/v1/ops/prometheus/alertmanager/breach-states/history/summary"
+        f"?fleet_id={fleet_id}&format=csv"
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "day,total,breaching_count" in response.text
+    assert "2026-06-04" in response.text
+
+
+def test_breach_history_settings_csv_import(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Import Fleet")
+        db.commit()
+        fleet_id = str(fleet.id)
+    finally:
+        db.close()
+
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{fleet_id},Import Fleet,45,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["updated"] == 1
+    assert data["skipped"] == 0
+    assert data["errors"] == []
+
+    listing = ops_client.get(
+        "/api/v1/ops/fleets/breach-history-settings",
+        headers={"X-API-Key": "admin-secret"},
+    ).json()
+    row = next(item for item in listing["items"] if item["fleet_id"] == fleet_id)
+    assert row["retention_days"] == 45
+
+
+def test_breach_history_settings_csv_import_skips_unknown_fleet(ops_client, monkeypatch):
+    monkeypatch.setenv("ALERTMANAGER_BREACH_HISTORY_ENABLED", "true")
+    monkeypatch.setenv("CAS_API_KEY_REQUIRED", "true")
+    monkeypatch.setenv("CAS_ADMIN_API_KEY", "admin-secret")
+
+    from backend.app.services.fleet_service import create_fleet
+    from backend.app.db.session import get_session_factory
+
+    unknown_id = str(uuid.uuid4())
+    factory = get_session_factory()
+    db = factory()
+    try:
+        fleet = create_fleet(db, name="Import Known Fleet")
+        db.commit()
+        known_id = str(fleet.id)
+    finally:
+        db.close()
+
+    csv_body = (
+        "fleet_id,fleet_name,retention_days,effective_retention_days\n"
+        f"{known_id},Import Known Fleet,30,\n"
+        f"{unknown_id},Missing Fleet,60,\n"
+    )
+    response = ops_client.post(
+        "/api/v1/ops/fleets/breach-history-settings/import",
+        files={"file": ("retention.csv", csv_body, "text/csv")},
+        headers={"X-API-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["updated"] == 1
+    assert data["skipped"] == 1
+    assert len(data["errors"]) == 1
+    assert unknown_id in data["errors"][0]

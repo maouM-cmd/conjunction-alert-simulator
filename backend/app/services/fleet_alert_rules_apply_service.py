@@ -23,6 +23,10 @@ class FleetAlertRulesApplyResult:
     reloaded: bool = False
     reload_message: str | None = None
     reload_queued: bool = False
+    reload_task_id: str | None = None
+
+
+_enqueued_reload_task_ids: set[str] = set()
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -84,15 +88,62 @@ def reload_prometheus() -> tuple[bool, str]:
     return False, f"Prometheus reload 失敗（{max_retries} 回）: {last_error}"
 
 
-def queue_prometheus_reload() -> bool:
+def queue_prometheus_reload() -> str | None:
     try:
         from backend.app.tasks.alertmanager_tasks import prometheus_reload_task
 
-        prometheus_reload_task.delay()
-        return True
+        async_result = prometheus_reload_task.delay()
+        _enqueued_reload_task_ids.add(async_result.id)
+        return async_result.id
     except Exception as exc:
         logger.warning("Prometheus reload Celery enqueue failed: %s", exc)
-        return False
+        return None
+
+
+def reload_task_known(task_id: str) -> bool:
+    if task_id in _enqueued_reload_task_ids:
+        return True
+
+    from backend.app.tasks.celery_app import celery_app
+
+    backend = celery_app.backend
+    if hasattr(backend, "get_key_for_task") and getattr(backend, "client", None) is not None:
+        try:
+            key = backend.get_key_for_task(task_id)
+            return backend.client.get(key) is not None
+        except Exception:
+            pass
+    return False
+
+
+def get_prometheus_reload_task_status(task_id: str) -> dict | None:
+    if not reload_task_known(task_id):
+        return None
+
+    from backend.app.tasks.celery_app import celery_app
+
+    result = celery_app.AsyncResult(task_id)
+    state = result.state or "PENDING"
+    payload = result.result if isinstance(result.result, dict) else {}
+    reloaded = bool(payload.get("reloaded")) if payload else False
+    message = str(payload.get("message") or "")
+    if state == "SUCCESS" and not message:
+        message = "Prometheus reload タスクが完了しました。"
+    if state == "FAILURE":
+        message = str(result.result) if result.result else "Prometheus reload タスクが失敗しました。"
+        reloaded = False
+    if state in ("PENDING", "STARTED", "RETRY"):
+        message = message or "Prometheus reload タスク実行中…"
+    return {
+        "task_id": task_id,
+        "state": state,
+        "reloaded": reloaded,
+        "message": message,
+    }
+
+
+def clear_reload_tasks_for_tests() -> None:
+    _enqueued_reload_task_ids.clear()
 
 
 def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesApplyResult:
@@ -122,8 +173,10 @@ def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesAppl
 
     reloaded, reload_message = reload_prometheus()
     reload_queued = False
+    reload_task_id = None
     if not reloaded and prometheus_reload_celery_fallback_enabled():
-        reload_queued = queue_prometheus_reload()
+        reload_task_id = queue_prometheus_reload()
+        reload_queued = reload_task_id is not None
         if reload_queued:
             reload_message = f"{reload_message} Celery フォールバックに enqueue しました。"
 
@@ -134,4 +187,5 @@ def apply_fleet_alert_rules(content: str, *, format: str) -> FleetAlertRulesAppl
         reloaded=reloaded,
         reload_message=reload_message,
         reload_queued=reload_queued,
+        reload_task_id=reload_task_id,
     )
